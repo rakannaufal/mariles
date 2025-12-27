@@ -218,6 +218,21 @@ const isStep5Valid = computed(() => agreeTerms.value)
 function selectRole(selectedRole) {
   role.value = selectedRole
   localStorage.setItem('pendingRole', selectedRole)
+  
+  // Owner must select owner type first before choosing method
+  if (selectedRole === 'owner') {
+    phase.value = 'owner-type'
+  } else if (selectedRole === 'teacher') {
+    // Teacher must enter invite code first before choosing method
+    phase.value = 'teacher-code'
+  } else {
+    phase.value = 'method'
+  }
+}
+
+function selectOwnerType(type) {
+  ownerType.value = type
+  localStorage.setItem('pendingOwnerType', type)
   phase.value = 'method'
 }
 
@@ -232,11 +247,48 @@ function selectMethod(method) {
 function backToRole() {
   phase.value = 'role'
   role.value = ''
+  ownerType.value = ''
+  inviteCode.value = ''
+  inviteCodeValid.value = false
+  inviteCodeError.value = ''
+  linkedInviteCode.value = null
+  linkedLesPlace.value = null
+  linkedOwner.value = null
   localStorage.removeItem('pendingRole')
+  localStorage.removeItem('pendingOwnerType')
+  localStorage.removeItem('pendingInviteCode')
+  localStorage.removeItem('pendingLesPlaceId')
+  localStorage.removeItem('pendingOwnerId')
+}
+
+function backToOwnerType() {
+  phase.value = 'owner-type'
+}
+
+function backToTeacherCode() {
+  phase.value = 'teacher-code'
+}
+
+function proceedFromTeacherCode() {
+  if (inviteCodeValid.value) {
+    // Save invite code data to localStorage for Google OAuth
+    localStorage.setItem('pendingInviteCode', linkedInviteCode.value.code)
+    localStorage.setItem('pendingLesPlaceId', linkedInviteCode.value.les_place_id)
+    localStorage.setItem('pendingOwnerId', linkedInviteCode.value.owner_id)
+    phase.value = 'method'
+  }
 }
 
 function backToMethod() {
-  phase.value = 'method'
+  if (role.value === 'owner') {
+    // For owners, go back to owner type selection
+    phase.value = 'owner-type'
+  } else if (role.value === 'teacher') {
+    // For teachers, go back to invite code
+    phase.value = 'teacher-code'
+  } else {
+    phase.value = 'method'
+  }
   step.value = 1
 }
 
@@ -265,33 +317,20 @@ async function validateInviteCode() {
   linkedInviteCode.value = null
   
   try {
-    // Query from teacher_invite_codes table
-    const { data, error } = await supabase
-      .from('teacher_invite_codes')
-      .select(`
-        id,
-        code,
-        owner_id,
-        les_place_id,
-        expires_at,
-        is_used,
-        les_places(id, name),
-        owners(id, business_name, users(name))
-      `)
-      .eq('code', inviteCode.value.toUpperCase())
-      .eq('is_used', false)
-      .single()
+    // Gunakan RPC function untuk bypass RLS issues
+    const { data: rpcResult, error } = await supabase.rpc('validate_invite_code', { 
+      code_input: inviteCode.value.toUpperCase() 
+    })
     
-    if (error || !data) {
-      inviteCodeError.value = 'Kode tidak valid atau tidak ditemukan'
+    if (error) throw error
+
+    // Cek hasil logic dari RPC
+    if (!rpcResult.success) {
+      inviteCodeError.value = rpcResult.message
       return
     }
-    
-    // Check if code is expired
-    if (data.expires_at && new Date(data.expires_at) < new Date()) {
-      inviteCodeError.value = 'Kode sudah kadaluarsa'
-      return
-    }
+
+    const data = rpcResult.data
     
     // Store the invite code data
     linkedInviteCode.value = data
@@ -432,12 +471,119 @@ function getStepLabels() {
             </div>
           </div>
 
+          <!-- Phase 1.5: Owner Type Selection (NEW - Only for Owners) -->
+          <div v-if="phase === 'owner-type'" class="phase-content animate-fade-in">
+            <div class="selected-role-badge">
+              <span>Mendaftar sebagai:</span>
+              <strong>{{ getRoleLabel(role) }}</strong>
+              <button class="change-role-btn" @click="backToRole">Ubah</button>
+            </div>
+
+            <div class="owner-type-selection">
+              <h3 class="selection-title">Pilih Jenis Tempat Les</h3>
+              <p class="selection-desc">Tentukan bagaimana Anda akan mengelola tempat les Anda</p>
+              
+              <div class="owner-type-cards-large">
+                <div 
+                  class="owner-type-card-large" 
+                  @click="selectOwnerType('pribadi')"
+                >
+                  <div class="card-icon">👤</div>
+                  <div class="card-content">
+                    <strong>Pribadi</strong>
+                    <p>Saya mengajar sendiri di tempat les saya. Tidak ada guru lain yang mengajar.</p>
+                  </div>
+                  <span class="card-arrow">→</span>
+                </div>
+                
+                <div 
+                  class="owner-type-card-large" 
+                  @click="selectOwnerType('umum')"
+                >
+                  <div class="card-icon">👥</div>
+                  <div class="card-content">
+                    <strong>Umum</strong>
+                    <p>Saya memiliki satu atau lebih guru yang mengajar di tempat les saya.</p>
+                  </div>
+                  <span class="card-arrow">→</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Phase 1.6: Teacher Invite Code (Only for Teachers) -->
+          <div v-if="phase === 'teacher-code'" class="phase-content animate-fade-in">
+            <div class="selected-role-badge">
+              <span>Mendaftar sebagai:</span>
+              <strong>{{ getRoleLabel(role) }}</strong>
+              <button class="change-role-btn" @click="backToRole">Ubah</button>
+            </div>
+
+            <div class="teacher-code-section">
+              <h3 class="selection-title">Masukkan Kode Undangan</h3>
+              <p class="selection-desc">Masukkan kode undangan yang diberikan oleh pemilik tempat les</p>
+              
+              <div class="invite-code-form">
+                <div class="form-group">
+                  <input 
+                    v-model="inviteCode" 
+                    type="text" 
+                    class="form-input invite-code-input" 
+                    placeholder="Masukkan kode 6 karakter"
+                    maxlength="6"
+                    @input="inviteCode = inviteCode.toUpperCase()"
+                  >
+                  <button 
+                    type="button" 
+                    class="btn btn-secondary validate-btn"
+                    @click="validateInviteCode"
+                    :disabled="validatingCode || inviteCode.length < 6"
+                  >
+                    <span v-if="validatingCode">Memvalidasi...</span>
+                    <span v-else>Validasi</span>
+                  </button>
+                </div>
+                
+                <div v-if="inviteCodeError" class="invite-error">{{ inviteCodeError }}</div>
+                
+                <div v-if="inviteCodeValid && linkedLesPlace" class="invite-success">
+                  <span class="success-icon">✓</span>
+                  <div class="success-info">
+                    <strong>Kode Valid!</strong>
+                    <p>Anda akan bergabung dengan: <strong>{{ linkedLesPlace.name }}</strong></p>
+                    <p v-if="linkedOwner">Pemilik: {{ linkedOwner.users?.name || linkedOwner.business_name }}</p>
+                  </div>
+                </div>
+              </div>
+              
+              <div class="action-buttons">
+                <button type="button" class="btn btn-outline" @click="backToRole">Kembali</button>
+                <button 
+                  type="button" 
+                  class="btn btn-secondary"
+                  @click="proceedFromTeacherCode"
+                  :disabled="!inviteCodeValid"
+                >
+                  Lanjutkan
+                </button>
+              </div>
+            </div>
+          </div>
+
           <!-- Phase 2: Method Selection -->
           <div v-if="phase === 'method'" class="phase-content animate-fade-in">
             <div class="selected-role-badge">
               <span>Mendaftar sebagai:</span>
               <strong>{{ getRoleLabel(role) }}</strong>
-              <button class="change-role-btn" @click="backToRole">Ubah</button>
+              <template v-if="role === 'owner'">
+                <span class="badge-separator">•</span>
+                <strong>{{ ownerType === 'pribadi' ? 'Pribadi' : 'Umum' }}</strong>
+              </template>
+              <template v-if="role === 'teacher' && linkedLesPlace">
+                <span class="badge-separator">•</span>
+                <strong>{{ linkedLesPlace.name }}</strong>
+              </template>
+              <button class="change-role-btn" @click="role === 'owner' ? backToOwnerType() : role === 'teacher' ? backToTeacherCode() : backToRole()">Ubah</button>
             </div>
 
             <div class="method-selection">
@@ -462,6 +608,7 @@ function getStepLabels() {
                 <span v-else>Daftar dengan Google</span>
               </button>
             </div>
+
           </div>
 
           <!-- Phase 3: Manual Form -->
@@ -941,4 +1088,35 @@ function getStepLabels() {
 .radio-dot.active::after{content:'';position:absolute;top:3px;left:3px;width:8px;height:8px;border-radius:50%;background:var(--secondary)}
 .owner-type-info strong{display:block;font-size:var(--font-size-sm);color:var(--text);margin-bottom:2px}
 .owner-type-info p{font-size:var(--font-size-xs);color:var(--text-secondary);margin:0}
+
+/* Owner Type Selection Phase (Large Cards) */
+.owner-type-selection{margin-top:var(--spacing-lg)}
+.selection-title{font-size:var(--font-size-lg);font-weight:600;color:var(--text);margin-bottom:var(--spacing-xs)}
+.selection-desc{font-size:var(--font-size-sm);color:var(--text-secondary);margin-bottom:var(--spacing-lg)}
+.owner-type-cards-large{display:flex;flex-direction:column;gap:var(--spacing-md)}
+.owner-type-card-large{display:flex;align-items:center;gap:var(--spacing-lg);padding:var(--spacing-lg) var(--spacing-xl);background:white;border:2px solid var(--border);border-radius:var(--radius-xl);cursor:pointer;transition:all var(--transition-fast)}
+.owner-type-card-large:hover{border-color:var(--secondary);background:#f0faff;transform:translateX(4px)}
+.owner-type-card-large .card-icon{font-size:32px;width:56px;height:56px;display:flex;align-items:center;justify-content:center;background:var(--background);border-radius:var(--radius-lg)}
+.owner-type-card-large .card-content{flex:1}
+.owner-type-card-large .card-content strong{display:block;font-size:var(--font-size-lg);color:var(--text);margin-bottom:4px}
+.owner-type-card-large .card-content p{font-size:var(--font-size-sm);color:var(--text-secondary);margin:0;line-height:1.5}
+.owner-type-card-large .card-arrow{font-size:var(--font-size-xl);color:var(--text-muted);transition:transform var(--transition-fast)}
+.owner-type-card-large:hover .card-arrow{transform:translateX(4px);color:var(--secondary)}
+
+/* Badge separator */
+.badge-separator{margin:0 var(--spacing-xs);color:var(--text-muted)}
+
+/* Teacher Code Section */
+.teacher-code-section{margin-top:var(--spacing-lg)}
+.invite-code-form{margin-top:var(--spacing-lg)}
+.invite-code-form .form-group{display:flex;gap:var(--spacing-sm);margin-bottom:var(--spacing-md)}
+.invite-code-form .invite-code-input{flex:1;font-family:monospace;font-size:var(--font-size-lg);letter-spacing:4px;text-transform:uppercase;text-align:center}
+.invite-code-form .validate-btn{white-space:nowrap}
+.invite-error{color:var(--error);font-size:var(--font-size-sm);margin-bottom:var(--spacing-md)}
+.invite-success{display:flex;align-items:flex-start;gap:var(--spacing-md);padding:var(--spacing-md);background:#dcfce7;border:2px solid #86efac;border-radius:var(--radius-lg);margin-bottom:var(--spacing-lg)}
+.invite-success .success-icon{width:40px;height:40px;min-width:40px;background:#16a34a;color:white;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:bold}
+.invite-success .success-info strong{color:#16a34a;display:block;margin-bottom:4px}
+.invite-success .success-info p{font-size:var(--font-size-sm);color:#15803d;margin:0 0 4px 0}
+.action-buttons{display:flex;gap:var(--spacing-md);justify-content:space-between;margin-top:var(--spacing-xl)}
+.action-buttons .btn{flex:1}
 </style>

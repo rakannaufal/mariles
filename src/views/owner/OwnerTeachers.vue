@@ -6,6 +6,7 @@ import { supabase } from '@/lib/supabase'
 
 const authStore = useAuthStore()
 const teachers = ref([])
+const categories = ref([]) // Store available categories
 const inviteCodes = ref([])
 const loading = ref(true)
 const loadingCodes = ref(false)
@@ -18,6 +19,10 @@ const owner = ref(null)
 const lesPlace = ref(null)
 const ownerType = ref(null)
 const searchQuery = ref('')
+const showEditModal = ref(false)
+const editingTeacher = ref(null)
+const selectedCategoryIds = ref([]) // For checkbox selection
+const saving = ref(false)
 
 // Check if owner is type "umum"
 const isOwnerUmum = computed(() => ownerType.value === 'umum')
@@ -48,8 +53,33 @@ const filteredTeachers = computed(() => {
 
 onMounted(async () => {
   await fetchOwnerData()
-  await fetchTeachers()
+  // Wait for owner data to get lesPlace info before fetching programs
+  if (lesPlace.value?.id) {
+    await Promise.all([
+      fetchTeachers(),
+      fetchPrograms()
+    ])
+  } else {
+    await fetchTeachers()
+  }
 })
+
+async function fetchPrograms() {
+  try {
+    if (!lesPlace.value?.id) return
+    
+    // Fetch programs specifically for THIS les place to assign teachers to
+    const { data } = await supabase
+      .from('programs')
+      .select('id, name')
+      .eq('les_place_id', lesPlace.value.id)
+      .order('name')
+      
+    categories.value = data || []
+  } catch (err) {
+    console.error('Error fetching programs:', err)
+  }
+}
 
 async function fetchOwnerData() {
   try {
@@ -186,6 +216,56 @@ function closeDetailModal() {
   selectedTeacher.value = null
 }
 
+function openEditTeacher(teacher) {
+  editingTeacher.value = teacher
+  // Map existing specializations to category selection if names match
+  // Or simply start fresh? Better to try match.
+  selectedCategoryIds.value = []
+  
+  if (teacher.specialization && teacher.specialization.length) {
+    // Find categories that match the specialization names
+    categories.value.forEach(cat => {
+      if (teacher.specialization.includes(cat.name)) {
+        selectedCategoryIds.value.push(cat.name)
+      }
+    })
+  }
+  showEditModal.value = true
+}
+
+async function updateTeacher() {
+  saving.value = true
+  try {
+    // Save selected category NAMES as specialization array
+    // This keeps compatibility with existing structure while forcing structured input
+    const updates = {
+      specialization: selectedCategoryIds.value
+    }
+    
+    const { error } = await supabase
+      .from('teachers')
+      .update(updates)
+      .eq('id', editingTeacher.value.id)
+      
+    if (error) throw error
+    
+    // Update local data
+    const idx = teachers.value.findIndex(t => t.id === editingTeacher.value.id)
+    if (idx !== -1) {
+      teachers.value[idx] = { ...teachers.value[idx], ...updates }
+    }
+    
+    showEditModal.value = false
+    editingTeacher.value = null
+    alert('Penugasan guru berhasil diperbarui')
+  } catch (err) {
+    console.error('Error updating teacher:', err)
+    alert('Gagal memperbarui data guru')
+  } finally {
+    saving.value = false
+  }
+}
+
 function calculateAge(birthDate) {
   if (!birthDate) return null
   const today = new Date()
@@ -283,8 +363,9 @@ function calculateAge(birthDate) {
             </div>
           </div>
           
-          <div class="card-footer">
-            <button class="btn btn-outline btn-full" @click="openTeacherDetail(teacher)">Lihat Detail</button>
+          <div class="card-footer grid-2">
+            <button class="btn btn-outline" @click="openTeacherDetail(teacher)">Detail</button>
+            <button class="btn btn-primary" @click="openEditTeacher(teacher)">Edit</button>
           </div>
         </div>
       </div>
@@ -446,8 +527,42 @@ function calculateAge(birthDate) {
           </div>
         </div>
       </div>
+      </div>
     </div>
-  </div>
+
+    <!-- Edit Teacher Assignment Modal -->
+    <div v-if="showEditModal" class="modal-overlay" @click.self="showEditModal = false">
+      <div class="modal edit-modal">
+        <div class="modal-header">
+          <h2>Tugaskan Guru</h2>
+          <button class="modal-close" @click="showEditModal = false">&times;</button>
+        </div>
+        <div class="modal-body form-body">
+          <p class="text-sm text-muted mb-4">Pilih <strong>Program</strong> yang akan diajar oleh <strong>{{ editingTeacher?.users?.name }}</strong>:</p>
+          
+          <div class="categories-grid">
+            <label v-for="cat in categories" :key="cat.id" class="checkbox-item">
+              <input 
+                type="checkbox" 
+                :value="cat.name"
+                v-model="selectedCategoryIds"
+              >
+              <span class="checkbox-label">{{ cat.name }}</span>
+            </label>
+          </div>
+
+          <div v-if="categories.length === 0" class="text-center p-4">
+            <span class="text-xs text-muted">Belum ada program tersedia di tempat les ini.</span>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-outline" @click="showEditModal = false">Batal</button>
+          <button class="btn btn-primary" @click="updateTeacher" :disabled="saving">
+            {{ saving ? 'Menyimpan...' : 'Simpan Penugasan' }}
+          </button>
+        </div>
+      </div>
+    </div>
 </template>
 
 <style scoped>
@@ -501,7 +616,113 @@ function calculateAge(birthDate) {
 .truncate{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 
 .card-footer{padding:var(--spacing-md) var(--spacing-lg);border-top:1px solid var(--border-light);background:#fafafa}
+.card-footer.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .btn-full{width:100%;justify-content:center}
+
+/* Categories Grid for Checkboxes */
+.categories-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  max-height: 300px;
+  overflow-y: auto;
+  padding: 4px;
+}
+
+.checkbox-item {
+  display: flex;
+  align-items: center;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+  background: white;
+}
+
+.checkbox-item:hover {
+  border-color: var(--primary);
+  background: #f0f9ff;
+}
+
+.checkbox-item input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  margin-right: 10px;
+  accent-color: var(--primary);
+  cursor: pointer;
+}
+
+.checkbox-label {
+  font-size: 14px;
+  color: var(--text);
+  font-weight: 500;
+}
+
+.info-box {
+  background: #fffbeb;
+  border: 1px solid #fcd34d;
+  border-radius: 6px;
+  padding: 10px;
+  margin-top: 16px;
+  color: #92400e;
+}
+
+.text-sm { font-size: 14px; }
+.text-xs { font-size: 12px; }
+.mb-4 { margin-bottom: 16px; }
+.mt-4 { margin-top: 16px; }
+.text-center { text-align: center; }
+.p-4 { padding: 16px; }
+
+/* Existing Edit Modal Styles */
+.edit-modal {
+  max-width: 500px;
+  width: 100%;
+}
+
+.edit-modal .modal-body {
+  padding: 24px 32px;
+}
+
+.edit-modal .modal-footer {
+  padding: 20px 32px;
+  border-top: 1px solid var(--border-light);
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  background: #f8fafc;
+}
+
+.edit-modal .btn {
+  padding: 10px 20px;
+  border-radius: var(--radius-lg);
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: none;
+}
+
+.edit-modal .btn-primary {
+  background: var(--primary);
+  color: white;
+}
+
+.edit-modal .btn-primary:hover {
+  background: var(--primary-dark);
+}
+
+.edit-modal .btn-outline {
+  background: white;
+  border: 1px solid var(--border);
+  color: var(--text);
+}
+
+.edit-modal .btn-outline:hover {
+  background: #f9fafb;
+  border-color: var(--text-secondary);
+}
 
 /* Loading & Empty */
 .loading-state{display:flex;justify-content:center;padding:var(--spacing-3xl)}

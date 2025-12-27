@@ -144,7 +144,7 @@ async function fetchOwnerAndLesPlace() {
     owner.value = ownerData
 
     // Get les place for this owner
-    const { data: lesData } = await supabase
+    let { data: lesData } = await supabase
       .from('les_places')
       .select(`
         *,
@@ -152,6 +152,34 @@ async function fetchOwnerAndLesPlace() {
       `)
       .eq('owner_id', ownerData.id)
       .single()
+
+    // AUTO CREATE les_place jika belum ada
+    if (!lesData) {
+      const userName = authStore.userProfile?.name || authStore.user?.email?.split('@')[0] || 'Tempat Les'
+      
+      const { data: newLesPlace, error: createError } = await supabase
+        .from('les_places')
+        .insert({
+          owner_id: ownerData.id,
+          name: userName + "'s Les",
+          description: 'Selamat datang di tempat les kami! Silakan edit informasi ini.',
+          address: 'Alamat belum diisi',
+          type: 'offline',
+          is_verified: false,
+          is_active: true,
+          photos: [],
+          facilities: [],
+          total_students: 0,
+          rating: 0,
+          total_reviews: 0
+        })
+        .select(`*, programs(id, name, price, is_active)`)
+        .single()
+      
+      if (!createError && newLesPlace) {
+        lesData = newLesPlace
+      }
+    }
 
     if (lesData) {
       lesPlace.value = lesData
@@ -215,7 +243,6 @@ async function saveChanges() {
         photos: form.value.photos,
         facilities: form.value.facilities,
         highlights: form.value.highlights,
-        max_students: form.value.max_students,
         is_active: form.value.is_active,
         updated_at: new Date().toISOString()
       })
@@ -269,6 +296,13 @@ async function handlePhotoUpload(event) {
   uploadingPhoto.value = true
   
   try {
+    // Check if lesPlace exists
+    if (!lesPlace.value?.id) {
+      uploadError.value = 'Tempat les belum terbuat. Silakan refresh halaman atau hubungi admin.'
+      uploadingPhoto.value = false
+      return
+    }
+    
     // Generate unique filename
     const fileExt = file.name.split('.').pop()
     const fileName = `${lesPlace.value.id}/${Date.now()}.${fileExt}`
@@ -369,7 +403,7 @@ const activePrograms = computed(() => lesPlace.value?.programs?.filter(p => p.is
           <h1>Kelola Tempat Les</h1>
           <p class="header-desc">Kelola informasi lengkap tempat les Anda</p>
         </div>
-        <div class="header-actions" v-if="lesPlace">
+        <div class="header-actions">
           <span :class="['status-badge', form.is_active ? 'active' : 'inactive']">
             {{ form.is_active ? 'Aktif' : 'Nonaktif' }}
           </span>
@@ -389,15 +423,7 @@ const activePrograms = computed(() => lesPlace.value?.programs?.filter(p => p.is
 
       <div v-if="loading" class="loading-state"><div class="loading-spinner"></div></div>
 
-      <div v-else-if="!lesPlace" class="empty-state">
-        <div class="empty-icon">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
-        </div>
-        <h3>Tempat Les Belum Ada</h3>
-        <p>Tempat les Anda belum dibuat. Hubungi admin jika ini adalah kesalahan.</p>
-      </div>
-
-      <div v-else class="content-wrapper">
+      <div v-if="!loading" class="content-wrapper">
         <!-- Quick Stats -->
         <div class="stats-row">
           <div class="stat-card">
@@ -423,7 +449,7 @@ const activePrograms = computed(() => lesPlace.value?.programs?.filter(p => p.is
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
             </span>
             <div class="stat-info">
-              <span class="stat-value">{{ lesPlace.total_students || 0 }}</span>
+              <span class="stat-value">{{ lesPlace?.total_students || 0 }}</span>
               <span class="stat-label">Total Siswa</span>
             </div>
           </div>
@@ -432,7 +458,7 @@ const activePrograms = computed(() => lesPlace.value?.programs?.filter(p => p.is
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
             </span>
             <div class="stat-info">
-              <span class="stat-value">{{ lesPlace.rating || 0 }}</span>
+              <span class="stat-value">{{ lesPlace?.rating || 0 }}</span>
               <span class="stat-label">Rating</span>
             </div>
           </div>

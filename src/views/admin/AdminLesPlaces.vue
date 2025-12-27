@@ -125,25 +125,11 @@ async function verifyPlace(place) {
       rejection_reason: null 
     }).eq('id', place.id)
     
-    // Send notification to owner using owner_user_id from the view
-    const ownerUserId = place.owner_user_id
-    console.log('Verifying place:', place.name, 'owner_user_id:', ownerUserId)
-    
-    if (ownerUserId) {
-      const { error: notifError } = await supabase.from('notifications').insert({
-        user_id: ownerUserId,
-        type: 'verification_approved',
-        title: 'Tempat Les Terverifikasi!',
-        message: `Selamat! Tempat les "${place.name}" telah diverifikasi dan sekarang tampil di pencarian publik.`,
-        link: '/owner/les',
-        is_read: false,
-        created_at: new Date().toISOString()
-      })
-      if (notifError) console.error('Notification error:', notifError)
-      else console.log('Notification sent successfully to user:', ownerUserId)
-    } else {
-      console.warn('No owner_user_id found for place:', place.name)
-    }
+    // Send notification logic encapsulated
+    await sendNotification(place.id, 'verification_approved', 
+      'Tempat Les Terverifikasi!', 
+      `Selamat! Tempat les "${place.name}" telah diverifikasi dan sekarang tampil di pencarian publik.`
+    )
     
     await fetchStats()
     await fetchLesPlaces()
@@ -155,8 +141,8 @@ async function verifyPlace(place) {
     showModal.value = false
     toast('Tempat les berhasil diverifikasi!', 'success')
   } catch (err) {
-    console.error('Error:', err)
-    toast('Gagal memverifikasi', 'error')
+    console.error('Error verifying:', err)
+    toast('Gagal memverifikasi: ' + err.message, 'error')
   }
 }
 
@@ -178,25 +164,11 @@ async function rejectPlace() {
       rejection_reason: rejectionReason.value 
     }).eq('id', rejectingPlace.value.id)
     
-    // Send notification to owner using owner_user_id from the view
-    const ownerUserId = rejectingPlace.value.owner_user_id
-    console.log('Rejecting place:', rejectingPlace.value.name, 'owner_user_id:', ownerUserId)
-    
-    if (ownerUserId) {
-      const { error: notifError } = await supabase.from('notifications').insert({
-        user_id: ownerUserId,
-        type: 'verification_rejected',
-        title: 'Verifikasi Ditolak',
-        message: `Tempat les "${rejectingPlace.value.name}" tidak dapat diverifikasi. Alasan: ${rejectionReason.value}`,
-        link: '/owner/les',
-        is_read: false,
-        created_at: new Date().toISOString()
-      })
-      if (notifError) console.error('Notification error:', notifError)
-      else console.log('Rejection notification sent to user:', ownerUserId)
-    } else {
-      console.warn('No owner_user_id found for place:', rejectingPlace.value.name)
-    }
+    // Send notification
+    await sendNotification(rejectingPlace.value.id, 'verification_rejected', 
+      'Verifikasi Ditolak', 
+      `Tempat les "${rejectingPlace.value.name}" tidak dapat diverifikasi. Alasan: ${rejectionReason.value}`
+    )
     
     await fetchStats()
     await fetchLesPlaces()
@@ -205,8 +177,54 @@ async function rejectPlace() {
     showModal.value = false
     toast('Tempat les ditolak', 'warning')
   } catch (err) {
-    console.error('Error:', err)
-    toast('Gagal menolak', 'error')
+    console.error('Error rejecting:', err)
+    toast('Gagal menolak: ' + err.message, 'error')
+  }
+}
+
+// Helper to reliably send notification
+async function sendNotification(lesPlaceId, type, title, message) {
+  try {
+    // 1. Fetch fresh owner info from the VIEW to ensure we have the ID
+    const { data: placeData, error: fetchError } = await supabase
+      .from('les_places_with_owner')
+      .select('owner_user_id, name')
+      .eq('id', lesPlaceId)
+      .single()
+
+    if (fetchError || !placeData) {
+      console.error('Could not fetch owner for notification:', fetchError)
+      return
+    }
+
+    const userId = placeData.owner_user_id
+    if (!userId) {
+      console.warn('No owner_user_id found for place:', placeData.name)
+      return
+    }
+
+    console.log(`Sending notification to User ${userId} (${type})`)
+
+    // 2. Insert Notification
+    const { error: insertError } = await supabase.from('notifications').insert({
+      user_id: userId,
+      type: type,
+      title: title,
+      message: message,
+      link: '/owner/les',
+      is_read: false,
+      created_at: new Date().toISOString()
+    })
+
+    if (insertError) {
+      console.error('Failed to insert notification:', insertError)
+      throw insertError 
+    } else {
+      console.log('Notification sent successfully!')
+    }
+  } catch (err) {
+    console.error('Notification system error:', err)
+    // Don't throw here, just log, so the main action (verify/reject) still succeeds visually
   }
 }
 

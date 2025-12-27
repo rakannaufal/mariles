@@ -12,7 +12,7 @@ export const useAuthStore = defineStore('auth', () => {
   const userRole = computed(() => 
     userProfile.value?.role || 
     user.value?.user_metadata?.role || 
-    null
+    'student' // Fallback to student if no role found
   )
 
   async function initialize() {
@@ -124,6 +124,13 @@ export const useAuthStore = defineStore('auth', () => {
     })
     
     if (error) throw error
+
+    // Immediately update state to avoid race conditions
+    if (data.user) {
+      user.value = data.user
+      await fetchUserProfile()
+    }
+    
     return data
   }
 
@@ -224,10 +231,14 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   async function signInWithGoogle() {
+    // Get pending role and owner type from localStorage (set during registration)
+    const pendingRole = localStorage.getItem('pendingRole') || 'student'
+    const pendingOwnerType = localStorage.getItem('pendingOwnerType') || null
+    
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: `${window.location.origin}/`,
+        redirectTo: `${window.location.origin}/auth/callback`,
         queryParams: {
           access_type: 'offline',
           prompt: 'consent'

@@ -1257,13 +1257,899 @@ GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO authenticated;
 GRANT SELECT ON public.banners TO anon;
 
 -- =====================================================
--- END OF COMPLETE SCHEMA
--- Total Tables: 33
--- Run this on a fresh Supabase database
+-- SECTION 12: HELPER FUNCTIONS FOR RLS
 -- =====================================================
+CREATE OR REPLACE FUNCTION is_admin()
+RETURNS BOOLEAN AS $$
+BEGIN
+    RETURN EXISTS (
+        SELECT 1 FROM public.users 
+        WHERE id = auth.uid() AND role = 'admin'
+    );
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- =====================================================
--- SECTION 12: STORAGE BUCKET INSTRUCTIONS
+-- SECTION 13: RLS POLICIES - USERS TABLE
+-- =====================================================
+DROP POLICY IF EXISTS "Users can read own profile" ON users;
+DROP POLICY IF EXISTS "Users can read own or admin sees all" ON users;
+DROP POLICY IF EXISTS "users_select" ON users;
+DROP POLICY IF EXISTS "users_insert" ON users;
+DROP POLICY IF EXISTS "users_update" ON users;
+DROP POLICY IF EXISTS "users_delete" ON users;
+
+CREATE POLICY "users_select" ON users FOR SELECT USING (
+    auth.uid() = id OR is_admin()
+);
+CREATE POLICY "users_insert" ON users FOR INSERT WITH CHECK (
+    auth.uid() = id
+);
+CREATE POLICY "users_update" ON users FOR UPDATE USING (
+    auth.uid() = id OR is_admin()
+);
+CREATE POLICY "users_delete" ON users FOR DELETE USING (is_admin());
+
+-- =====================================================
+-- SECTION 14: RLS POLICIES - STUDENTS TABLE
+-- =====================================================
+DROP POLICY IF EXISTS "Students can view own profile" ON students;
+DROP POLICY IF EXISTS "students_select" ON students;
+DROP POLICY IF EXISTS "students_insert" ON students;
+DROP POLICY IF EXISTS "students_update" ON students;
+DROP POLICY IF EXISTS "students_delete" ON students;
+
+CREATE POLICY "students_select" ON students FOR SELECT USING (
+    auth.uid() = user_id OR is_admin()
+);
+CREATE POLICY "students_insert" ON students FOR INSERT WITH CHECK (
+    auth.uid() = user_id
+);
+CREATE POLICY "students_update" ON students FOR UPDATE USING (
+    auth.uid() = user_id OR is_admin()
+);
+CREATE POLICY "students_delete" ON students FOR DELETE USING (is_admin());
+
+-- =====================================================
+-- SECTION 15: RLS POLICIES - OWNERS TABLE
+-- =====================================================
+DROP POLICY IF EXISTS "Owners can view own profile" ON owners;
+DROP POLICY IF EXISTS "owners_select" ON owners;
+DROP POLICY IF EXISTS "owners_insert" ON owners;
+DROP POLICY IF EXISTS "owners_update" ON owners;
+DROP POLICY IF EXISTS "owners_delete" ON owners;
+
+CREATE POLICY "owners_select" ON owners FOR SELECT USING (
+    auth.uid() = user_id OR is_admin()
+);
+CREATE POLICY "owners_insert" ON owners FOR INSERT WITH CHECK (
+    auth.uid() = user_id
+);
+CREATE POLICY "owners_update" ON owners FOR UPDATE USING (
+    auth.uid() = user_id OR is_admin()
+);
+CREATE POLICY "owners_delete" ON owners FOR DELETE USING (is_admin());
+
+-- =====================================================
+-- SECTION 16: RLS POLICIES - LES_PLACES TABLE
+-- =====================================================
+DROP POLICY IF EXISTS "Les places view" ON les_places;
+DROP POLICY IF EXISTS "les_places_select" ON les_places;
+DROP POLICY IF EXISTS "les_places_insert" ON les_places;
+DROP POLICY IF EXISTS "les_places_update" ON les_places;
+DROP POLICY IF EXISTS "les_places_delete" ON les_places;
+
+CREATE POLICY "les_places_select" ON les_places FOR SELECT USING (
+    is_verified = true 
+    OR owner_id IN (SELECT id FROM owners WHERE user_id = auth.uid())
+    OR is_admin()
+);
+CREATE POLICY "les_places_insert" ON les_places FOR INSERT WITH CHECK (
+    owner_id IN (SELECT id FROM owners WHERE user_id = auth.uid())
+);
+CREATE POLICY "les_places_update" ON les_places FOR UPDATE USING (
+    owner_id IN (SELECT id FROM owners WHERE user_id = auth.uid())
+    OR is_admin()
+);
+CREATE POLICY "les_places_delete" ON les_places FOR DELETE USING (
+    owner_id IN (SELECT id FROM owners WHERE user_id = auth.uid())
+    OR is_admin()
+);
+
+-- =====================================================
+-- SECTION 17: RLS POLICIES - CATEGORIES TABLE
+-- =====================================================
+DROP POLICY IF EXISTS "categories_select" ON categories;
+DROP POLICY IF EXISTS "categories_insert" ON categories;
+DROP POLICY IF EXISTS "categories_update" ON categories;
+DROP POLICY IF EXISTS "categories_delete" ON categories;
+
+CREATE POLICY "categories_select" ON categories FOR SELECT USING (true);
+CREATE POLICY "categories_insert" ON categories FOR INSERT WITH CHECK (is_admin());
+CREATE POLICY "categories_update" ON categories FOR UPDATE USING (is_admin());
+CREATE POLICY "categories_delete" ON categories FOR DELETE USING (is_admin());
+
+-- =====================================================
+-- SECTION 18: RLS POLICIES - TEACHERS TABLE
+-- =====================================================
+DROP POLICY IF EXISTS "Teachers can view own profile" ON teachers;
+DROP POLICY IF EXISTS "teachers_select" ON teachers;
+DROP POLICY IF EXISTS "teachers_insert" ON teachers;
+DROP POLICY IF EXISTS "teachers_update" ON teachers;
+DROP POLICY IF EXISTS "teachers_delete" ON teachers;
+
+CREATE POLICY "teachers_select" ON teachers FOR SELECT USING (
+    auth.uid() = user_id 
+    OR owner_id IN (SELECT id FROM owners WHERE user_id = auth.uid())
+    OR is_admin()
+);
+CREATE POLICY "teachers_insert" ON teachers FOR INSERT WITH CHECK (
+    auth.uid() = user_id 
+    OR owner_id IN (SELECT id FROM owners WHERE user_id = auth.uid())
+);
+CREATE POLICY "teachers_update" ON teachers FOR UPDATE USING (
+    auth.uid() = user_id 
+    OR owner_id IN (SELECT id FROM owners WHERE user_id = auth.uid())
+    OR is_admin()
+);
+CREATE POLICY "teachers_delete" ON teachers FOR DELETE USING (
+    owner_id IN (SELECT id FROM owners WHERE user_id = auth.uid())
+    OR is_admin()
+);
+
+-- =====================================================
+-- SECTION 19: RLS POLICIES - PROGRAMS TABLE
+-- =====================================================
+DROP POLICY IF EXISTS "Programs are viewable" ON programs;
+DROP POLICY IF EXISTS "programs_select" ON programs;
+DROP POLICY IF EXISTS "programs_insert" ON programs;
+DROP POLICY IF EXISTS "programs_update" ON programs;
+DROP POLICY IF EXISTS "programs_delete" ON programs;
+
+CREATE POLICY "programs_select" ON programs FOR SELECT USING (
+    is_active = true 
+    OR les_place_id IN (
+        SELECT lp.id FROM les_places lp 
+        JOIN owners o ON lp.owner_id = o.id 
+        WHERE o.user_id = auth.uid()
+    )
+    OR is_admin()
+);
+CREATE POLICY "programs_insert" ON programs FOR INSERT WITH CHECK (
+    les_place_id IN (
+        SELECT lp.id FROM les_places lp 
+        JOIN owners o ON lp.owner_id = o.id 
+        WHERE o.user_id = auth.uid()
+    )
+);
+CREATE POLICY "programs_update" ON programs FOR UPDATE USING (
+    les_place_id IN (
+        SELECT lp.id FROM les_places lp 
+        JOIN owners o ON lp.owner_id = o.id 
+        WHERE o.user_id = auth.uid()
+    )
+    OR is_admin()
+);
+CREATE POLICY "programs_delete" ON programs FOR DELETE USING (
+    les_place_id IN (
+        SELECT lp.id FROM les_places lp 
+        JOIN owners o ON lp.owner_id = o.id 
+        WHERE o.user_id = auth.uid()
+    )
+    OR is_admin()
+);
+
+-- =====================================================
+-- SECTION 20: RLS POLICIES - FAVORITES TABLE
+-- =====================================================
+DROP POLICY IF EXISTS "favorites_select" ON favorites;
+DROP POLICY IF EXISTS "favorites_insert" ON favorites;
+DROP POLICY IF EXISTS "favorites_delete" ON favorites;
+
+CREATE POLICY "favorites_select" ON favorites FOR SELECT USING (
+    user_id = auth.uid() OR is_admin()
+);
+CREATE POLICY "favorites_insert" ON favorites FOR INSERT WITH CHECK (
+    user_id = auth.uid()
+);
+CREATE POLICY "favorites_delete" ON favorites FOR DELETE USING (
+    user_id = auth.uid()
+);
+
+-- =====================================================
+-- SECTION 21: RLS POLICIES - NOTIFICATIONS TABLE
+-- =====================================================
+DROP POLICY IF EXISTS "notifications_select" ON notifications;
+DROP POLICY IF EXISTS "notifications_insert" ON notifications;
+DROP POLICY IF EXISTS "notifications_update" ON notifications;
+DROP POLICY IF EXISTS "notifications_delete" ON notifications;
+
+CREATE POLICY "notifications_select" ON notifications FOR SELECT USING (
+    user_id = auth.uid() OR is_admin()
+);
+CREATE POLICY "notifications_insert" ON notifications FOR INSERT WITH CHECK (is_admin());
+CREATE POLICY "notifications_update" ON notifications FOR UPDATE USING (
+    user_id = auth.uid()
+);
+CREATE POLICY "notifications_delete" ON notifications FOR DELETE USING (
+    user_id = auth.uid() OR is_admin()
+);
+
+-- =====================================================
+-- SECTION 22: RLS POLICIES - REVIEWS TABLE
+-- =====================================================
+DROP POLICY IF EXISTS "reviews_select" ON reviews;
+DROP POLICY IF EXISTS "reviews_insert" ON reviews;
+DROP POLICY IF EXISTS "reviews_update" ON reviews;
+DROP POLICY IF EXISTS "reviews_delete" ON reviews;
+
+CREATE POLICY "reviews_select" ON reviews FOR SELECT USING (true);
+CREATE POLICY "reviews_insert" ON reviews FOR INSERT WITH CHECK (
+    student_id IN (SELECT id FROM students WHERE user_id = auth.uid())
+);
+CREATE POLICY "reviews_update" ON reviews FOR UPDATE USING (
+    student_id IN (SELECT id FROM students WHERE user_id = auth.uid())
+    OR les_place_id IN (SELECT id FROM les_places WHERE owner_id IN (SELECT id FROM owners WHERE user_id = auth.uid()))
+    OR is_admin()
+);
+CREATE POLICY "reviews_delete" ON reviews FOR DELETE USING (
+    student_id IN (SELECT id FROM students WHERE user_id = auth.uid())
+    OR is_admin()
+);
+
+-- =====================================================
+-- SECTION 23: RLS POLICIES - BOOKINGS TABLE
+-- =====================================================
+DROP POLICY IF EXISTS "bookings_select" ON bookings;
+DROP POLICY IF EXISTS "bookings_insert" ON bookings;
+DROP POLICY IF EXISTS "bookings_update" ON bookings;
+DROP POLICY IF EXISTS "bookings_delete" ON bookings;
+
+CREATE POLICY "bookings_select" ON bookings FOR SELECT USING (
+    student_id IN (SELECT id FROM students WHERE user_id = auth.uid())
+    OR program_id IN (
+        SELECT p.id FROM programs p 
+        JOIN les_places lp ON p.les_place_id = lp.id 
+        JOIN owners o ON lp.owner_id = o.id
+        WHERE o.user_id = auth.uid()
+    )
+    OR is_admin()
+);
+CREATE POLICY "bookings_insert" ON bookings FOR INSERT WITH CHECK (
+    student_id IN (SELECT id FROM students WHERE user_id = auth.uid())
+);
+CREATE POLICY "bookings_update" ON bookings FOR UPDATE USING (
+    program_id IN (
+        SELECT p.id FROM programs p 
+        JOIN les_places lp ON p.les_place_id = lp.id 
+        JOIN owners o ON lp.owner_id = o.id
+        WHERE o.user_id = auth.uid()
+    )
+    OR is_admin()
+);
+CREATE POLICY "bookings_delete" ON bookings FOR DELETE USING (is_admin());
+
+-- =====================================================
+-- SECTION 24: RLS POLICIES - BANNERS & VOUCHERS TABLE
+-- =====================================================
+DROP POLICY IF EXISTS "banners_select" ON banners;
+DROP POLICY IF EXISTS "banners_insert" ON banners;
+DROP POLICY IF EXISTS "banners_update" ON banners;
+DROP POLICY IF EXISTS "banners_delete" ON banners;
+
+CREATE POLICY "banners_select" ON banners FOR SELECT USING (is_active = true OR is_admin());
+CREATE POLICY "banners_insert" ON banners FOR INSERT WITH CHECK (is_admin());
+CREATE POLICY "banners_update" ON banners FOR UPDATE USING (is_admin());
+CREATE POLICY "banners_delete" ON banners FOR DELETE USING (is_admin());
+
+DROP POLICY IF EXISTS "vouchers_select" ON vouchers;
+DROP POLICY IF EXISTS "vouchers_insert" ON vouchers;
+DROP POLICY IF EXISTS "vouchers_update" ON vouchers;
+DROP POLICY IF EXISTS "vouchers_delete" ON vouchers;
+
+CREATE POLICY "vouchers_select" ON vouchers FOR SELECT USING (is_active = true OR is_admin());
+CREATE POLICY "vouchers_insert" ON vouchers FOR INSERT WITH CHECK (is_admin());
+CREATE POLICY "vouchers_update" ON vouchers FOR UPDATE USING (is_admin());
+CREATE POLICY "vouchers_delete" ON vouchers FOR DELETE USING (is_admin());
+
+-- =====================================================
+-- SECTION 25: SEED ADMIN USER
+-- Email: mariles@gmail.com
+-- Password: mariles123
+-- =====================================================
+-- NOTE: This requires running via Supabase Auth API or Dashboard
+-- The following inserts the user profile AFTER auth user is created
+-- You must create the auth user first via Supabase Dashboard:
+-- 1. Go to Authentication > Users
+-- 2. Click "Add user" > "Create new user"
+-- 3. Email: mariles@gmail.com
+-- 4. Password: mariles123
+-- 5. Email Confirm: checked
+-- 6. Then run SQL below with the correct UUID
+
+-- After creating auth user, run this (replace UUID with actual one):
+-- INSERT INTO public.users (id, email, name, phone, role, avatar, created_at)
+-- VALUES (
+--   'YOUR-AUTH-USER-UUID-HERE',
+--   'mariles@gmail.com',
+--   'Admin Mariles',
+--   '081234567890',
+--   'admin',
+--   NULL,
+--   NOW()
+-- ) ON CONFLICT (id) DO UPDATE SET role = 'admin', name = 'Admin Mariles';
+
+-- =====================================================
+-- SECTION 26: RLS POLICIES - PAYMENTS TABLE
+-- =====================================================
+DROP POLICY IF EXISTS "payments_select" ON payments;
+DROP POLICY IF EXISTS "payments_insert" ON payments;
+DROP POLICY IF EXISTS "payments_update" ON payments;
+DROP POLICY IF EXISTS "payments_delete" ON payments;
+
+CREATE POLICY "payments_select" ON payments FOR SELECT USING (
+    booking_id IN (
+        SELECT id FROM bookings WHERE student_id IN (
+            SELECT id FROM students WHERE user_id = auth.uid()
+        )
+    )
+    OR booking_id IN (
+        SELECT b.id FROM bookings b
+        JOIN programs p ON b.program_id = p.id
+        JOIN les_places lp ON p.les_place_id = lp.id
+        JOIN owners o ON lp.owner_id = o.id
+        WHERE o.user_id = auth.uid()
+    )
+    OR is_admin()
+);
+CREATE POLICY "payments_insert" ON payments FOR INSERT WITH CHECK (
+    booking_id IN (
+        SELECT id FROM bookings WHERE student_id IN (
+            SELECT id FROM students WHERE user_id = auth.uid()
+        )
+    )
+    OR is_admin()
+);
+CREATE POLICY "payments_update" ON payments FOR UPDATE USING (is_admin());
+CREATE POLICY "payments_delete" ON payments FOR DELETE USING (is_admin());
+
+-- =====================================================
+-- SECTION 27: RLS POLICIES - CONVERSATIONS TABLE
+-- =====================================================
+DROP POLICY IF EXISTS "conversations_select" ON conversations;
+DROP POLICY IF EXISTS "conversations_insert" ON conversations;
+DROP POLICY IF EXISTS "conversations_update" ON conversations;
+DROP POLICY IF EXISTS "conversations_delete" ON conversations;
+
+CREATE POLICY "conversations_select" ON conversations FOR SELECT USING (
+    student_id = auth.uid() 
+    OR teacher_id = auth.uid()
+    OR is_admin()
+);
+CREATE POLICY "conversations_insert" ON conversations FOR INSERT WITH CHECK (
+    student_id = auth.uid() 
+    OR teacher_id = auth.uid()
+);
+CREATE POLICY "conversations_update" ON conversations FOR UPDATE USING (
+    student_id = auth.uid() 
+    OR teacher_id = auth.uid()
+);
+CREATE POLICY "conversations_delete" ON conversations FOR DELETE USING (is_admin());
+
+-- =====================================================
+-- SECTION 28: RLS POLICIES - MESSAGES TABLE
+-- =====================================================
+DROP POLICY IF EXISTS "messages_select" ON messages;
+DROP POLICY IF EXISTS "messages_insert" ON messages;
+DROP POLICY IF EXISTS "messages_update" ON messages;
+DROP POLICY IF EXISTS "messages_delete" ON messages;
+
+CREATE POLICY "messages_select" ON messages FOR SELECT USING (
+    sender_id = auth.uid()
+    OR receiver_id = auth.uid()
+    OR is_admin()
+);
+CREATE POLICY "messages_insert" ON messages FOR INSERT WITH CHECK (
+    sender_id = auth.uid()
+);
+CREATE POLICY "messages_update" ON messages FOR UPDATE USING (
+    sender_id = auth.uid()
+    OR receiver_id = auth.uid()
+);
+CREATE POLICY "messages_delete" ON messages FOR DELETE USING (is_admin());
+
+-- =====================================================
+-- SECTION 29: RLS POLICIES - ATTENDANCE TABLE
+-- =====================================================
+DROP POLICY IF EXISTS "attendance_select" ON attendance;
+DROP POLICY IF EXISTS "attendance_insert" ON attendance;
+DROP POLICY IF EXISTS "attendance_update" ON attendance;
+DROP POLICY IF EXISTS "attendance_delete" ON attendance;
+
+CREATE POLICY "attendance_select" ON attendance FOR SELECT USING (
+    booking_id IN (
+        SELECT id FROM bookings WHERE student_id IN (
+            SELECT id FROM students WHERE user_id = auth.uid()
+        )
+    )
+    OR teacher_id IN (SELECT id FROM teachers WHERE user_id = auth.uid())
+    OR booking_id IN (
+        SELECT b.id FROM bookings b
+        JOIN programs p ON b.program_id = p.id
+        JOIN les_places lp ON p.les_place_id = lp.id
+        JOIN owners o ON lp.owner_id = o.id
+        WHERE o.user_id = auth.uid()
+    )
+    OR is_admin()
+);
+CREATE POLICY "attendance_insert" ON attendance FOR INSERT WITH CHECK (
+    teacher_id IN (SELECT id FROM teachers WHERE user_id = auth.uid())
+    OR booking_id IN (
+        SELECT b.id FROM bookings b
+        JOIN programs p ON b.program_id = p.id
+        JOIN les_places lp ON p.les_place_id = lp.id
+        JOIN owners o ON lp.owner_id = o.id
+        WHERE o.user_id = auth.uid()
+    )
+    OR is_admin()
+);
+CREATE POLICY "attendance_update" ON attendance FOR UPDATE USING (
+    teacher_id IN (SELECT id FROM teachers WHERE user_id = auth.uid())
+    OR is_admin()
+);
+CREATE POLICY "attendance_delete" ON attendance FOR DELETE USING (is_admin());
+
+-- =====================================================
+-- SECTION 30: RLS POLICIES - GRADES TABLE
+-- =====================================================
+DROP POLICY IF EXISTS "grades_select" ON grades;
+DROP POLICY IF EXISTS "grades_insert" ON grades;
+DROP POLICY IF EXISTS "grades_update" ON grades;
+DROP POLICY IF EXISTS "grades_delete" ON grades;
+
+CREATE POLICY "grades_select" ON grades FOR SELECT USING (
+    booking_id IN (
+        SELECT id FROM bookings WHERE student_id IN (
+            SELECT id FROM students WHERE user_id = auth.uid()
+        )
+    )
+    OR teacher_id IN (SELECT id FROM teachers WHERE user_id = auth.uid())
+    OR booking_id IN (
+        SELECT b.id FROM bookings b
+        JOIN programs p ON b.program_id = p.id
+        JOIN les_places lp ON p.les_place_id = lp.id
+        JOIN owners o ON lp.owner_id = o.id
+        WHERE o.user_id = auth.uid()
+    )
+    OR is_admin()
+);
+CREATE POLICY "grades_insert" ON grades FOR INSERT WITH CHECK (
+    teacher_id IN (SELECT id FROM teachers WHERE user_id = auth.uid())
+    OR is_admin()
+);
+CREATE POLICY "grades_update" ON grades FOR UPDATE USING (
+    teacher_id IN (SELECT id FROM teachers WHERE user_id = auth.uid())
+    OR is_admin()
+);
+CREATE POLICY "grades_delete" ON grades FOR DELETE USING (is_admin());
+
+-- =====================================================
+-- SECTION 31: RLS POLICIES - FORUM_POSTS TABLE
+-- =====================================================
+DROP POLICY IF EXISTS "forum_posts_select" ON forum_posts;
+DROP POLICY IF EXISTS "forum_posts_insert" ON forum_posts;
+DROP POLICY IF EXISTS "forum_posts_update" ON forum_posts;
+DROP POLICY IF EXISTS "forum_posts_delete" ON forum_posts;
+
+CREATE POLICY "forum_posts_select" ON forum_posts FOR SELECT USING (true);
+CREATE POLICY "forum_posts_insert" ON forum_posts FOR INSERT WITH CHECK (
+    user_id = auth.uid()
+);
+CREATE POLICY "forum_posts_update" ON forum_posts FOR UPDATE USING (
+    user_id = auth.uid() OR is_admin()
+);
+CREATE POLICY "forum_posts_delete" ON forum_posts FOR DELETE USING (
+    user_id = auth.uid() OR is_admin()
+);
+
+-- =====================================================
+-- SECTION 32: RLS POLICIES - FORUM_COMMENTS TABLE
+-- =====================================================
+DROP POLICY IF EXISTS "forum_comments_select" ON forum_comments;
+DROP POLICY IF EXISTS "forum_comments_insert" ON forum_comments;
+DROP POLICY IF EXISTS "forum_comments_update" ON forum_comments;
+DROP POLICY IF EXISTS "forum_comments_delete" ON forum_comments;
+
+CREATE POLICY "forum_comments_select" ON forum_comments FOR SELECT USING (true);
+CREATE POLICY "forum_comments_insert" ON forum_comments FOR INSERT WITH CHECK (
+    user_id = auth.uid()
+);
+CREATE POLICY "forum_comments_update" ON forum_comments FOR UPDATE USING (
+    user_id = auth.uid() OR is_admin()
+);
+CREATE POLICY "forum_comments_delete" ON forum_comments FOR DELETE USING (
+    user_id = auth.uid() OR is_admin()
+);
+
+-- =====================================================
+-- SECTION 33: RLS POLICIES - COURSE_MATERIALS TABLE
+-- =====================================================
+DROP POLICY IF EXISTS "course_materials_select" ON course_materials;
+DROP POLICY IF EXISTS "course_materials_insert" ON course_materials;
+DROP POLICY IF EXISTS "course_materials_update" ON course_materials;
+DROP POLICY IF EXISTS "course_materials_delete" ON course_materials;
+
+CREATE POLICY "course_materials_select" ON course_materials FOR SELECT USING (
+    program_id IN (
+        SELECT p.id FROM programs p
+        JOIN les_places lp ON p.les_place_id = lp.id
+        JOIN owners o ON lp.owner_id = o.id
+        WHERE o.user_id = auth.uid()
+    )
+    OR program_id IN (
+        SELECT p.id FROM programs p
+        JOIN les_places lp ON p.les_place_id = lp.id
+        JOIN teachers t ON t.les_place_id = lp.id
+        WHERE t.user_id = auth.uid()
+    )
+    OR program_id IN (
+        SELECT program_id FROM bookings 
+        WHERE student_id IN (SELECT id FROM students WHERE user_id = auth.uid())
+        AND payment_status IN ('paid', 'settlement', 'capture')
+    )
+    OR is_admin()
+);
+CREATE POLICY "course_materials_insert" ON course_materials FOR INSERT WITH CHECK (
+    program_id IN (
+        SELECT p.id FROM programs p
+        JOIN les_places lp ON p.les_place_id = lp.id
+        JOIN owners o ON lp.owner_id = o.id
+        WHERE o.user_id = auth.uid()
+    )
+    OR program_id IN (
+        SELECT p.id FROM programs p
+        JOIN les_places lp ON p.les_place_id = lp.id
+        JOIN teachers t ON t.les_place_id = lp.id
+        WHERE t.user_id = auth.uid()
+    )
+);
+CREATE POLICY "course_materials_update" ON course_materials FOR UPDATE USING (
+    program_id IN (
+        SELECT p.id FROM programs p
+        JOIN les_places lp ON p.les_place_id = lp.id
+        JOIN owners o ON lp.owner_id = o.id
+        WHERE o.user_id = auth.uid()
+    )
+    OR is_admin()
+);
+CREATE POLICY "course_materials_delete" ON course_materials FOR DELETE USING (
+    program_id IN (
+        SELECT p.id FROM programs p
+        JOIN les_places lp ON p.les_place_id = lp.id
+        JOIN owners o ON lp.owner_id = o.id
+        WHERE o.user_id = auth.uid()
+    )
+    OR is_admin()
+);
+
+-- =====================================================
+-- SECTION 34: RLS POLICIES - MATERIAL_PROGRESS TABLE
+-- =====================================================
+DROP POLICY IF EXISTS "material_progress_select" ON material_progress;
+DROP POLICY IF EXISTS "material_progress_insert" ON material_progress;
+DROP POLICY IF EXISTS "material_progress_update" ON material_progress;
+DROP POLICY IF EXISTS "material_progress_delete" ON material_progress;
+
+CREATE POLICY "material_progress_select" ON material_progress FOR SELECT USING (
+    student_id IN (SELECT id FROM students WHERE user_id = auth.uid())
+    OR material_id IN (
+        SELECT cm.id FROM course_materials cm
+        JOIN programs p ON cm.program_id = p.id
+        JOIN les_places lp ON p.les_place_id = lp.id
+        JOIN owners o ON lp.owner_id = o.id
+        WHERE o.user_id = auth.uid()
+    )
+    OR is_admin()
+);
+CREATE POLICY "material_progress_insert" ON material_progress FOR INSERT WITH CHECK (
+    student_id IN (SELECT id FROM students WHERE user_id = auth.uid())
+);
+CREATE POLICY "material_progress_update" ON material_progress FOR UPDATE USING (
+    student_id IN (SELECT id FROM students WHERE user_id = auth.uid())
+);
+CREATE POLICY "material_progress_delete" ON material_progress FOR DELETE USING (is_admin());
+
+-- =====================================================
+-- SECTION 35: RLS POLICIES - QUIZZES TABLE
+-- =====================================================
+DROP POLICY IF EXISTS "quizzes_select" ON quizzes;
+DROP POLICY IF EXISTS "quizzes_insert" ON quizzes;
+DROP POLICY IF EXISTS "quizzes_update" ON quizzes;
+DROP POLICY IF EXISTS "quizzes_delete" ON quizzes;
+
+CREATE POLICY "quizzes_select" ON quizzes FOR SELECT USING (
+    les_place_id IN (
+        SELECT id FROM les_places WHERE owner_id IN (
+            SELECT id FROM owners WHERE user_id = auth.uid()
+        )
+    )
+    OR teacher_id = auth.uid()
+    OR program_id IN (
+        SELECT program_id FROM bookings 
+        WHERE student_id IN (SELECT id FROM students WHERE user_id = auth.uid())
+        AND payment_status IN ('paid', 'settlement', 'capture')
+    )
+    OR is_admin()
+);
+CREATE POLICY "quizzes_insert" ON quizzes FOR INSERT WITH CHECK (
+    les_place_id IN (
+        SELECT id FROM les_places WHERE owner_id IN (
+            SELECT id FROM owners WHERE user_id = auth.uid()
+        )
+    )
+    OR teacher_id = auth.uid()
+);
+CREATE POLICY "quizzes_update" ON quizzes FOR UPDATE USING (
+    les_place_id IN (
+        SELECT id FROM les_places WHERE owner_id IN (
+            SELECT id FROM owners WHERE user_id = auth.uid()
+        )
+    )
+    OR teacher_id = auth.uid()
+    OR is_admin()
+);
+CREATE POLICY "quizzes_delete" ON quizzes FOR DELETE USING (
+    les_place_id IN (
+        SELECT id FROM les_places WHERE owner_id IN (
+            SELECT id FROM owners WHERE user_id = auth.uid()
+        )
+    )
+    OR is_admin()
+);
+
+-- =====================================================
+-- SECTION 36: RLS POLICIES - QUIZ_ATTEMPTS TABLE
+-- =====================================================
+DROP POLICY IF EXISTS "quiz_attempts_select" ON quiz_attempts;
+DROP POLICY IF EXISTS "quiz_attempts_insert" ON quiz_attempts;
+DROP POLICY IF EXISTS "quiz_attempts_update" ON quiz_attempts;
+DROP POLICY IF EXISTS "quiz_attempts_delete" ON quiz_attempts;
+
+CREATE POLICY "quiz_attempts_select" ON quiz_attempts FOR SELECT USING (
+    student_id = auth.uid()
+    OR quiz_id IN (
+        SELECT id FROM quizzes WHERE les_place_id IN (
+            SELECT id FROM les_places WHERE owner_id IN (
+                SELECT id FROM owners WHERE user_id = auth.uid()
+            )
+        )
+    )
+    OR quiz_id IN (SELECT id FROM quizzes WHERE teacher_id = auth.uid())
+    OR is_admin()
+);
+CREATE POLICY "quiz_attempts_insert" ON quiz_attempts FOR INSERT WITH CHECK (
+    student_id = auth.uid()
+);
+CREATE POLICY "quiz_attempts_update" ON quiz_attempts FOR UPDATE USING (
+    student_id = auth.uid()
+);
+CREATE POLICY "quiz_attempts_delete" ON quiz_attempts FOR DELETE USING (is_admin());
+
+-- =====================================================
+-- SECTION 37: RLS POLICIES - TRANSACTIONS TABLE
+-- =====================================================
+DROP POLICY IF EXISTS "transactions_select" ON transactions;
+DROP POLICY IF EXISTS "transactions_insert" ON transactions;
+DROP POLICY IF EXISTS "transactions_update" ON transactions;
+DROP POLICY IF EXISTS "transactions_delete" ON transactions;
+
+CREATE POLICY "transactions_select" ON transactions FOR SELECT USING (
+    student_id = auth.uid()
+    OR les_place_id IN (
+        SELECT id FROM les_places WHERE owner_id IN (
+            SELECT id FROM owners WHERE user_id = auth.uid()
+        )
+    )
+    OR is_admin()
+);
+CREATE POLICY "transactions_insert" ON transactions FOR INSERT WITH CHECK (
+    student_id = auth.uid() OR is_admin()
+);
+CREATE POLICY "transactions_update" ON transactions FOR UPDATE USING (is_admin());
+CREATE POLICY "transactions_delete" ON transactions FOR DELETE USING (is_admin());
+
+-- =====================================================
+-- SECTION 38: RLS POLICIES - TEACHER_PAYMENTS TABLE
+-- =====================================================
+DROP POLICY IF EXISTS "teacher_payments_select" ON teacher_payments;
+DROP POLICY IF EXISTS "teacher_payments_insert" ON teacher_payments;
+DROP POLICY IF EXISTS "teacher_payments_update" ON teacher_payments;
+DROP POLICY IF EXISTS "teacher_payments_delete" ON teacher_payments;
+
+CREATE POLICY "teacher_payments_select" ON teacher_payments FOR SELECT USING (
+    teacher_id = auth.uid()
+    OR owner_id = auth.uid()
+    OR les_place_id IN (
+        SELECT id FROM les_places WHERE owner_id IN (
+            SELECT id FROM owners WHERE user_id = auth.uid()
+        )
+    )
+    OR is_admin()
+);
+CREATE POLICY "teacher_payments_insert" ON teacher_payments FOR INSERT WITH CHECK (
+    owner_id = auth.uid()
+    OR les_place_id IN (
+        SELECT id FROM les_places WHERE owner_id IN (
+            SELECT id FROM owners WHERE user_id = auth.uid()
+        )
+    )
+    OR is_admin()
+);
+CREATE POLICY "teacher_payments_update" ON teacher_payments FOR UPDATE USING (
+    owner_id = auth.uid() OR is_admin()
+);
+CREATE POLICY "teacher_payments_delete" ON teacher_payments FOR DELETE USING (is_admin());
+
+-- =====================================================
+-- SECTION 39: RLS POLICIES - PAYMENT_SCHEDULES TABLE
+-- =====================================================
+DROP POLICY IF EXISTS "payment_schedules_select" ON payment_schedules;
+DROP POLICY IF EXISTS "payment_schedules_insert" ON payment_schedules;
+DROP POLICY IF EXISTS "payment_schedules_update" ON payment_schedules;
+DROP POLICY IF EXISTS "payment_schedules_delete" ON payment_schedules;
+
+CREATE POLICY "payment_schedules_select" ON payment_schedules FOR SELECT USING (
+    teacher_id = auth.uid()
+    OR les_place_id IN (
+        SELECT id FROM les_places WHERE owner_id IN (
+            SELECT id FROM owners WHERE user_id = auth.uid()
+        )
+    )
+    OR is_admin()
+);
+CREATE POLICY "payment_schedules_insert" ON payment_schedules FOR INSERT WITH CHECK (
+    les_place_id IN (
+        SELECT id FROM les_places WHERE owner_id IN (
+            SELECT id FROM owners WHERE user_id = auth.uid()
+        )
+    )
+    OR is_admin()
+);
+CREATE POLICY "payment_schedules_update" ON payment_schedules FOR UPDATE USING (
+    les_place_id IN (
+        SELECT id FROM les_places WHERE owner_id IN (
+            SELECT id FROM owners WHERE user_id = auth.uid()
+        )
+    )
+    OR is_admin()
+);
+CREATE POLICY "payment_schedules_delete" ON payment_schedules FOR DELETE USING (is_admin());
+
+-- =====================================================
+-- SECTION 40: RLS POLICIES - WITHDRAWALS TABLE
+-- =====================================================
+DROP POLICY IF EXISTS "withdrawals_select" ON withdrawals;
+DROP POLICY IF EXISTS "withdrawals_insert" ON withdrawals;
+DROP POLICY IF EXISTS "withdrawals_update" ON withdrawals;
+DROP POLICY IF EXISTS "withdrawals_delete" ON withdrawals;
+
+CREATE POLICY "withdrawals_select" ON withdrawals FOR SELECT USING (
+    user_id = auth.uid()
+    OR les_place_id IN (
+        SELECT id FROM les_places WHERE owner_id IN (
+            SELECT id FROM owners WHERE user_id = auth.uid()
+        )
+    )
+    OR is_admin()
+);
+CREATE POLICY "withdrawals_insert" ON withdrawals FOR INSERT WITH CHECK (
+    user_id = auth.uid()
+);
+CREATE POLICY "withdrawals_update" ON withdrawals FOR UPDATE USING (is_admin());
+CREATE POLICY "withdrawals_delete" ON withdrawals FOR DELETE USING (is_admin());
+
+-- =====================================================
+-- SECTION 41: RLS POLICIES - BALANCES TABLE
+-- =====================================================
+DROP POLICY IF EXISTS "balances_select" ON balances;
+DROP POLICY IF EXISTS "balances_insert" ON balances;
+DROP POLICY IF EXISTS "balances_update" ON balances;
+DROP POLICY IF EXISTS "balances_delete" ON balances;
+
+CREATE POLICY "balances_select" ON balances FOR SELECT USING (
+    user_id = auth.uid()
+    OR les_place_id IN (
+        SELECT id FROM les_places WHERE owner_id IN (
+            SELECT id FROM owners WHERE user_id = auth.uid()
+        )
+    )
+    OR is_admin()
+);
+CREATE POLICY "balances_insert" ON balances FOR INSERT WITH CHECK (is_admin());
+CREATE POLICY "balances_update" ON balances FOR UPDATE USING (is_admin());
+CREATE POLICY "balances_delete" ON balances FOR DELETE USING (is_admin());
+
+-- =====================================================
+-- SECTION 42: RLS POLICIES - REFUNDS TABLE
+-- =====================================================
+DROP POLICY IF EXISTS "refunds_select" ON refunds;
+DROP POLICY IF EXISTS "refunds_insert" ON refunds;
+DROP POLICY IF EXISTS "refunds_update" ON refunds;
+DROP POLICY IF EXISTS "refunds_delete" ON refunds;
+
+CREATE POLICY "refunds_select" ON refunds FOR SELECT USING (
+    student_id = auth.uid()
+    OR les_place_id IN (
+        SELECT id FROM les_places WHERE owner_id IN (
+            SELECT id FROM owners WHERE user_id = auth.uid()
+        )
+    )
+    OR is_admin()
+);
+CREATE POLICY "refunds_insert" ON refunds FOR INSERT WITH CHECK (
+    student_id = auth.uid()
+);
+CREATE POLICY "refunds_update" ON refunds FOR UPDATE USING (is_admin());
+CREATE POLICY "refunds_delete" ON refunds FOR DELETE USING (is_admin());
+
+-- =====================================================
+-- SECTION 43: RLS POLICIES - CONTACTS TABLE
+-- =====================================================
+DROP POLICY IF EXISTS "contacts_select" ON contacts;
+DROP POLICY IF EXISTS "contacts_insert" ON contacts;
+DROP POLICY IF EXISTS "contacts_update" ON contacts;
+DROP POLICY IF EXISTS "contacts_delete" ON contacts;
+
+CREATE POLICY "contacts_select" ON contacts FOR SELECT USING (is_admin());
+CREATE POLICY "contacts_insert" ON contacts FOR INSERT WITH CHECK (true);
+CREATE POLICY "contacts_update" ON contacts FOR UPDATE USING (is_admin());
+CREATE POLICY "contacts_delete" ON contacts FOR DELETE USING (is_admin());
+
+-- =====================================================
+-- SECTION 44: RLS POLICIES - REPORTS TABLE
+-- =====================================================
+DROP POLICY IF EXISTS "reports_select" ON reports;
+DROP POLICY IF EXISTS "reports_insert" ON reports;
+DROP POLICY IF EXISTS "reports_update" ON reports;
+DROP POLICY IF EXISTS "reports_delete" ON reports;
+
+CREATE POLICY "reports_select" ON reports FOR SELECT USING (
+    reporter_id = auth.uid() OR is_admin()
+);
+CREATE POLICY "reports_insert" ON reports FOR INSERT WITH CHECK (
+    reporter_id = auth.uid()
+);
+CREATE POLICY "reports_update" ON reports FOR UPDATE USING (is_admin());
+CREATE POLICY "reports_delete" ON reports FOR DELETE USING (is_admin());
+
+-- =====================================================
+-- SECTION 45: RLS POLICIES - TEACHER_INVITE_CODES TABLE
+-- =====================================================
+DROP POLICY IF EXISTS "teacher_invite_codes_select" ON teacher_invite_codes;
+DROP POLICY IF EXISTS "teacher_invite_codes_insert" ON teacher_invite_codes;
+DROP POLICY IF EXISTS "teacher_invite_codes_update" ON teacher_invite_codes;
+DROP POLICY IF EXISTS "teacher_invite_codes_delete" ON teacher_invite_codes;
+
+CREATE POLICY "teacher_invite_codes_select" ON teacher_invite_codes FOR SELECT USING (
+    owner_id IN (SELECT id FROM owners WHERE user_id = auth.uid())
+    OR is_admin()
+    OR is_used = false
+);
+CREATE POLICY "teacher_invite_codes_insert" ON teacher_invite_codes FOR INSERT WITH CHECK (
+    owner_id IN (SELECT id FROM owners WHERE user_id = auth.uid())
+);
+CREATE POLICY "teacher_invite_codes_update" ON teacher_invite_codes FOR UPDATE USING (
+    owner_id IN (SELECT id FROM owners WHERE user_id = auth.uid())
+    OR is_admin()
+    OR is_used = false
+);
+CREATE POLICY "teacher_invite_codes_delete" ON teacher_invite_codes FOR DELETE USING (
+    owner_id IN (SELECT id FROM owners WHERE user_id = auth.uid())
+    OR is_admin()
+);
+
+-- =====================================================
+-- SECTION 46: STORAGE BUCKET INSTRUCTIONS
 -- =====================================================
 -- IMPORTANT: You must create the storage bucket manually in Supabase Dashboard
 -- 1. Go to Storage in Supabase Dashboard
@@ -1276,3 +2162,10 @@ GRANT SELECT ON public.banners TO anon;
 --    - INSERT: Enable for Authenticated Users
 --    - UPDATE: Enable for Authenticated Users
 --    - DELETE: Enable for Authenticated Users
+
+-- =====================================================
+-- END OF COMPLETE SCHEMA
+-- Total Tables: 33
+-- Total RLS Policies: 130+ (4 per table x 33 tables)
+-- Run this on a fresh Supabase database
+-- =====================================================

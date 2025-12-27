@@ -23,6 +23,10 @@ async function handleLogin() {
       router.push(redirect)
     } else {
       // Student goes to home, other roles go to dashboard
+      console.log('Login Success. User:', authStore.user)
+      console.log('User Profile:', authStore.userProfile)
+      console.log('Detected Role:', authStore.userRole)
+      
       const role = authStore.userRole || 'student'
       if (role === 'student') {
         router.push('/')

@@ -13,7 +13,7 @@ const authStore = useAuthStore()
 // Form State
 const profile = ref({
   name: '', avatar_url: '', email: '', phone: '', gender: '', birth_date: '', nik: '',
-  specializations: [], experience_years: 0, qualification: '', bio: '',
+  specialization: [], experience_years: 0, qualification: '', bio: '',
   address: '', province_id: '', province_name: '', city_id: '', city_name: '',
   payment_type: 'bank', // 'bank' or 'ewallet'
   bank_name: '', bank_account: '', bank_holder: '',
@@ -37,7 +37,7 @@ const showSaved = ref(false)
 const completionPercent = computed(() => {
   const baseFields = [
     profile.value.name, profile.value.phone, profile.value.gender, profile.value.birth_date,
-    profile.value.nik, profile.value.specializations?.length > 0, profile.value.qualification,
+    profile.value.nik, profile.value.specialization?.length > 0, profile.value.qualification,
     profile.value.province_id, profile.value.city_id, profile.value.address
   ]
   
@@ -122,7 +122,7 @@ async function fetchProfile() {
     }
     if (teacherData) {
       Object.assign(profile.value, {
-        specializations: teacherData.specializations || [], experience_years: teacherData.experience_years || 0,
+        specialization: teacherData.specialization || teacherData.specializations || [], experience_years: teacherData.experience_years || 0,
         qualification: teacherData.qualification || '', bio: teacherData.bio || '', nik: teacherData.nik || '',
         province_id: teacherData.province_id || '', province_name: teacherData.province_name || '',
         city_id: teacherData.city_id || '', city_name: teacherData.city_name || '',
@@ -194,7 +194,7 @@ async function handleSave() {
     const isComplete = completionPercent.value >= 100
     
     await supabase.from('teachers').upsert({
-      user_id: authStore.user.id, specializations: profile.value.specializations,
+      user_id: authStore.user.id, specialization: profile.value.specialization,
       experience_years: profile.value.experience_years, qualification: profile.value.qualification,
       bio: profile.value.bio, nik: profile.value.nik, province_id: profile.value.province_id,
       province_name: profile.value.province_name, city_id: profile.value.city_id, city_name: profile.value.city_name,
@@ -272,8 +272,10 @@ function formatDate(date) {
             <h2>{{ profile.name || 'Nama Belum Diisi' }}</h2>
             <p class="email">{{ profile.email }}</p>
             <div class="profile-tags">
-              <span v-for="spec in profile.specializations.slice(0, 3)" :key="spec" class="spec-tag">{{ spec }}</span>
-              <span v-if="profile.specializations.length > 3" class="more-tag">+{{ profile.specializations.length - 3 }}</span>
+              <span class="tags-label">Program:</span>
+              <span v-for="spec in profile.specialization.slice(0, 3)" :key="spec" class="spec-tag">{{ spec }}</span>
+              <span v-if="profile.specialization.length > 3" class="more-tag">+{{ profile.specialization.length - 3 }}</span>
+              <span v-if="!profile.specialization.length" class="text-muted text-xs">-</span>
             </div>
           </div>
           <div class="profile-stats">
@@ -358,17 +360,13 @@ function formatDate(date) {
             <h3>Informasi Profesional</h3>
             
             <div class="form-group">
-              <label>Spesialisasi Mata Pelajaran</label>
-              <div class="tags-input">
-                <span v-for="(spec, i) in profile.specializations" :key="i" class="tag">
-                  {{ spec }}<button type="button" @click="removeSpecialization(i)">x</button>
+              <label>Program yang Anda Ajar</label>
+              <p class="description-text">Program mengajar ini ditentukan oleh pemilik tempat les Anda.</p>
+              <div class="tags-input readonly">
+                <span v-for="(spec, i) in profile.specialization" :key="i" class="tag bg-green">
+                  {{ spec }}
                 </span>
-                <input v-model="newSpec" type="text" placeholder="Tambah spesialisasi..." @keydown.enter.prevent="addSpecialization()">
-              </div>
-              <div class="suggested-tags">
-                <span>Saran:</span>
-                <button v-for="s in suggestedSpecs.filter(x => !profile.specializations.includes(x)).slice(0, 5)" 
-                        :key="s" type="button" @click="addSpecialization(s)">+ {{ s }}</button>
+                <span v-if="!profile.specialization.length" class="text-muted">Belum ada program yang ditugaskan.</span>
               </div>
             </div>
             
@@ -622,7 +620,8 @@ function formatDate(date) {
 .profile-info { flex: 1; }
 .profile-info h2 { font-size: 20px; font-weight: 700; color: #1e293b; margin-bottom: 2px; }
 .profile-info .email { font-size: 14px; color: #64748b; margin-bottom: 8px; }
-.profile-tags { display: flex; gap: 6px; flex-wrap: wrap; }
+.profile-tags { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin-top: 6px; }
+.tags-label { font-size: 12px; color: #64748b; margin-right: 4px; font-weight: 500; }
 .spec-tag { padding: 4px 10px; background: #dbeafe; color: #2563eb; border-radius: 20px; font-size: 12px; font-weight: 600; }
 .more-tag { padding: 4px 10px; background: #f1f5f9; color: #64748b; border-radius: 20px; font-size: 12px; }
 
@@ -742,4 +741,9 @@ function formatDate(date) {
   .tabs { overflow-x: auto; }
   .tab span { display: none; }
 }
+
+.description-text { font-size: 13px; color: #64748b; margin-top: -4px; margin-bottom: 8px; }
+.tags-input.readonly { background: #f8fafc; border-color: #cbd5e1; }
+.tag.bg-green { background: #dcfce7; color: #16a34a; }
+.text-muted { font-size: 13px; color: #94a3b8; font-style: italic; }
 </style>

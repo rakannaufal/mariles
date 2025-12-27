@@ -258,10 +258,8 @@ async function handleSave() {
     // Update owners table - use upsert with onConflict
     const { error: oErr } = await supabase.from('owners').upsert({
       user_id: authStore.user.id,
-      company_name: profile.value.company_name, 
-      business_name: profile.value.company_name, // Also save to business_name column
+      business_name: profile.value.company_name,
       business_type: profile.value.business_type,
-      description: profile.value.business_desc,
       npwp: profile.value.npwp, 
       nik: profile.value.nik,
       province_id: profile.value.province_id, 

@@ -46,7 +46,7 @@ async function fetchDashboardData() {
     const { count: lesCount } = await supabase.from('les_places').select('*', { count: 'exact', head: true })
     
     // Pending verifications
-    const { count: pendingCount } = await supabase.from('les_places').select('*', { count: 'exact', head: true }).eq('is_verified', false)
+    const { count: pendingCount } = await supabase.from('les_places').select('*', { count: 'exact', head: true }).eq('verification_status', 'pending')
     
     // Transactions
     const { count: txnCount } = await supabase.from('transactions').select('*', { count: 'exact', head: true })
@@ -76,7 +76,7 @@ async function fetchDashboardData() {
     // Recent Les Places - menggunakan view dengan owner
     const { data: lesPlaces } = await supabase
       .from('les_places_with_owner')
-      .select('id, name, city, is_verified, created_at, owner_name')
+      .select('id, name, city, is_verified, verification_status, created_at, owner_name')
       .order('created_at', { ascending: false })
       .limit(5)
     recentLesPlaces.value = lesPlaces || []
@@ -85,7 +85,7 @@ async function fetchDashboardData() {
     const { data: pending } = await supabase
       .from('les_places')
       .select('id, name, city, created_at, owners(users(name))')
-      .eq('is_verified', false)
+      .eq('verification_status', 'pending')
       .order('created_at', { ascending: false })
       .limit(5)
     pendingVerifications.value = pending || []
@@ -133,6 +133,8 @@ function getRoleBadge(role) {
 function getStatusBadge(status) {
   const badges = {
     pending: { label: 'Pending', class: 'warning' },
+    verified: { label: 'Terverifikasi', class: 'success' },
+    rejected: { label: 'Ditolak', class: 'error' },
     completed: { label: 'Selesai', class: 'success' },
     failed: { label: 'Gagal', class: 'error' }
   }
@@ -278,7 +280,7 @@ function getStatusBadge(status) {
               <h3>Aksi Cepat</h3>
             </div>
             <div class="quick-actions">
-              <router-link to="/admin/verification" class="action-btn">
+              <router-link to="/admin/les-places" class="action-btn">
                 <div class="action-icon orange">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
@@ -343,7 +345,7 @@ function getStatusBadge(status) {
               <h4>{{ pendingVerifications.length }} Tempat Les Menunggu Verifikasi</h4>
               <p>Tinjau dan verifikasi tempat les baru untuk menjaga kualitas platform</p>
             </div>
-            <router-link to="/admin/verification" class="alert-action">Tinjau Sekarang</router-link>
+            <router-link to="/admin/les-places" class="alert-action">Tinjau Sekarang</router-link>
           </div>
         </section>
 
@@ -454,8 +456,8 @@ function getStatusBadge(status) {
                     <td>{{ lp.owner_name || '-' }}</td>
                     <td class="text-muted">{{ formatDate(lp.created_at) }}</td>
                     <td>
-                      <span class="status-badge" :class="lp.is_verified ? 'success' : 'warning'">
-                        {{ lp.is_verified ? 'Terverifikasi' : 'Pending' }}
+                      <span class="status-badge" :class="getStatusBadge(lp.verification_status || (lp.is_verified ? 'verified' : 'pending')).class">
+                        {{ getStatusBadge(lp.verification_status || (lp.is_verified ? 'verified' : 'pending')).label }}
                       </span>
                     </td>
                   </tr>

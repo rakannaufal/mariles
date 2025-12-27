@@ -85,6 +85,12 @@ const routes = [
     component: () => import('@/views/public/ContactPage.vue'), 
     meta: { public: true } 
   },
+  { 
+    path: '/auth/callback', 
+    name: 'auth-callback', 
+    component: () => import('@/views/public/AuthCallback.vue'), 
+    meta: { public: true } 
+  },
 
   // Student Routes
   { 
@@ -450,32 +456,17 @@ async function getUserRole(userId) {
 
 // Navigation Guard
 router.beforeEach(async (to, from, next) => {
+  // IMPORTANT: Let AuthCallback.vue handle OAuth redirects
+  // Skip OAuth processing if going to /auth/callback
+  if (to.path === '/auth/callback') {
+    return next()
+  }
+  
   // Check for OAuth callback (hash contains access_token)
+  // This handles cases where Google redirects with hash token
   if (window.location.hash && window.location.hash.includes('access_token')) {
-    // Let Supabase handle the OAuth callback
-    const { data: { session }, error } = await supabase.auth.getSession()
-    
-    if (session && !error) {
-      // Check for pendingRole from localStorage (set during registration)
-      const pendingRole = localStorage.getItem('pendingRole')
-      
-      if (pendingRole) {
-        // Don't remove pendingRole here, let auth.js handle it after updating DB
-        // Redirect based on pendingRole for new users
-        if (pendingRole === 'student') {
-          return next({ name: 'home' })
-        }
-        return next({ name: `${pendingRole}-dashboard` })
-      }
-      
-      // For existing users (no pendingRole), get role from database
-      const role = await getUserRole(session.user.id)
-      // Student goes to home, other roles go to dashboard
-      if (role === 'student') {
-        return next({ name: 'home' })
-      }
-      return next({ name: `${role}-dashboard` })
-    }
+    // Redirect to our callback handler to process the OAuth
+    return next({ path: '/auth/callback' })
   }
 
   const { data: { user } } = await supabase.auth.getUser()
