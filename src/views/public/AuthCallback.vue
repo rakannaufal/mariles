@@ -117,11 +117,11 @@ const handleLoginSuccess = async (user) => {
     status.value = 'Selesai! Mengalihkan...'
     
     // Redirect based on FINAL role
-    if (roleToUse === 'student') {
-      router.push('/')
-    } else {
-      router.push(`/${roleToUse}/dashboard`)
-    }
+    const targetPath = roleToUse === 'student' ? '/' : `/${roleToUse}/dashboard`
+    console.log('Redirecting to:', targetPath)
+    
+    // Use hard redirect to ensure clean state and avoid router stuck issues
+    window.location.href = targetPath
   } catch (err) {
     console.error('Auth callback error:', err)
     error.value = 'Terjadi kesalahan saat memproses data akun.'
