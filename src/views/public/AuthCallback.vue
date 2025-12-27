@@ -9,7 +9,7 @@ const authStore = useAuthStore()
 const status = ref('Memproses login...')
 const error = ref('')
 
-onMounted(async () => {
+const handleLoginSuccess = async (user) => {
   try {
     // Get pending role and owner type from localStorage
     const pendingRole = localStorage.getItem('pendingRole') || 'student'
@@ -18,17 +18,6 @@ onMounted(async () => {
     const pendingInviteCode = localStorage.getItem('pendingInviteCode')
     const pendingLesPlaceId = localStorage.getItem('pendingLesPlaceId')
     const pendingOwnerId = localStorage.getItem('pendingOwnerId')
-    
-    status.value = 'Mengambil data akun...'
-    
-    // Wait for session to be established
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-    
-    if (authError || !user) {
-      error.value = 'Gagal mendapatkan data akun. Silakan coba lagi.'
-      setTimeout(() => router.push('/login'), 2000)
-      return
-    }
     
     status.value = 'Membuat profil pengguna...'
     
@@ -146,12 +135,41 @@ onMounted(async () => {
     } else {
       router.push(`/${pendingRole}/dashboard`)
     }
-    
   } catch (err) {
     console.error('Auth callback error:', err)
-    error.value = 'Terjadi kesalahan. Mengalihkan ke halaman login...'
-    setTimeout(() => router.push('/login'), 2000)
+    error.value = 'Terjadi kesalahan saat memproses data akun.'
+    setTimeout(() => router.push('/login'), 3000)
   }
+}
+
+onMounted(async () => {
+  status.value = 'Memvalidasi sesi login...'
+  
+  // 1. Check direct session first
+  const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+  
+  if (session?.user) {
+    await handleLoginSuccess(session.user)
+    return
+  }
+
+  // 2. If no direct session, listen for auth state change (Hash processing)
+  const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+    if (event === 'SIGNED_IN' && session?.user) {
+      await handleLoginSuccess(session.user)
+    } else if (event === 'SIGNED_OUT') {
+      // Optional: Handle sign out if needed, but primarily we wait for SIGNED_IN
+      // Don't error immediately, wait a bit
+    }
+  })
+
+  // 3. Fallback timeout if nothing happens
+  setTimeout(() => {
+    if (status.value === 'Memvalidasi sesi login...') {
+      error.value = 'Gagal memvalidasi login Google. Waktu habis.'
+      setTimeout(() => router.push('/login'), 3000)
+    }
+  }, 10000) // 10 seconds timeout
 })
 </script>
 
