@@ -31,7 +31,7 @@ const days = [
   { short: 'MIN', full: 'Minggu', index: 7 },
 ]
 
-const selectedClass = ref('all')
+const selectedProgram = ref('all')
 const searchQuery = ref('')
 
 // Modal state
@@ -76,12 +76,11 @@ const todaySchedule = computed(() => {
 // Filter sessions
 const filteredSessions = computed(() => {
   return todaySchedule.value.filter(s => {
-    const matchClass = selectedClass.value === 'all' || s.class === selectedClass.value
+    const matchProgram = selectedProgram.value === 'all' || s.program_id === selectedProgram.value
     const matchSearch = !searchQuery.value || 
-      s.class?.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
-      s.subject?.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
-      s.program_name?.toLowerCase().includes(searchQuery.value.toLowerCase())
-    return matchClass && matchSearch
+      s.program_name?.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
+      s.subject?.toLowerCase().includes(searchQuery.value.toLowerCase())
+    return matchProgram && matchSearch
   })
 })
 
@@ -90,7 +89,8 @@ const attendanceStats = computed(() => {
   const total = todaySchedule.value.length
   const completed = todaySchedule.value.filter(s => s.attendance_status === 'completed').length
   const pending = total - completed
-  const totalStudents = todaySchedule.value.reduce((sum, s) => sum + (s.students || s.capacity || 0), 0)
+  // Use actual registered students count from students data
+  const totalStudents = students.value.length
   
   return { total, completed, pending, totalStudents }
 })
@@ -314,9 +314,9 @@ onMounted(async () => {
           </svg>
           <input v-model="searchQuery" type="text" placeholder="Cari kelas atau program...">
         </div>
-        <select v-model="selectedClass" class="filter-select">
-          <option value="all">Semua Kelas</option>
-          <option v-for="cls in classes" :key="cls" :value="cls">{{ cls }}</option>
+        <select v-model="selectedProgram" class="filter-select">
+          <option value="all">Semua Program</option>
+          <option v-for="prog in programs" :key="prog.id" :value="prog.id">{{ prog.name }}</option>
         </select>
       </section>
 

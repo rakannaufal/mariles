@@ -1,7 +1,7 @@
 <script setup>
 import TeacherSidebar from '@/components/TeacherSidebar.vue'
 import OwnerSidebar from '@/components/OwnerSidebar.vue'
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useTeacherData } from '@/composables/useTeacherData'
 
@@ -13,14 +13,22 @@ const {
   grades, 
   programs,
   students,
+  latihanSubmissions,
   fetchStudentGrades, 
   fetchTeacherSchedule,
   fetchTeacherStudents,
+  fetchQuizGrades,
+  fetchLatihanGrades,
+  gradeLatihanSubmission,
   saveGrade 
 } = useTeacherData()
 
+// Quiz grades ref
+const quizGrades = ref([])
+
 const selectedClass = ref('all')
-const selectedExam = ref('Ulangan Harian')
+const selectedProgram = ref(null)
+const selectedExam = ref('Quiz')
 const searchQuery = ref('')
 const viewMode = ref('table') // 'table' or 'cards'
 
@@ -35,6 +43,14 @@ const showToast = ref(false)
 const toastMessage = ref('')
 const toastType = ref('success')
 
+// Latihan Modal
+const showLatihanModal = ref(false)
+const selectedLatihanStudent = ref(null)
+const selectedSubmission = ref(null)
+const latihanGradeInput = ref(0)
+const latihanFeedbackInput = ref('')
+const gradingInProgress = ref(false)
+
 // Get unique classes
 const classes = computed(() => {
   const unique = [...new Set(programs.value.map(p => p.level || p.name))]
@@ -42,20 +58,28 @@ const classes = computed(() => {
 })
 
 const exams = [
-  { id: 'harian', name: 'Ulangan Harian' },
-  { id: 'kuis', name: 'Kuis' },
-  { id: 'tugas', name: 'Tugas' }
+  { id: 'quiz', name: 'Quiz' },
+  { id: 'latihan', name: 'Latihan' }
 ]
 
 // Grade settings
 const passingGrade = ref(70)
+const quizWeight = ref(60)
+const latihanWeight = ref(40)
 const showSettingsModal = ref(false)
 
 const filteredGrades = computed(() => {
-  let result = grades.value
+  // If no program selected, return empty
+  if (!selectedProgram.value) return []
   
-  if (selectedClass.value !== 'all') {
-    result = result.filter(g => g.class === selectedClass.value)
+  // Choose data source based on tab
+  let result = []
+  if (selectedExam.value === 'Quiz') {
+    result = quizGrades.value
+  } else if (selectedExam.value === 'Latihan') {
+    result = latihanSubmissions.value
+  } else {
+    result = grades.value
   }
   
   if (searchQuery.value) {
@@ -111,6 +135,17 @@ function getGradeLabel(grade) {
   return 'D'
 }
 
+function formatDate(date) {
+  if (!date) return '-'
+  return new Date(date).toLocaleDateString('id-ID', { 
+    day: 'numeric', 
+    month: 'short', 
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  })
+}
+
 function openInputModal(student) {
   selectedStudent.value = student
   gradeInput.value = student.grade || 0
@@ -130,6 +165,57 @@ function showErrorToast(message) {
   toastType.value = 'error'
   showToast.value = true
   setTimeout(() => showToast.value = false, 3000)
+}
+
+function openLatihanModal(student) {
+  selectedLatihanStudent.value = student
+  showLatihanModal.value = true
+  selectedSubmission.value = null
+}
+
+function selectSubmission(sub) {
+  selectedSubmission.value = sub
+  latihanGradeInput.value = sub.score || 0
+  latihanFeedbackInput.value = sub.feedback || ''
+}
+
+async function handleSaveLatihanGrade() {
+  if (!selectedSubmission.value) return
+  
+  gradingInProgress.value = true
+  try {
+    const result = await gradeLatihanSubmission(
+      selectedSubmission.value.id,
+      latihanGradeInput.value,
+      latihanFeedbackInput.value
+    )
+    
+    if (result) {
+      showSuccessToast('Nilai latihan berhasil disimpan')
+      // Refresh data
+      if (selectedProgram.value) {
+        await fetchLatihanGrades(selectedProgram.value.id)
+        // Update local reference to show the updated grade in modal
+        const updatedStudent = latihanSubmissions.value.find(s => s.id === selectedLatihanStudent.value.id)
+        if (updatedStudent) {
+          selectedLatihanStudent.value = updatedStudent
+          // Keep current submission selected but update its data
+          selectedSubmission.value = updatedStudent.submissions.find(s => s.id === selectedSubmission.value.id)
+        }
+      }
+    } else {
+      showErrorToast('Gagal menyimpan nilai')
+    }
+  } catch (err) {
+    showErrorToast(err.message)
+  } finally {
+    gradingInProgress.value = false
+  }
+}
+
+function openQuizDetail(student) {
+  // Placeholder or basic info
+  alert(`Detail kuis untuk ${student.name}`)
 }
 
 async function handleSaveGrade() {
@@ -181,7 +267,223 @@ onMounted(async () => {
   await fetchTeacherSchedule()
   await fetchStudentGrades()
   await fetchTeacherStudents()
+  // Also fetch quiz grades
+  quizGrades.value = await fetchQuizGrades()
+  // Load grade settings
+  await loadGradeSettings()
 })
+
+// Watch for program change to fetch quiz/latihan grades
+watch(selectedProgram, async (newVal) => {
+  if (newVal) {
+    if (selectedExam.value === 'Quiz') {
+      quizGrades.value = await fetchQuizGrades(newVal.id)
+    } else if (selectedExam.value === 'Latihan') {
+      await fetchLatihanGrades(newVal.id)
+    }
+  } else {
+    quizGrades.value = []
+  }
+})
+
+// Watch for exam tab change to refresh data
+watch(selectedExam, async (newVal) => {
+  if (!selectedProgram.value) return
+  
+  if (newVal === 'Quiz') {
+    quizGrades.value = await fetchQuizGrades(selectedProgram.value.id)
+  } else if (newVal === 'Latihan') {
+    await fetchLatihanGrades(selectedProgram.value.id)
+  }
+})
+
+// Load grade settings from les_place
+async function loadGradeSettings() {
+  const { lesPlace } = useTeacherData()
+  if (lesPlace.value?.settings) {
+    const settings = lesPlace.value.settings
+    passingGrade.value = settings.passing_grade ?? 70
+    quizWeight.value = settings.quiz_weight ?? 60
+    latihanWeight.value = settings.latihan_weight ?? 40
+  }
+}
+
+// Save grade settings to les_place
+import { supabase } from '@/lib/supabase'
+async function saveGradeSettings() {
+  try {
+    // Get les_place_id from already loaded data
+    const { teacherProfile, fetchTeacherProfile, lesPlace } = useTeacherData()
+    
+    // Make sure teacherProfile is loaded
+    if (!teacherProfile.value?.les_place_id) {
+      await fetchTeacherProfile()
+    }
+    
+    const lesPlaceId = teacherProfile.value?.les_place_id || lesPlace.value?.id
+    
+    if (!lesPlaceId) {
+      console.error('No les_place_id found')
+      showErrorToast('Tidak dapat menyimpan pengaturan')
+      return
+    }
+    
+    console.log('Saving to les_place_id:', lesPlaceId)
+    
+    // Get current settings
+    const { data: lesPlaceData, error: fetchError } = await supabase
+      .from('les_places')
+      .select('settings')
+      .eq('id', lesPlaceId)
+      .single()
+    
+    if (fetchError) {
+      console.error('Error fetching les_place:', fetchError)
+    }
+    
+    const currentSettings = lesPlaceData?.settings || {}
+    const newSettings = {
+      ...currentSettings,
+      passing_grade: passingGrade.value,
+      quiz_weight: quizWeight.value,
+      latihan_weight: latihanWeight.value
+    }
+    
+    console.log('New settings:', newSettings)
+    
+    const { error } = await supabase
+      .from('les_places')
+      .update({ settings: newSettings })
+      .eq('id', lesPlaceId)
+    
+    if (error) throw error
+    
+    showSuccessToast('Pengaturan berhasil disimpan!')
+    showSettingsModal.value = false
+  } catch (err) {
+    console.error('Error saving grade settings:', err)
+    showErrorToast('Gagal menyimpan pengaturan')
+  }
+}
+
+// Reset quiz for student (delete attempts so they can retake)
+async function resetQuizForStudent(student) {
+  if (!confirm(`Reset quiz untuk ${student.name}? Siswa akan bisa mengerjakan ulang quiz ini.`)) return
+  
+  try {
+    // First get quiz IDs for the selected program only
+    if (!selectedProgram.value) {
+      showErrorToast('Pilih program terlebih dahulu')
+      return
+    }
+    
+    // Get quizzes for this program
+    const { data: quizzes, error: quizErr } = await supabase
+      .from('quizzes')
+      .select('id')
+      .or(`program_id.eq.${selectedProgram.value.id},program_id.is.null`)
+    
+    if (quizErr) throw quizErr
+    
+    const quizIds = quizzes?.map(q => q.id) || []
+    if (quizIds.length === 0) {
+      showErrorToast('Tidak ada quiz di program ini')
+      return
+    }
+    
+    // Delete only attempts for quizzes in this program
+    const { error } = await supabase
+      .from('quiz_attempts')
+      .delete()
+      .eq('student_id', student.id)
+      .in('quiz_id', quizIds)
+    
+    if (error) throw error
+    
+    showSuccessToast('Quiz berhasil di-reset. Siswa bisa mengerjakan ulang.')
+    quizGrades.value = await fetchQuizGrades(selectedProgram.value.id)
+  } catch (err) {
+    console.error('Error deleting quiz grade:', err)
+    showErrorToast('Gagal reset quiz: ' + err.message)
+  }
+}
+
+// Delete single latihan submission
+async function deleteLatihanSubmission(submissionId) {
+  if (!confirm(`Hapus nilai latihan ini?`)) return
+  
+  try {
+    const { error } = await supabase
+      .from('exercise_submissions')
+      .delete()
+      .eq('id', submissionId)
+    
+    if (error) throw error
+    
+    showSuccessToast('Nilai latihan berhasil dihapus')
+    // Refresh latihan grades
+    if (selectedProgram.value) {
+      await fetchLatihanGrades(selectedProgram.value.id)
+      // Update selected student data if modal is open
+      if (selectedLatihanStudent.value) {
+        const updatedStudent = latihanSubmissions.value.find(s => s.id === selectedLatihanStudent.value.id)
+        if (updatedStudent) {
+          selectedLatihanStudent.value = updatedStudent
+          selectedSubmission.value = null
+        }
+      }
+    }
+  } catch (err) {
+    console.error('Error deleting latihan submission:', err)
+    showErrorToast('Gagal menghapus nilai latihan: ' + err.message)
+  }
+}
+
+// Delete all latihan for a student
+async function deleteAllLatihanForStudent(student) {
+  if (!confirm(`Hapus semua nilai latihan untuk ${student.name}?`)) return
+  
+  try {
+    // Get submission IDs from student data
+    // latihanSubmissions data has submissions array
+    const submissionIds = student.submissions?.map(s => s.id) || []
+    
+    if (submissionIds.length === 0) {
+      // If no submissions array, try to delete by student_id
+      const { error } = await supabase
+        .from('exercise_submissions')
+        .delete()
+        .eq('student_id', student.id)
+      
+      if (error) throw error
+    } else {
+      const { error } = await supabase
+        .from('exercise_submissions')
+        .delete()
+        .in('id', submissionIds)
+      
+      if (error) throw error
+    }
+    
+    showSuccessToast('Semua nilai latihan berhasil dihapus')
+    showLatihanModal.value = false
+    
+    // Immediately remove from local array
+    latihanSubmissions.value = latihanSubmissions.value.filter(s => s.id !== student.id)
+    
+    // Also refresh from server if program selected
+    if (selectedProgram.value) {
+      try {
+        await fetchLatihanGrades(selectedProgram.value.id)
+      } catch (refreshErr) {
+        console.log('Refresh failed but delete succeeded', refreshErr)
+      }
+    }
+  } catch (err) {
+    console.error('Error deleting all latihan:', err)
+    showErrorToast('Gagal menghapus nilai latihan: ' + err.message)
+  }
+}
 </script>
 
 <template>
@@ -216,7 +518,14 @@ onMounted(async () => {
             </svg>
             Nilai Siswa
           </h1>
-          <p class="subtitle">Kelola dan input nilai siswa untuk setiap ujian dan tugas</p>
+          <div class="program-selector">
+            <select v-model="selectedProgram" class="program-select">
+              <option :value="null">-- Pilih Program --</option>
+              <option v-for="prog in programs" :key="prog.id" :value="prog">
+                {{ prog.name }} - {{ prog.level || 'Semua Level' }}
+              </option>
+            </select>
+          </div>
         </div>
         <div class="header-actions">
           <button class="btn-settings" @click="showSettingsModal = true">
@@ -225,7 +534,7 @@ onMounted(async () => {
               <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
             </svg>
           </button>
-          <button class="btn-save-all" @click="handleSaveAllGrades">
+          <button class="btn-save-all" @click="handleSaveAllGrades" :disabled="!selectedProgram">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
               <polyline points="17 21 17 13 7 13 7 21"/>
@@ -235,6 +544,21 @@ onMounted(async () => {
           </button>
         </div>
       </header>
+
+      <!-- Empty State - No Program Selected -->
+      <div v-if="!selectedProgram" class="empty-program-state">
+        <div class="empty-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <path d="M22 10v6M2 10l10-5 10 5-10 5z"/>
+            <path d="M6 12v5c3 3 9 3 12 0v-5"/>
+          </svg>
+        </div>
+        <h3>Pilih Program Terlebih Dahulu</h3>
+        <p>Pilih program di atas untuk melihat dan mengelola nilai siswa</p>
+      </div>
+
+      <!-- Content - Show when program is selected -->
+      <template v-if="selectedProgram">
 
       <!-- Stats Cards -->
       <section class="stats-grid">
@@ -356,10 +680,6 @@ onMounted(async () => {
           </svg>
           <input v-model="searchQuery" type="text" placeholder="Cari nama siswa...">
         </div>
-        <select v-model="selectedClass" class="filter-select">
-          <option value="all">Semua Kelas</option>
-          <option v-for="cls in classes" :key="cls" :value="cls">{{ cls }}</option>
-        </select>
         <div class="view-toggle">
           <button :class="{ active: viewMode === 'table' }" @click="viewMode = 'table'">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -395,9 +715,9 @@ onMounted(async () => {
             <tr>
               <th>No</th>
               <th>Nama Siswa</th>
-              <th>Kelas</th>
-              <th>Mata Pelajaran</th>
-              <th>Nilai</th>
+              <th v-if="selectedExam !== 'Latihan'">Program</th>
+              <th v-if="selectedExam === 'Latihan'">Submisi</th>
+              <th>Rata-rata Nilai</th>
               <th>Grade</th>
               <th>Aksi</th>
             </tr>
@@ -407,14 +727,22 @@ onMounted(async () => {
               <td>{{ index + 1 }}</td>
               <td>
                 <div class="student-cell">
-                  <span class="avatar">{{ student.name?.charAt(0) || '?' }}</span>
+                  <span class="avatar">
+                    <img v-if="student.avatar" :src="student.avatar" class="avatar-img" />
+                    <span v-else>{{ student.name?.charAt(0) || '?' }}</span>
+                  </span>
                   {{ student.name }}
                 </div>
               </td>
-              <td>{{ student.class }}</td>
-              <td>{{ student.subject }}</td>
+              <td v-if="selectedExam !== 'Latihan'">{{ selectedProgram?.name || '-' }}</td>
+              <td v-if="selectedExam === 'Latihan'">
+                <span class="submission-count">
+                  {{ student.gradedCount }}/{{ student.submissionCount }} Dinilai
+                </span>
+              </td>
               <td>
-                <input type="number" v-model.number="student.grade" min="0" max="100" class="grade-input">
+                <input v-if="selectedExam !== 'Latihan' && selectedExam !== 'Quiz'" type="number" v-model.number="student.grade" min="0" max="100" class="grade-input">
+                <span v-else class="avg-grade">{{ student.grade || 0 }}</span>
               </td>
               <td>
                 <span :class="['grade-badge', getGradeClass(student.grade)]">
@@ -422,12 +750,34 @@ onMounted(async () => {
                 </span>
               </td>
               <td>
-                <button class="btn-edit" @click="openInputModal(student)">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-                  </svg>
-                </button>
+                <div class="action-btns">
+                  <button v-if="selectedExam === 'Latihan'" class="btn-grade-latihan" @click="openLatihanModal(student)">
+                    Nilai Latihan
+                  </button>
+                  <button v-if="selectedExam === 'Latihan'" class="btn-delete" @click="deleteAllLatihanForStudent(student)" title="Hapus Semua">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                    </svg>
+                  </button>
+                  <button v-if="selectedExam === 'Quiz'" class="btn-view-detail" @click="openQuizDetail(student)">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                      <circle cx="12" cy="12" r="3"/>
+                    </svg>
+                  </button>
+                  <button v-if="selectedExam === 'Quiz'" class="btn-reset" @click="resetQuizForStudent(student)" title="Reset Quiz">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+                    </svg>
+                    Reset
+                  </button>
+                  <button v-if="selectedExam !== 'Quiz' && selectedExam !== 'Latihan'" class="btn-edit" @click="openInputModal(student)">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                    </svg>
+                  </button>
+                </div>
               </td>
             </tr>
           </tbody>
@@ -515,6 +865,7 @@ onMounted(async () => {
           </div>
         </div>
       </div>
+      </template>
 
       <!-- Settings Modal -->
       <div v-if="showSettingsModal" class="modal-overlay" @click.self="showSettingsModal = false">
@@ -531,8 +882,105 @@ onMounted(async () => {
             <p class="helper-text">Siswa dengan nilai ≥ {{ passingGrade }} dianggap lulus</p>
           </div>
           
+          <div class="form-group">
+            <label>Bobot Nilai Quiz (%)</label>
+            <div class="weight-input">
+              <input type="number" v-model.number="quizWeight" min="0" max="100" @change="latihanWeight = 100 - quizWeight">
+              <span>%</span>
+            </div>
+          </div>
+          
+          <div class="form-group">
+            <label>Bobot Nilai Latihan (%)</label>
+            <div class="weight-input">
+              <input type="number" v-model.number="latihanWeight" min="0" max="100" @change="quizWeight = 100 - latihanWeight">
+              <span>%</span>
+            </div>
+            <p class="helper-text">Total bobot: {{ quizWeight + latihanWeight }}%</p>
+          </div>
+          
           <div class="modal-actions">
-            <button class="btn-save" @click="showSettingsModal = false">Simpan Pengaturan</button>
+            <button class="btn-save" @click="saveGradeSettings">Simpan Pengaturan</button>
+          </div>
+        </div>
+      </div>
+      <!-- Latihan Grading Modal -->
+      <div v-if="showLatihanModal" class="modal-overlay" @click.self="showLatihanModal = false">
+        <div class="modal latihan-modal">
+          <button class="modal-close" @click="showLatihanModal = false">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
+          
+          <div class="latihan-modal-header">
+            <h3>Daftar Latihan: {{ selectedLatihanStudent?.name }}</h3>
+            <p v-if="selectedLatihanStudent?.submissions.length === 0" class="empty-submissions">
+              Siswa belum mengumpulkan latihan apapun.
+            </p>
+          </div>
+
+          <div class="latihan-modal-content">
+            <!-- Left Side: List of Exercises -->
+            <div class="exercises-sidebar">
+              <div 
+                v-for="sub in selectedLatihanStudent?.submissions" 
+                :key="sub.id" 
+                class="exercise-item"
+                :class="{ active: selectedSubmission?.id === sub.id, graded: sub.graded_at }"
+                @click="selectSubmission(sub)"
+              >
+                <div class="ei-info">
+                  <span class="ei-title">{{ selectedLatihanStudent.exercises.find(e => e.id === sub.material_id)?.title || 'Latihan' }}</span>
+                  <span class="ei-date">{{ formatDate(sub.submitted_at) }}</span>
+                </div>
+                <div v-if="sub.score !== null" class="ei-score">{{ sub.score }}</div>
+              </div>
+            </div>
+
+            <!-- Right Side: Grading Form -->
+            <div class="grading-panel" v-if="selectedSubmission">
+              <div class="panel-section">
+                <label>File Jawaban</label>
+                <a :href="selectedSubmission.submission_url" target="_blank" class="submission-link">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+                    <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+                  </svg>
+                  Lihat File Jawaban
+                </a>
+              </div>
+
+              <div class="panel-section" v-if="selectedSubmission.submission_notes">
+                <label>Catatan Siswa</label>
+                <p class="student-notes">{{ selectedSubmission.submission_notes }}</p>
+              </div>
+
+              <div class="panel-section">
+                <label>Nilai (0-100)</label>
+                <input type="number" v-model.number="latihanGradeInput" min="0" max="100" class="latihan-grade-input">
+              </div>
+
+              <div class="panel-section">
+                <label>Feedback</label>
+                <textarea v-model="latihanFeedbackInput" placeholder="Beri feedback..." class="latihan-feedback-input"></textarea>
+              </div>
+
+              <div class="panel-actions">
+                <button class="btn-save-latihan" @click="handleSaveLatihanGrade" :disabled="gradingInProgress">
+                  {{ gradingInProgress ? 'Menyimpan...' : 'Simpan Nilai' }}
+                </button>
+              </div>
+            </div>
+            
+            <div class="grading-panel-empty" v-else>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+              </svg>
+              <p>Pilih salah satu latihan untuk memberi nilai</p>
+            </div>
           </div>
         </div>
       </div>
@@ -573,6 +1021,76 @@ onMounted(async () => {
 
 .header-left h1 svg { width: 28px; height: 28px; color: #0d5782; }
 .subtitle { color: #64748b; font-size: 14px; margin-top: 4px; }
+
+/* Program Selector */
+.program-selector {
+  margin-top: 8px;
+}
+
+.program-select {
+  padding: 10px 16px;
+  border: 2px solid #e2e8f0;
+  border-radius: 10px;
+  font-size: 15px;
+  font-weight: 500;
+  min-width: 280px;
+  background: white;
+  color: #1e293b;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.program-select:focus {
+  outline: none;
+  border-color: #0d5782;
+}
+
+.program-select:hover {
+  border-color: #cbd5e1;
+}
+
+/* Empty Program State */
+.empty-program-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 80px 40px;
+  text-align: center;
+  background: white;
+  border-radius: 20px;
+  margin-top: 24px;
+  border: 2px dashed #e2e8f0;
+}
+
+.empty-icon {
+  width: 80px;
+  height: 80px;
+  background: linear-gradient(135deg, #e0f2fe, #f0f9ff);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 20px;
+}
+
+.empty-icon svg {
+  width: 40px;
+  height: 40px;
+  color: #0d5782;
+}
+
+.empty-program-state h3 {
+  font-size: 20px;
+  font-weight: 600;
+  color: #1e293b;
+  margin-bottom: 8px;
+}
+
+.empty-program-state p {
+  color: #64748b;
+  font-size: 14px;
+}
 
 .header-actions {
   display: flex;
@@ -958,6 +1476,38 @@ onMounted(async () => {
 .btn-edit:hover { background: #f8fafc; }
 .btn-edit svg { width: 16px; height: 16px; color: #64748b; }
 
+.action-btns { display: flex; gap: 8px; align-items: center; }
+
+.btn-delete {
+  width: 36px;
+  height: 36px;
+  border: 1px solid #fee2e2;
+  background: #fff5f5;
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.btn-delete:hover { background: #fee2e2; }
+.btn-delete svg { width: 16px; height: 16px; color: #dc2626; }
+
+.btn-reset {
+  padding: 6px 12px;
+  border: 1px solid #dbeafe;
+  background: #eff6ff;
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #2563eb;
+}
+.btn-reset:hover { background: #dbeafe; }
+.btn-reset svg { width: 14px; height: 14px; }
+
 /* Cards View */
 .grades-cards {
   display: grid;
@@ -1106,9 +1656,23 @@ onMounted(async () => {
   border: none;
   background: #f1f5f9;
   border-radius: 50%;
-  font-size: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   cursor: pointer;
   color: #64748b;
+  transition: all 0.2s;
+}
+
+.modal-close:hover {
+  background: #e2e8f0;
+  color: #1e293b;
+  transform: rotate(90deg);
+}
+
+.modal-close svg {
+  width: 18px;
+  height: 18px;
 }
 
 .modal h2 { font-size: 20px; font-weight: 700; margin-bottom: 24px; }
@@ -1231,6 +1795,25 @@ onMounted(async () => {
 .kkm-input input:focus { outline: none; border-color: #0d5782; }
 .kkm-input span { font-size: 16px; color: #64748b; }
 
+.weight-input {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.weight-input input {
+  width: 80px;
+  padding: 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  font-size: 20px;
+  text-align: center;
+  font-weight: 600;
+}
+
+.weight-input input:focus { outline: none; border-color: #0d5782; }
+.weight-input span { font-size: 16px; color: #64748b; }
+
 .helper-text {
   font-size: 12px;
   color: #64748b;
@@ -1277,5 +1860,234 @@ onMounted(async () => {
   .grades-cards { grid-template-columns: 1fr; }
   .distribution-bars { gap: 16px; }
   .pass-fail { gap: 24px; }
+}
+/* Latihan Styles */
+.submission-count {
+  font-size: 13px;
+  color: #64748b;
+  font-weight: 500;
+}
+
+.avg-grade {
+  font-weight: 700;
+  font-size: 16px;
+  color: #0d5782;
+}
+
+.btn-grade-latihan {
+  padding: 6px 12px;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #475569;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-grade-latihan:hover {
+  background: #e2e8f0;
+  color: #1e293b;
+}
+
+.btn-view-detail {
+  padding: 6px;
+  background: transparent;
+  border: none;
+  color: #64748b;
+  cursor: pointer;
+}
+
+.btn-view-detail svg {
+  width: 20px;
+  height: 20px;
+}
+
+/* Latihan Modal Styles */
+.latihan-modal {
+  max-width: 800px !important;
+  padding: 0 !important;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  height: 80vh;
+}
+
+.latihan-modal-header {
+  padding: 24px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.latihan-modal-header h3 {
+  font-size: 18px;
+  font-weight: 700;
+  color: #1e293b;
+  margin: 0;
+}
+
+.empty-submissions {
+  margin: 12px 0 0;
+  font-size: 14px;
+  color: #94a3b8;
+}
+
+.latihan-modal-content {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+.exercises-sidebar {
+  width: 240px;
+  background: #f8fafc;
+  border-right: 1px solid #e2e8f0;
+  overflow-y: auto;
+  padding: 12px;
+}
+
+.exercise-item {
+  padding: 12px;
+  border-radius: 12px;
+  background: white;
+  border: 1px solid #e2e8f0;
+  margin-bottom: 8px;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  transition: all 0.2s;
+}
+
+.exercise-item:hover {
+  border-color: #0d5782;
+}
+
+.exercise-item.active {
+  background: #eff6ff;
+  border-color: #3b82f6;
+}
+
+.exercise-item.graded {
+  background: #f0fdf4;
+  border-color: #bbf7d0;
+}
+
+.ei-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.ei-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #334155;
+}
+
+.ei-date {
+  font-size: 11px;
+  color: #94a3b8;
+}
+
+.ei-score {
+  font-weight: 700;
+  color: #16a34a;
+  font-size: 14px;
+}
+
+.grading-panel {
+  flex: 1;
+  padding: 24px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.panel-section label {
+  display: block;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: #94a3b8;
+  margin-bottom: 8px;
+  letter-spacing: 0.05em;
+}
+
+.submission-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #2563eb;
+  font-weight: 600;
+  font-size: 14px;
+  text-decoration: none;
+  padding: 12px 16px;
+  background: #eff6ff;
+  border-radius: 10px;
+}
+
+.submission-link svg {
+  width: 18px;
+  height: 18px;
+}
+
+.student-notes {
+  background: #f1f5f9;
+  padding: 12px;
+  border-radius: 10px;
+  font-size: 14px;
+  color: #475569;
+  margin: 0;
+}
+
+.latihan-grade-input {
+  width: 100px;
+  padding: 10px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.latihan-feedback-input {
+  width: 100%;
+  height: 100px;
+  padding: 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  font-size: 14px;
+  resize: vertical;
+}
+
+.btn-save-latihan {
+  padding: 12px 24px;
+  background: #0d5782;
+  color: white;
+  border: none;
+  border-radius: 10px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn-save-latihan:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.grading-panel-empty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: #94a3b8;
+}
+
+.grading-panel-empty svg {
+  width: 48px;
+  height: 48px;
+  margin-bottom: 12px;
 }
 </style>

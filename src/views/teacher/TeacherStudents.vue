@@ -4,11 +4,14 @@ import OwnerSidebar from '@/components/OwnerSidebar.vue'
 import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useTeacherData } from '@/composables/useTeacherData'
+import { useMyClass } from '@/composables/useMyClass'
+import { supabase } from '@/lib/supabase'
 
 const route = useRoute()
 const isOwner = computed(() => route.path.startsWith('/owner'))
 
 const { loading, students, lesPlace, fetchTeacherStudents, fetchTeacherProfile } = useTeacherData()
+const { fetchReportCard } = useMyClass()
 
 const filter = ref('all')
 const statusFilter = ref('all')
@@ -32,10 +35,15 @@ const studentStats = computed(() => {
   return { total, active, avgProgress, newThisMonth }
 })
 
-// Get unique classes for filter dropdown
-const classes = computed(() => {
-  const unique = [...new Set(students.value.map(s => s.class))]
-  return unique.filter(c => c && c !== '-')
+// Get unique programs for filter dropdown (using program_id and name)
+const programs = computed(() => {
+  const programMap = new Map()
+  students.value.forEach(s => {
+    if (s.program_id && s.program?.name) {
+      programMap.set(s.program_id, s.program.name)
+    }
+  })
+  return Array.from(programMap.entries()).map(([id, name]) => ({ id, name }))
 })
 
 // Get unique subjects
@@ -48,9 +56,9 @@ const filteredStudents = computed(() => {
   return students.value.filter(s => {
     const matchSearch = s.name?.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
                        s.email?.toLowerCase().includes(searchQuery.value.toLowerCase())
-    const matchClass = filter.value === 'all' || s.class === filter.value
+    const matchProgram = filter.value === 'all' || s.program_id === filter.value
     const matchStatus = statusFilter.value === 'all' || s.status === statusFilter.value
-    return matchSearch && matchClass && matchStatus
+    return matchSearch && matchProgram && matchStatus
   })
 })
 
@@ -73,14 +81,63 @@ function getStatusBadge(status) {
 function openStudentDetail(student) {
   selectedStudent.value = student
   showStudentModal.value = true
+  fetchStudentReport(student)
 }
 
-function getGradeFromProgress(progress) {
-  if (progress >= 90) return 'A'
-  if (progress >= 80) return 'B'
-  if (progress >= 70) return 'C'
-  if (progress >= 60) return 'D'
-  return 'E'
+// Student report data
+const studentReport = ref({
+  quizScores: [],
+  latihanScores: [],
+  quizAverage: 0,
+  latihanAverage: 0,
+  finalGrade: 0,
+  settings: {
+    quiz_weight: 60,
+    latihan_weight: 40
+  },
+  loading: false
+})
+
+async function fetchStudentReport(student) {
+  if (!student?.user_id || !student?.program) return
+  
+  studentReport.value.loading = true
+  
+  try {
+    const report = await fetchReportCard(student.user_id, student.program)
+    
+    if (report) {
+      studentReport.value = {
+        quizScores: report.quizScores || [],
+        latihanScores: report.latihanScores || [],
+        quizAverage: report.quiz_avg || 0,
+        latihanAverage: report.latihan_avg || 0,
+        finalGrade: report.final_grade || 0,
+        settings: report.settings || { quiz_weight: 60, latihan_weight: 40 },
+        loading: false
+      }
+    }
+  } catch (err) {
+    console.error('Error fetching student report:', err)
+  } finally {
+    studentReport.value.loading = false
+  }
+}
+
+function formatDate(date) {
+  if (!date) return '-'
+  return new Date(date).toLocaleDateString('id-ID', { 
+    day: 'numeric', 
+    month: 'short', 
+    year: 'numeric'
+  })
+}
+
+function getGradeFromScore(score) {
+  if (score >= 90) return 'A'
+  if (score >= 80) return 'B'
+  if (score >= 70) return 'C'
+  return 'D'
 }
 
 onMounted(async () => {
@@ -181,8 +238,8 @@ onMounted(async () => {
           </div>
           
           <select v-model="filter" class="filter-select">
-            <option value="all">Semua Kelas</option>
-            <option v-for="cls in classes" :key="cls" :value="cls">{{ cls }}</option>
+            <option value="all">Semua Program</option>
+            <option v-for="prog in programs" :key="prog.id" :value="prog.id">{{ prog.name }}</option>
           </select>
           
           <select v-model="statusFilter" class="filter-select">
@@ -274,9 +331,10 @@ onMounted(async () => {
               <span>{{ student.join_date || '-' }}</span>
             </div>
             <div class="footer-grade">
-              <span class="grade-badge" :class="getProgressColor(student.progress || 0)">
-                {{ getGradeFromProgress(student.progress || 0) }}
+              <span class="grade-badge" v-if="student.finalScore !== undefined" :class="getGradeFromScore(student.finalScore).toLowerCase()">
+                {{ getGradeFromScore(student.finalScore) }}
               </span>
+              <span v-else class="grade-badge secondary">-</span>
             </div>
           </div>
 
@@ -438,6 +496,82 @@ onMounted(async () => {
               <div class="progress-bar lg">
                 <div class="progress-fill" :class="getProgressColor(selectedStudent?.progress || 0)" :style="{ width: (selectedStudent?.progress || 0) + '%' }"></div>
               </div>
+            </div>
+
+            <!-- Student Report Card -->
+            <div class="student-report-section">
+              <h3 class="report-title">Statistik Penilaian</h3>
+              
+              <div v-if="studentReport.loading" class="report-loading">
+                <div class="spinner-small"></div>
+                <span>Memuat nilai...</span>
+              </div>
+              
+              <template v-else>
+                <!-- Weighted Total Score -->
+                <div class="report-total-score">
+                  <div class="total-score-circle" :class="studentReport.finalGrade >= 70 ? 'excellent' : 'poor'">
+                    <span class="total-value">{{ studentReport.finalGrade }}</span>
+                    <span class="total-label">Nilai Akhir</span>
+                  </div>
+                  <div class="score-breakdown">
+                    <div class="breakdown-item">
+                      <span class="bi-label">Rata-rata Quiz ({{ studentReport.settings.quiz_weight }}%)</span>
+                      <div class="bi-bar">
+                        <div class="bi-bar-track">
+                          <div class="bi-fill quiz" :style="{ width: studentReport.quizAverage + '%' }"></div>
+                        </div>
+                        <span class="bi-value">{{ studentReport.quizAverage }}</span>
+                      </div>
+                    </div>
+                    <div class="breakdown-item">
+                      <span class="bi-label">Rata-rata Latihan ({{ studentReport.settings.latihan_weight }}%)</span>
+                      <div class="bi-bar">
+                        <div class="bi-bar-track">
+                          <div class="bi-fill latihan" :style="{ width: studentReport.latihanAverage + '%' }"></div>
+                        </div>
+                        <span class="bi-value">{{ studentReport.latihanAverage }}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Quiz List -->
+                <h4 class="sub-title">Detail Quiz</h4>
+                <div v-if="studentReport.quizScores.length === 0" class="report-empty">
+                  <p>Belum ada quiz yang dikerjakan</p>
+                </div>
+                
+                <div v-else class="scores-list">
+                  <div v-for="quiz in studentReport.quizScores" :key="quiz.id" class="score-item">
+                    <div class="score-info">
+                      <span class="score-title">{{ quiz.title }}</span>
+                      <span class="score-date">{{ formatDate(quiz.date) }}</span>
+                    </div>
+                    <span class="score-value quiz" :class="quiz.passed ? 'passed' : 'failed'">
+                      {{ quiz.score }}
+                    </span>
+                  </div>
+                </div>
+
+                <!-- Latihan List -->
+                <h4 class="sub-title">Detail Latihan</h4>
+                <div v-if="studentReport.latihanScores.length === 0" class="report-empty">
+                  <p>Belum ada latihan yang disubmit</p>
+                </div>
+                
+                <div v-else class="scores-list">
+                  <div v-for="latihan in studentReport.latihanScores" :key="latihan.id" class="score-item">
+                    <div class="score-info">
+                      <span class="score-title">{{ latihan.title }}</span>
+                      <span class="score-date">{{ formatDate(latihan.date) }}</span>
+                    </div>
+                    <span class="score-value latihan" :class="latihan.score >= 70 ? 'passed' : 'failed'">
+                      {{ latihan.score }}
+                    </span>
+                  </div>
+                </div>
+              </template>
             </div>
           </div>
 
@@ -804,10 +938,11 @@ onMounted(async () => {
   color: white;
 }
 
-.grade-badge.excellent { background: #22c55e; }
-.grade-badge.good { background: #3b82f6; }
-.grade-badge.average { background: #f59e0b; }
-.grade-badge.poor { background: #ef4444; }
+.grade-badge.a { background: #dcfce7; color: #15803d; }
+.grade-badge.b { background: #dbeafe; color: #1d4ed8; }
+.grade-badge.c { background: #fef9c3; color: #a16207; }
+.grade-badge.d { background: #fee2e2; color: #b91c1c; }
+.grade-badge.secondary { background: #f1f5f9; color: #64748b; }
 
 .card-actions {
   display: grid;
@@ -1102,4 +1237,215 @@ onMounted(async () => {
   .detail-grid { grid-template-columns: 1fr; }
   .modal-actions { flex-direction: column; }
 }
+
+/* Student Report Card Styles */
+.student-report-section {
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid #e2e8f0;
+}
+
+.report-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #0f172a;
+  margin-bottom: 16px;
+}
+
+.report-loading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  justify-content: center;
+  padding: 20px;
+  color: #64748b;
+}
+
+.spinner-small {
+  width: 20px;
+  height: 20px;
+  border: 2px solid #e2e8f0;
+  border-top-color: #0d5782;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+/* Report Total Score Section */
+.report-total-score {
+  display: flex;
+  align-items: center;
+  gap: 32px;
+  background: white;
+  padding: 24px;
+  border-radius: 20px;
+  border: 1px solid #e2e8f0;
+  margin-bottom: 24px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+}
+
+.total-score-circle {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  border: 6px solid #f1f5f9;
+  flex-shrink: 0;
+}
+
+.total-score-circle.excellent { border-color: #dcfce7; color: #16a34a; }
+.total-score-circle.poor { border-color: #fee2e2; color: #dc2626; }
+
+.total-value {
+  font-size: 32px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.total-label {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-top: 4px;
+}
+
+.score-breakdown {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.breakdown-item {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.bi-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #64748b;
+}
+
+.bi-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.bi-bar-track {
+  flex: 1;
+  height: 10px;
+  background: #f1f5f9;
+  border-radius: 5px;
+  overflow: hidden;
+}
+
+.bi-fill {
+  height: 100%;
+  border-radius: 5px;
+  transition: width 0.5s ease;
+}
+
+.bi-fill.quiz { background: linear-gradient(90deg, #0d5782, #1e88a8); }
+.bi-fill.latihan { background: linear-gradient(90deg, #10b981, #34d399); }
+
+.bi-value {
+  font-size: 16px;
+  font-weight: 700;
+  color: #1e293b;
+  min-width: 45px;
+  text-align: right;
+}
+
+.sub-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #475569;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin: 24px 0 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.report-empty {
+  text-align: center;
+  padding: 24px;
+  color: #94a3b8;
+  font-size: 14px;
+  background: #f8fafc;
+  border-radius: 12px;
+  border: 1px dashed #e2e8f0;
+  margin-bottom: 16px;
+}
+
+.report-empty p {
+  margin: 0;
+}
+
+.scores-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.score-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 18px;
+  background: #f8fafc;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  transition: all 0.2s;
+}
+
+.score-item:hover {
+  background: white;
+  border-color: #cbd5e1;
+  transform: translateX(4px);
+}
+
+.score-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.score-title {
+  font-weight: 600;
+  font-size: 14px;
+  color: #1e293b;
+}
+
+.score-date {
+  font-size: 12px;
+  color: #94a3b8;
+}
+
+.score-value {
+  font-size: 18px;
+  font-weight: 800;
+  padding: 4px 12px;
+  border-radius: 8px;
+}
+
+.score-value.quiz { background: #eff6ff; color: #1d4ed8; }
+.score-value.latihan { background: #f0fdf4; color: #15803d; }
+
+.score-value.passed { color: #16a34a; }
+.score-value.failed { color: #dc2626; }
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
 </style>

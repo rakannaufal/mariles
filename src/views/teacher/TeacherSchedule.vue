@@ -4,6 +4,7 @@ import OwnerSidebar from '@/components/OwnerSidebar.vue'
 import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useTeacherData } from '@/composables/useTeacherData'
+import { supabase } from '@/lib/supabase'
 
 const route = useRoute()
 const isOwner = computed(() => route.path.startsWith('/owner'))
@@ -12,6 +13,54 @@ const { loading, schedule, lesPlace, fetchTeacherSchedule, fetchTeacherProfile }
 
 // View mode: 'week' or 'list'
 const viewMode = ref('week')
+
+// Modal state
+const showModal = ref(false)
+const selectedClass = ref(null)
+const meetingLink = ref('')
+const savingLink = ref(false)
+
+async function openClassDetail(item) {
+  selectedClass.value = item
+  meetingLink.value = item.meeting_url || ''
+  showModal.value = true
+}
+
+async function updateMeetingLink() {
+  if (!selectedClass.value) return
+  
+  savingLink.value = true
+  try {
+    const { error } = await supabase
+      .from('programs')
+      .update({ meeting_url: meetingLink.value })
+      .eq('id', selectedClass.value.program_id)
+      
+    if (error) throw error
+    
+    // Update local data
+    const idx = schedule.value.findIndex(s => s.id === selectedClass.value.id)
+    if (idx !== -1) {
+      schedule.value[idx].meeting_url = meetingLink.value
+    }
+    
+    // Also update all items with same program_id
+    schedule.value.forEach(s => {
+      if (s.program_id === selectedClass.value.program_id) {
+        s.meeting_url = meetingLink.value
+      }
+    })
+    
+    showModal.value = false
+    alert('Link meeting berhasil disimpan')
+  } catch (err) {
+    console.error('Error updating link:', err)
+    alert('Gagal menyimpan link')
+  } finally {
+    savingLink.value = false
+  }
+}
+
 
 // Current week date
 const currentWeekStart = ref(getWeekStart(new Date()))
@@ -302,7 +351,10 @@ onMounted(async () => {
             <template v-if="getScheduleForDay(day.index).length">
               <div v-for="item in getScheduleForDay(day.index)" :key="item.id" 
                    class="week-schedule-item"
-                   :style="{ borderLeftColor: getSubjectColor(item.subject).text }">
+                   :class="{ 'online': item.type === 'Online' }"
+                   :style="{ borderLeftColor: getSubjectColor(item.subject).text }"
+                   @click="openClassDetail(item)"
+                   style="cursor: pointer;">
                 <span class="item-time">{{ formatScheduleTime(item.time) }}</span>
                 <h4 class="item-subject">{{ item.subject }}</h4>
                 <p class="item-class">{{ item.class }}</p>
@@ -338,7 +390,7 @@ onMounted(async () => {
 
         <!-- Schedule Cards -->
         <div class="schedule-list" v-if="filteredSchedule.length">
-          <div v-for="(item, idx) in filteredSchedule" :key="idx" class="schedule-card">
+          <div v-for="(item, idx) in filteredSchedule" :key="idx" class="schedule-card" @click="openClassDetail(item)" style="cursor: pointer;">
             <div class="card-timeline">
               <div class="timeline-dot" :style="{ background: getSubjectColor(item.subject).text }"></div>
               <div class="timeline-line" v-if="idx < filteredSchedule.length - 1"></div>
@@ -436,10 +488,152 @@ onMounted(async () => {
         </div>
       </section>
     </main>
+    </main>
+
+    <!-- Class Detail Modal -->
+    <div v-if="showModal" class="modal-overlay" @click.self="showModal = false">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2>Detail Kelas</h2>
+          <button class="close-btn" @click="showModal = false">&times;</button>
+        </div>
+        
+        <div class="modal-body" v-if="selectedClass">
+          <div class="detail-row">
+            <label>Mata Pelajaran</label>
+            <div class="detail-value font-bold">{{ selectedClass.subject }}</div>
+          </div>
+          <div class="detail-row">
+            <label>Program</label>
+            <div class="detail-value">{{ selectedClass.program_name }}</div>
+          </div>
+          <div class="detail-row">
+            <label>Waktu</label>
+            <div class="detail-value">{{ selectedClass.time }}</div>
+          </div>
+          <div class="detail-row">
+            <label>Tipe Kelas</label>
+            <div class="detail-value">
+              <span :class="['type-badge', selectedClass.type.toLowerCase()]">{{ selectedClass.type }}</span>
+            </div>
+          </div>
+
+          <!-- Meeting Link Input (Only for Online) -->
+          <div class="link-section" v-if="selectedClass.type === 'Online' || selectedClass.type === 'Hybrid'">
+            <label>Link Google Meet</label>
+            <div class="input-group">
+              <input 
+                v-model="meetingLink" 
+                type="url" 
+                placeholder="https://meet.google.com/..."
+                class="link-input"
+              >
+            </div>
+            <p class="help-text">Link ini akan muncul di dashboard siswa saat jadwal kelas berlangsung.</p>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button class="btn-cancel" @click="showModal = false">Tutup</button>
+          <button 
+            v-if="selectedClass?.type === 'Online' || selectedClass?.type === 'Hybrid'"
+            class="btn-save" 
+            :disabled="savingLink"
+            @click="updateMeetingLink"
+          >
+            {{ savingLink ? 'Menyimpan...' : 'Simpan Link' }}
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <style scoped>
+.modal-overlay {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal-content {
+  background: white;
+  border-radius: 16px;
+  width: 90%;
+  max-width: 500px;
+  padding: 24px;
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.modal-header h2 { font-size: 20px; font-weight: 700; color: #0f172a; margin: 0; }
+.close-btn { background: none; border: none; font-size: 24px; cursor: pointer; color: #64748b; }
+
+.detail-row { margin-bottom: 16px; }
+.detail-row label { display: block; font-size: 12px; color: #64748b; margin-bottom: 4px; }
+.detail-value { font-size: 14px; color: #0f172a; }
+.font-bold { font-weight: 600; }
+
+.type-badge {
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 500;
+}
+.type-badge.online { background: #dcfce7; color: #16a34a; }
+.type-badge.offline { background: #f1f5f9; color: #64748b; }
+.type-badge.hybrid { background: #e0f2fe; color: #0284c7; }
+
+.link-section {
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid #e2e8f0;
+}
+
+.link-input {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 14px;
+}
+
+.help-text { font-size: 12px; color: #94a3b8; margin-top: 6px; }
+
+.modal-footer {
+  margin-top: 24px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+.btn-cancel {
+  padding: 8px 16px;
+  border: 1px solid #e2e8f0;
+  background: white;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.btn-save {
+  padding: 8px 16px;
+  background: #0d5782;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+}
+.btn-save:disabled { opacity: 0.7; cursor: not-allowed; }
+
 .dashboard {
   display: flex;
   min-height: 100vh;

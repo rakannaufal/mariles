@@ -7,3 +7,5 @@ Learn more about IDE Support for Vue in the [Vue Docs Scaling up Guide](https://
 # mariles
 
 # https://simulator.sandbox.midtrans.com/
+
+<!-- lalu untuk sistem latihan ni,teacher mengupload latihan lalu muncul distudentdan student mengerjakannya dan di bagian latihannya ada upload jawaban lalu masuk ke teacher jawabannya dan teacher melihat dan memberi nilai dari latihannya dan nilai muncul di student dan di halaman nilai dan siswa pada teacher ikut berubah  -->

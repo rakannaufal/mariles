@@ -118,6 +118,12 @@ const routes = [
     meta: { role: 'student' } 
   },
   { 
+    path: '/student/quiz/:quizId', 
+    name: 'student-quiz', 
+    component: () => import('@/views/student/StudentQuiz.vue'), 
+    meta: { role: 'student' } 
+  },
+  { 
     path: '/student/progress', 
     name: 'student-progress', 
     component: () => import('@/views/student/dashboard/StudentProgress.vue'), 

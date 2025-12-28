@@ -87,6 +87,7 @@ export function useTeacherData() {
           id, name, subject, schedule, level,
           session_duration_minutes, sessions_per_week,
           capacity, current_students, is_active,
+          type, meeting_url,
           les_places (id, name)
         `)
         .eq('les_place_id', teacherProfile.value.les_place_id)
@@ -123,7 +124,9 @@ export function useTeacherData() {
               room: '-',
               les_place: program.les_places?.name || lesPlace.value?.name || '-',
               students: program.current_students || 0,
-              capacity: program.capacity || 0
+              capacity: program.capacity || 0,
+              type: program.type || 'Offline',
+              meeting_url: program.meeting_url
             })
           } else {
             // Format 1: day names as keys
@@ -152,7 +155,9 @@ export function useTeacherData() {
                   room: '-',
                   les_place: program.les_places?.name || lesPlace.value?.name || '-',
                   students: program.current_students || 0,
-                  capacity: program.capacity || 0
+                  capacity: program.capacity || 0,
+                  type: program.type || 'Offline',
+                  meeting_url: program.meeting_url
                 })
               }
             })
@@ -160,7 +165,18 @@ export function useTeacherData() {
         }
       })
       
-      programs.value = data || []
+      // Filter programs to only show those assigned to this teacher
+      // Teacher's assigned programs are stored in specialization array (as program names)
+      const assignedProgramNames = teacherProfile.value?.specialization || []
+      
+      if (assignedProgramNames.length > 0) {
+        // Only show programs that the teacher is assigned to
+        programs.value = data?.filter(p => assignedProgramNames.includes(p.name)) || []
+      } else {
+        // If no specialization set, show all programs (fallback for existing teachers)
+        programs.value = data || []
+      }
+      
       schedule.value = scheduleItems
       return scheduleItems
     } catch (err) {
@@ -213,7 +229,7 @@ export function useTeacherData() {
               id, name, email, phone, avatar_url
             )
           ),
-          programs (id, name, level, subject)
+          programs (id, name, level, subject, les_place_id)
         `)
         .in('program_id', programIds)
         .in('status', ['active', 'confirmed'])
@@ -241,14 +257,78 @@ export function useTeacherData() {
               class: booking.programs?.level || booking.programs?.name || '-',
               subject: booking.programs?.subject || '-',
               join_date: new Date(booking.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }),
-              status: booking.status === 'active' ? 'active' : 'inactive',
+              status: (booking.status === 'active' || booking.status === 'confirmed') ? 'active' : 'inactive',
               les_place: lesPlace.value?.name || '-',
               progress: 0, // Will be calculated from grades/attendance
-              booking_id: booking.id
+              booking_id: booking.id,
+              program_id: booking.program_id,
+              program: booking.programs
             })
           }
         }
       })
+      
+      // Calculate Final Scores
+      const studentUserIds = Array.from(studentMap.values()).map(s => s.user_id)
+      
+      if (studentUserIds.length > 0 && lesPlace.value?.id) {
+        // 1. Fetch Settings
+        const { data: lpSettings } = await supabase
+          .from('les_places')
+          .select('settings')
+          .eq('id', lesPlace.value.id)
+          .single()
+        
+        const settings = {
+          quiz_weight: lpSettings?.settings?.quiz_weight ?? 60,
+          latihan_weight: lpSettings?.settings?.latihan_weight ?? 40
+        }
+
+        // 2. Fetch all valid quizzes and exercises for the les_place
+        const [ { data: quizzes }, { data: exercises } ] = await Promise.all([
+           supabase.from('quizzes').select('id').eq('les_place_id', lesPlace.value.id).eq('is_published', true),
+           supabase.from('course_materials').select('id').eq('type', 'exercise').eq('is_active', true)
+             .in('program_id', programIds) // Filter by programs in this batch
+        ])
+        
+        const quizIds = quizzes?.map(q => q.id) || []
+        const materialIds = exercises?.map(e => e.id) || []
+
+        // 3. Fetch Scores
+        const [ { data: quizAttempts }, { data: submissions } ] = await Promise.all([
+          quizIds.length > 0 ? supabase.from('quiz_attempts').select('student_id, quiz_id, score').in('student_id', studentUserIds).in('quiz_id', quizIds) : { data: [] },
+          materialIds.length > 0 ? supabase.from('exercise_submissions').select('student_id, material_id, score').in('student_id', studentUserIds).in('material_id', materialIds).not('score', 'is', null) : { data: [] }
+        ])
+
+        // 4. Process Scores for each student
+        studentMap.forEach(student => {
+          // Quiz Average
+          const sAttempts = quizAttempts?.filter(a => a.student_id === student.user_id) || []
+          const uniqueQuizzes = {}
+          sAttempts.forEach(a => {
+            if (!uniqueQuizzes[a.quiz_id] || uniqueQuizzes[a.quiz_id] < a.score) {
+              uniqueQuizzes[a.quiz_id] = a.score
+            }
+          })
+          const quizScores = Object.values(uniqueQuizzes)
+          const quizAvg = quizScores.length > 0 ? quizScores.reduce((a, b) => a + b, 0) / quizScores.length : 0
+
+          // Latihan Average
+          const sSubs = submissions?.filter(s => s.student_id === student.user_id) || []
+          // Submissions are unique per (student, material) by constraint, but safer to group if logic changes
+          const latihanScores = sSubs.map(s => s.score)
+          const latihanAvg = latihanScores.length > 0 ? latihanScores.reduce((a, b) => a + b, 0) / latihanScores.length : 0
+
+          // Weighted Final Score
+          // Only calculate if there is at least one score or if we want to show 0
+          if (quizScores.length > 0 || latihanScores.length > 0) {
+             const final = Math.round((quizAvg * (settings.quiz_weight / 100)) + (latihanAvg * (settings.latihan_weight / 100)))
+             student.finalScore = final
+          } else {
+             student.finalScore = 0
+          }
+        })
+      }
       
       students.value = Array.from(studentMap.values())
       return students.value
@@ -711,6 +791,109 @@ export function useTeacherData() {
     }
   }
 
+  // ==================== QUIZ GRADES ====================
+  async function fetchQuizGrades(programId = null) {
+    if (!teacherProfile.value?.les_place_id) {
+      await fetchTeacherProfile()
+    }
+    
+    if (!teacherProfile.value?.les_place_id) {
+      return []
+    }
+    
+    try {
+      loading.value = true
+      
+      // Get quizzes for this les_place
+      // NOTE: Not filtering by program_id since quizzes may not have program_id set
+      let query = supabase
+        .from('quizzes')
+        .select('id, title, passing_score, program_id')
+        .eq('les_place_id', teacherProfile.value.les_place_id)
+        .eq('is_published', true)
+      
+      const { data: quizzes, error: quizErr } = await query
+      
+      console.log('Fetched quizzes:', quizzes)
+      
+      if (quizErr) throw quizErr
+      
+      const quizIds = quizzes?.map(q => q.id) || []
+      
+      if (quizIds.length === 0) {
+        console.log('No quizzes found')
+        return []
+      }
+      
+      // Get quiz attempts
+      const { data: attempts, error: attErr } = await supabase
+        .from('quiz_attempts')
+        .select('*')
+        .in('quiz_id', quizIds)
+        .not('completed_at', 'is', null)
+        .order('completed_at', { ascending: false })
+      
+      if (attErr) throw attErr
+      
+      // Create quiz map for lookup
+      const quizMap = {}
+      quizzes?.forEach(q => quizMap[q.id] = q)
+      
+      // Group by student, get best score per quiz
+      const studentQuizMap = new Map()
+      
+      attempts?.forEach(attempt => {
+        const quiz = quizMap[attempt.quiz_id]
+        const studentName = attempt.results?.student_name || 'Siswa'
+        const studentEmail = attempt.results?.student_email || '-'
+        const studentKey = attempt.student_id
+        
+        if (!studentQuizMap.has(studentKey)) {
+          studentQuizMap.set(studentKey, {
+            id: attempt.student_id,
+            name: studentName,
+            email: studentEmail,
+            quizScores: {},
+            bestScore: 0,
+            totalQuizzes: 0
+          })
+        }
+        
+        const student = studentQuizMap.get(studentKey)
+        
+        // Track best score per quiz
+        if (!student.quizScores[attempt.quiz_id] || student.quizScores[attempt.quiz_id] < attempt.score) {
+          student.quizScores[attempt.quiz_id] = attempt.score
+        }
+      })
+      
+      // Convert to array and calculate average
+      const quizGrades = Array.from(studentQuizMap.values()).map(student => {
+        const scores = Object.values(student.quizScores)
+        const avgScore = scores.length > 0 ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : 0
+        
+        return {
+          id: student.id,
+          name: student.name,
+          email: student.email,
+          class: 'sd', // Will be enriched from bookings if available
+          subject: '-',
+          grade: avgScore,
+          quizCount: scores.length,
+          scores: student.quizScores
+        }
+      })
+      
+      return quizGrades
+    } catch (err) {
+      console.error('Error fetching quiz grades:', err)
+      error.value = err.message
+      return []
+    } finally {
+      loading.value = false
+    }
+  }
+
   // ==================== STATS ====================
   async function fetchTeacherStats() {
     if (!teacherProfile.value?.les_place_id) {
@@ -858,6 +1041,115 @@ export function useTeacherData() {
     return schedule.value.filter(s => s.day === todayIndex)
   }
 
+  // ==================== LATIHAN GRADES ====================
+  const latihanSubmissions = ref([])
+
+  // Fetch latihan submissions for a program/class
+  async function fetchLatihanGrades(programId) {
+    if (!programId) return []
+    
+    try {
+      loading.value = true
+      
+      // 1. Get all exercises for this program
+      const { data: exercises, error: exErr } = await supabase
+        .from('course_materials')
+        .select('id, title')
+        .eq('program_id', programId)
+        .eq('type', 'exercise')
+      
+      if (exErr) throw exErr
+      
+      const materialIds = exercises?.map(e => e.id) || []
+      
+      if (materialIds.length === 0) {
+        latihanSubmissions.value = []
+        return []
+      }
+      
+      // 2. Get all students enrolled in this program through bookings
+      const { data: bookings, error: bookErr } = await supabase
+        .from('bookings')
+        .select(`
+          id, student_id,
+          students (
+            id,
+            users!students_user_id_fkey (id, name, avatar_url)
+          )
+        `)
+        .eq('program_id', programId)
+        .in('status', ['active', 'confirmed'])
+      
+      if (bookErr) throw bookErr
+      
+      // 3. Get all submissions for these materials
+      const { data: submissions, error: subErr } = await supabase
+        .from('exercise_submissions')
+        .select('*')
+        .in('material_id', materialIds)
+      
+      if (subErr) throw subErr
+      
+      // 4. Group by student
+      const studentGrades = bookings?.map(booking => {
+        const student = booking.students
+        const user = student?.users
+        const studentSubmissions = submissions?.filter(s => s.student_id === user?.id) || []
+        
+        // Calculate average score for graded exercises
+        const graded = studentSubmissions.filter(s => s.score !== null)
+        const avgScore = graded.length > 0 
+          ? Math.round(graded.reduce((sum, s) => sum + s.score, 0) / graded.length) 
+          : 0
+          
+        return {
+          id: user?.id,
+          student_id: student?.id,
+          name: user?.name || 'Siswa',
+          avatar: user?.avatar_url,
+          grade: avgScore,
+          submissionCount: studentSubmissions.length,
+          gradedCount: graded.length,
+          submissions: studentSubmissions,
+          exercises: exercises // Reference for the modal
+        }
+      }) || []
+      
+      latihanSubmissions.value = studentGrades
+      return studentGrades
+    } catch (err) {
+      console.error('Error fetching latihan grades:', err)
+      error.value = err.message
+      return []
+    } finally {
+      loading.value = false
+    }
+  }
+
+  // Grade a submission
+  async function gradeLatihanSubmission(submissionId, score, feedback) {
+    try {
+      const { data, error: err } = await supabase
+        .from('exercise_submissions')
+        .update({
+          score: score,
+          feedback: feedback,
+          graded_at: new Date().toISOString(),
+          graded_by: authStore.user.id
+        })
+        .eq('id', submissionId)
+        .select()
+        .single()
+        
+      if (err) throw err
+      return data
+    } catch (err) {
+      console.error('Error grading submission:', err)
+      error.value = err.message
+      return null
+    }
+  }
+
   return {
     // State
     loading,
@@ -873,6 +1165,11 @@ export function useTeacherData() {
     stats,
     isProfileComplete,
     
+    // ==================== LATIHAN GRADES ====================
+    latihanSubmissions,
+    fetchLatihanGrades,
+    gradeLatihanSubmission,
+
     // Methods
     fetchTeacherProfile,
     fetchTeacherSchedule,
@@ -883,6 +1180,7 @@ export function useTeacherData() {
     createMaterial,
     deleteMaterial,
     fetchStudentGrades,
+    fetchQuizGrades,
     saveGrade,
     fetchTeacherStats,
     fetchRecentReviews,
