@@ -1,8 +1,25 @@
 <script setup>
+import { ref, onMounted } from 'vue'
 import { useAuthStore } from '@/stores/auth'
+import { useChat } from '@/composables/useChat'
 import NotificationBell from '@/components/NotificationBell.vue'
+import FloatingChatButton from '@/components/FloatingChatButton.vue'
 
 const authStore = useAuthStore()
+const { getTotalUnreadCount } = useChat()
+
+// Unread chat count
+const unreadCount = ref(0)
+
+onMounted(async () => {
+  if (authStore.user?.id) {
+    try {
+      unreadCount.value = await getTotalUnreadCount(authStore.user.id)
+    } catch (err) {
+      console.error('Error fetching unread count:', err)
+    }
+  }
+})
 
 async function handleLogout() {
   try {
@@ -80,6 +97,14 @@ async function handleLogout() {
         <span>Favorit</span>
       </router-link>
 
+      <router-link to="/student/chat" class="nav-item chat-nav-item">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+        </svg>
+        <span>Chat</span>
+        <span v-if="unreadCount > 0" class="chat-badge">{{ unreadCount > 99 ? '99+' : unreadCount }}</span>
+      </router-link>
+
       <div class="nav-divider"></div>
 
       <router-link to="/student/profile" class="nav-item">
@@ -108,6 +133,9 @@ async function handleLogout() {
       <span>Keluar</span>
     </button>
   </aside>
+  
+  <!-- Floating Chat Button -->
+  <FloatingChatButton chat-route="/student/chat" />
 </template>
 
 <style scoped>
@@ -237,6 +265,31 @@ async function handleLogout() {
   background: rgba(255, 255, 255, 0.1);
   color: white;
   border-color: rgba(255, 255, 255, 0.3);
+}
+
+/* Chat nav item with badge */
+.chat-nav-item {
+  position: relative;
+}
+
+.chat-badge {
+  position: absolute;
+  right: 12px;
+  background: #ef4444;
+  color: white;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 10px;
+  min-width: 18px;
+  text-align: center;
+  line-height: 1.2;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.1); }
 }
 
 @media (max-width: 768px) {

@@ -488,7 +488,6 @@ onMounted(async () => {
         </div>
       </section>
     </main>
-    </main>
 
     <!-- Class Detail Modal -->
     <div v-if="showModal" class="modal-overlay" @click.self="showModal = false">
@@ -519,7 +518,7 @@ onMounted(async () => {
           </div>
 
           <!-- Meeting Link Input (Only for Online) -->
-          <div class="link-section" v-if="selectedClass.type === 'Online' || selectedClass.type === 'Hybrid'">
+          <div class="link-section" v-if="['online', 'hybrid'].includes(selectedClass.type?.toLowerCase())">
             <label>Link Google Meet</label>
             <div class="input-group">
               <input 
@@ -536,7 +535,7 @@ onMounted(async () => {
         <div class="modal-footer">
           <button class="btn-cancel" @click="showModal = false">Tutup</button>
           <button 
-            v-if="selectedClass?.type === 'Online' || selectedClass?.type === 'Hybrid'"
+            v-if="['online', 'hybrid'].includes(selectedClass?.type?.toLowerCase())"
             class="btn-save" 
             :disabled="savingLink"
             @click="updateMeetingLink"

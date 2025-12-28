@@ -373,9 +373,8 @@ function joinMeeting() {
                   {{ getLevelLabel(currentCourse.program?.level) }}
                 </span>
                 <span class="type-badge" 
-                      v-if="currentCourse.program?.type"
-                      :style="{ backgroundColor: getTypeBgColor(currentCourse.program?.type), color: getTypeColor(currentCourse.program?.type) }">
-                  {{ getTypeLabel(currentCourse.program?.type) }}
+                      :style="{ backgroundColor: getTypeBgColor(currentCourse.program?.les_place?.type || currentCourse.program?.type), color: getTypeColor(currentCourse.program?.les_place?.type || currentCourse.program?.type) }">
+                  {{ getTypeLabel(currentCourse.program?.les_place?.type || currentCourse.program?.type) }}
                 </span>
               </div>
               <h1 class="course-title">{{ currentCourse.program?.name }}</h1>
@@ -486,6 +485,42 @@ function joinMeeting() {
                     </div>
                     <div class="schedule-time">{{ item.time }}</div>
                   </div>
+                </div>
+                
+                <!-- Meeting Link Section for Online/Hybrid -->
+                <div v-if="currentCourse.program?.meeting_url && ['Online', 'online', 'Hybrid', 'hybrid'].includes(currentCourse.program?.les_place?.type || currentCourse.program?.type)" class="meeting-link-section">
+                  <h4 class="meeting-title">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M23 7l-7 5 7 5V7z"/>
+                      <rect x="1" y="5" width="15" height="14" rx="2" ry="2"/>
+                    </svg>
+                    Link Kelas Online
+                  </h4>
+                  <div class="meeting-link-box">
+                    <span class="meeting-url">{{ currentCourse.program.meeting_url }}</span>
+                    <button @click="joinMeeting" class="join-meeting-btn">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/>
+                        <polyline points="15 3 21 3 21 9"/>
+                        <line x1="10" y1="14" x2="21" y2="3"/>
+                      </svg>
+                      Gabung Kelas
+                    </button>
+                  </div>
+                  <p class="meeting-note">
+                    Klik tombol "Gabung Kelas" saat jadwal les dimulai
+                  </p>
+                </div>
+                
+                <div v-else-if="['Online', 'online', 'Hybrid', 'hybrid'].includes(currentCourse.program?.les_place?.type || currentCourse.program?.type) && !currentCourse.program?.meeting_url" class="meeting-link-section pending">
+                  <h4 class="meeting-title">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M23 7l-7 5 7 5V7z"/>
+                      <rect x="1" y="5" width="15" height="14" rx="2" ry="2"/>
+                    </svg>
+                    Link Kelas Online
+                  </h4>
+                  <p class="meeting-pending">Link meeting belum tersedia. Guru akan segera menambahkan link.</p>
                 </div>
                 
                 <!-- Attendance History -->
@@ -1256,6 +1291,93 @@ function joinMeeting() {
 .schedule-time {
   color: var(--text-secondary);
   font-weight: 500;
+}
+
+/* Meeting Link Section */
+.meeting-link-section {
+  margin-top: var(--spacing-lg);
+  padding: var(--spacing-lg);
+  background: linear-gradient(135deg, #e3f2fd 0%, #f3e5f5 100%);
+  border-radius: var(--radius-lg);
+  border: 1px solid rgba(25, 118, 210, 0.2);
+}
+
+.meeting-link-section.pending {
+  background: linear-gradient(135deg, #fff3e0 0%, #ffeeed 100%);
+  border: 1px solid rgba(255, 152, 0, 0.3);
+}
+
+.meeting-title {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  font-size: 1rem;
+  font-weight: 600;
+  color: #1565c0;
+  margin-bottom: var(--spacing-md);
+}
+
+.meeting-title svg {
+  width: 20px;
+  height: 20px;
+}
+
+.meeting-link-box {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-md);
+  padding: var(--spacing-md);
+  background: white;
+  border-radius: var(--radius-md);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.meeting-url {
+  flex: 1;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.join-meeting-btn {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  padding: var(--spacing-sm) var(--spacing-lg);
+  background: linear-gradient(135deg, #1976d2, #1565c0);
+  color: white;
+  border: none;
+  border-radius: var(--radius-md);
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.join-meeting-btn:hover {
+  background: linear-gradient(135deg, #1565c0, #0d47a1);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(21, 101, 192, 0.3);
+}
+
+.join-meeting-btn svg {
+  width: 16px;
+  height: 16px;
+}
+
+.meeting-note {
+  margin-top: var(--spacing-sm);
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+.meeting-pending {
+  color: #e65100;
+  font-size: 0.9rem;
+  font-style: italic;
 }
 
 /* Attendance */

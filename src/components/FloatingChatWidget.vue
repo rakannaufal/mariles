@@ -22,8 +22,12 @@ const {
   sendMessage,
   subscribeToMessages,
   markAsRead,
-  unsubscribe
+  unsubscribe,
+  getTotalUnreadCount
 } = useChat()
+
+// Unread count
+const unreadCount = ref(0)
 
 // Import dummy chat removed
 
@@ -51,6 +55,7 @@ const currentParticipant = computed(() => {
 onMounted(async () => {
   if (authStore.user) {
     await fetchChatRooms(authStore.user.id)
+    unreadCount.value = await getTotalUnreadCount(authStore.user.id)
   }
 })
 
@@ -232,13 +237,18 @@ onUnmounted(() => {
     </transition>
 
     <!-- Floating Button -->
-    <button class="floating-btn" :class="{ active: isOpen }" @click="toggleChat">
+    <button class="floating-btn" :class="{ active: isOpen, 'has-unread': unreadCount > 0 }" @click="toggleChat">
       <svg v-if="!isOpen" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
       </svg>
       <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
       </svg>
+      <span class="btn-label">Chat</span>
+      <!-- Unread Badge -->
+      <span v-if="unreadCount > 0 && !isOpen" class="unread-badge">
+        {{ unreadCount > 99 ? '99+' : unreadCount }}
+      </span>
     </button>
   </div>
 </template>
@@ -255,8 +265,8 @@ onUnmounted(() => {
 .floating-btn {
   width: 60px;
   height: 60px;
-  border-radius: var(--radius-full);
-  background: var(--primary);
+  border-radius: 50%;
+  background: #0d5782;
   color: white;
   border: none;
   display: flex;
@@ -264,22 +274,96 @@ onUnmounted(() => {
   justify-content: center;
   cursor: pointer;
   box-shadow: 0 8px 25px rgba(13, 87, 130, 0.35);
-  transition: all var(--transition-base);
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: visible;
 }
 
 .floating-btn svg {
   width: 28px;
   height: 28px;
+  transition: all 0.3s ease;
+}
+
+.btn-label {
+  position: absolute;
+  opacity: 0;
+  transform: translateX(10px);
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+  transition: all 0.3s ease;
 }
 
 .floating-btn:hover {
-  transform: scale(1.1);
+  width: 120px;
+  border-radius: 30px;
+  transform: translateY(-4px);
   box-shadow: 0 12px 35px rgba(13, 87, 130, 0.45);
 }
 
+.floating-btn:hover svg {
+  transform: translateX(-16px);
+}
+
+.floating-btn:hover .btn-label {
+  opacity: 1;
+  transform: translateX(12px);
+}
+
 .floating-btn.active {
-  background: var(--secondary);
-  transform: rotate(0);
+  background: #0d5782;
+  width: 60px;
+  border-radius: 50%;
+}
+
+.floating-btn.active:hover {
+  width: 60px;
+  border-radius: 50%;
+}
+
+.floating-btn.active svg {
+  transform: none;
+}
+
+.floating-btn.has-unread {
+  animation: attention-bounce 2s infinite;
+}
+
+.floating-btn.has-unread:hover, .floating-btn.active {
+  animation: none;
+}
+
+@keyframes attention-bounce {
+  0%, 20%, 50%, 80%, 100% { transform: translateY(0); }
+  40% { transform: translateY(-10px); }
+  60% { transform: translateY(-5px); }
+}
+
+/* Unread Badge */
+.unread-badge {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  min-width: 24px;
+  height: 24px;
+  padding: 0 6px;
+  background: #ef4444;
+  color: white;
+  font-size: 12px;
+  font-weight: 700;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 3px solid white;
+  box-shadow: 0 2px 10px rgba(239, 68, 68, 0.5);
+  animation: pulse-badge 2s infinite;
+}
+
+@keyframes pulse-badge {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.15); }
 }
 
 .floating-btn::before {

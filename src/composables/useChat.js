@@ -14,24 +14,43 @@ export function useChat() {
     error.value = null
 
     try {
-      const { data, error: err } = await supabase
+      // First, get chat rooms
+      const { data: rooms, error: roomErr } = await supabase
         .from('chat_rooms')
-        .select(`
-          *,
-          participant_1_user:users!chat_rooms_participant_1_fkey(id, name, email, avatar_url, role),
-          participant_2_user:users!chat_rooms_participant_2_fkey(id, name, email, avatar_url, role)
-        `)
+        .select('*')
         .or(`participant_1.eq.${userId},participant_2.eq.${userId}`)
         .order('last_message_at', { ascending: false, nullsFirst: false })
 
-      if (err) throw err
+      if (roomErr) throw roomErr
+      
+      // Get all unique participant IDs
+      const participantIds = new Set()
+      for (const room of rooms || []) {
+        participantIds.add(room.participant_1)
+        participantIds.add(room.participant_2)
+      }
+      
+      // Fetch user info for all participants
+      let usersMap = {}
+      if (participantIds.size > 0) {
+        const { data: users } = await supabase
+          .from('users')
+          .select('id, name, email, avatar_url, role')
+          .in('id', Array.from(participantIds))
+        
+        for (const user of users || []) {
+          usersMap[user.id] = user
+        }
+      }
       
       // Transform data to include "other" participant info
-      chatRooms.value = (data || []).map(room => ({
+      chatRooms.value = (rooms || []).map(room => ({
         ...room,
+        participant_1_user: usersMap[room.participant_1] || null,
+        participant_2_user: usersMap[room.participant_2] || null,
         otherParticipant: room.participant_1 === userId 
-          ? room.participant_2_user 
-          : room.participant_1_user
+          ? usersMap[room.participant_2] 
+          : usersMap[room.participant_1]
       }))
     } catch (err) {
       error.value = err.message
@@ -47,17 +66,39 @@ export function useChat() {
     error.value = null
 
     try {
-      const { data, error: err } = await supabase
+      // First, get messages
+      const { data: msgs, error: msgErr } = await supabase
         .from('chat_messages')
-        .select(`
-          *,
-          sender:users!chat_messages_sender_id_fkey(id, name, avatar_url)
-        `)
+        .select('*')
         .eq('room_id', roomId)
         .order('created_at', { ascending: true })
 
-      if (err) throw err
-      messages.value = data || []
+      if (msgErr) throw msgErr
+      
+      // Get all unique sender IDs
+      const senderIds = new Set()
+      for (const msg of msgs || []) {
+        senderIds.add(msg.sender_id)
+      }
+      
+      // Fetch sender info
+      let sendersMap = {}
+      if (senderIds.size > 0) {
+        const { data: senders } = await supabase
+          .from('users')
+          .select('id, name, avatar_url')
+          .in('id', Array.from(senderIds))
+        
+        for (const sender of senders || []) {
+          sendersMap[sender.id] = sender
+        }
+      }
+      
+      // Transform messages to include sender info
+      messages.value = (msgs || []).map(msg => ({
+        ...msg,
+        sender: sendersMap[msg.sender_id] || null
+      }))
     } catch (err) {
       error.value = err.message
       console.error('Error fetching messages:', err)
@@ -71,20 +112,25 @@ export function useChat() {
     error.value = null
 
     try {
-      const { data, error: err } = await supabase
+      // Insert message
+      const { data: newMsg, error: err } = await supabase
         .from('chat_messages')
         .insert({
           room_id: roomId,
           sender_id: senderId,
           message: message.trim()
         })
-        .select(`
-          *,
-          sender:users!chat_messages_sender_id_fkey(id, name, avatar_url)
-        `)
+        .select('*')
         .single()
 
       if (err) throw err
+
+      // Get sender info
+      const { data: senderData } = await supabase
+        .from('users')
+        .select('id, name, avatar_url')
+        .eq('id', senderId)
+        .single()
 
       // Update last message in chat room
       await supabase
@@ -95,7 +141,10 @@ export function useChat() {
         })
         .eq('id', roomId)
 
-      return data
+      return {
+        ...newMsg,
+        sender: senderData
+      }
     } catch (err) {
       error.value = err.message
       throw err
@@ -201,6 +250,34 @@ export function useChat() {
     }
   }
 
+  // Get TOTAL unread count across all chat rooms
+  async function getTotalUnreadCount(userId) {
+    try {
+      // First get all rooms the user is part of
+      const { data: rooms } = await supabase
+        .from('chat_rooms')
+        .select('id')
+        .or(`participant_1.eq.${userId},participant_2.eq.${userId}`)
+      
+      if (!rooms || rooms.length === 0) return 0
+      
+      const roomIds = rooms.map(r => r.id)
+      
+      // Count all unread messages not sent by this user
+      const { count } = await supabase
+        .from('chat_messages')
+        .select('*', { count: 'exact', head: true })
+        .in('room_id', roomIds)
+        .neq('sender_id', userId)
+        .eq('is_read', false)
+      
+      return count || 0
+    } catch (err) {
+      console.error('Error getting total unread count:', err)
+      return 0
+    }
+  }
+
   // Unsubscribe from real-time updates
   function unsubscribe() {
     if (messageSubscription) {
@@ -221,26 +298,23 @@ export function useChat() {
 
       if (!student) return { teachers: [], owners: [] }
 
-      // Get teachers from active bookings
-      const { data: bookings } = await supabase
-        .from('bookings')
+      // Get ALL owners with their les places (student can chat any owner)
+      const { data: allLesPlaces } = await supabase
+        .from('les_places')
         .select(`
-          programs(
-            id,
-            name,
-            les_places(id, name, owner_id, owners(user_id, users(id, name, avatar_url, role)))
+          id,
+          name,
+          owner_id,
+          owners(
+            user_id,
+            users(id, name, avatar_url, role)
           )
         `)
-        .eq('student_id', student.id)
-        .in('status', ['active', 'pending'])
+        .eq('is_verified', true)
 
-      // Extract unique teachers and owners
-      const teacherMap = new Map()
       const ownerMap = new Map()
-
-      for (const booking of bookings || []) {
-        const lesPlace = booking.programs?.les_places
-        if (lesPlace?.owners?.users) {
+      for (const lesPlace of allLesPlaces || []) {
+        if (lesPlace.owners?.users) {
           const owner = lesPlace.owners.users
           ownerMap.set(owner.id, {
             ...owner,
@@ -250,22 +324,51 @@ export function useChat() {
         }
       }
 
-      // Get teachers assigned to programs the student is enrolled in
-      const programIds = (bookings || []).map(b => b.programs?.id).filter(Boolean)
-      if (programIds.length > 0) {
-        const { data: schedules } = await supabase
-          .from('schedules')
-          .select(`
-            program_id,
-            teacher_id,
-            teachers(user_id, users(id, name, avatar_url, role))
-          `)
-          .in('program_id', programIds)
+      // Get student's active bookings for teacher access
+      const { data: bookings } = await supabase
+        .from('bookings')
+        .select(`
+          id,
+          programs(
+            id,
+            les_place_id
+          )
+        `)
+        .eq('student_id', student.id)
+        .in('status', ['active', 'pending', 'confirmed'])
+        .in('payment_status', ['paid', 'settlement', 'capture'])
 
-        for (const schedule of schedules || []) {
-          if (schedule.teachers?.users) {
-            const teacher = schedule.teachers.users
-            teacherMap.set(teacher.id, teacher)
+      // Get les_place_ids from bookings for teachers
+      const lesPlaceIds = new Set()
+      for (const booking of bookings || []) {
+        if (booking.programs?.les_place_id) {
+          lesPlaceIds.add(booking.programs.les_place_id)
+        }
+      }
+
+      // Get teachers ONLY from enrolled les_places
+      const teacherMap = new Map()
+      if (lesPlaceIds.size > 0) {
+        const { data: teachers } = await supabase
+          .from('teachers')
+          .select(`
+            id,
+            user_id,
+            specialization,
+            les_place_id,
+            users(id, name, avatar_url, role),
+            les_places(id, name)
+          `)
+          .in('les_place_id', Array.from(lesPlaceIds))
+
+        for (const teacher of teachers || []) {
+          if (teacher.users) {
+            teacherMap.set(teacher.users.id, {
+              ...teacher.users,
+              specialization: teacher.specialization,
+              lesPlaceName: teacher.les_places?.name,
+              lesPlaceId: teacher.les_place_id
+            })
           }
         }
       }
@@ -314,6 +417,7 @@ export function useChat() {
     subscribeToMessages,
     markAsRead,
     getUnreadCount,
+    getTotalUnreadCount,
     unsubscribe,
     getAvailableChatPartners,
     getOwnerByLesPlaceId

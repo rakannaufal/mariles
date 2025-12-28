@@ -2,6 +2,7 @@
 import { onMounted } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { useTeacherData } from '@/composables/useTeacherData'
+import FloatingChatButton from './FloatingChatButton.vue'
 
 const authStore = useAuthStore()
 const { lesPlace, fetchTeacherProfile } = useTeacherData()
@@ -152,6 +153,9 @@ async function handleLogout() {
       Keluar
     </button>
   </aside>
+  
+  <!-- Floating Chat Button -->
+  <FloatingChatButton chat-route="/teacher/chat" />
 </template>
 
 <style scoped>

@@ -4,6 +4,7 @@ import { useAuthStore } from '@/stores/auth'
 import { supabase } from '@/lib/supabase'
 import OwnerSidebarPribadi from './OwnerSidebarPribadi.vue'
 import OwnerSidebarUmum from './OwnerSidebarUmum.vue'
+import FloatingChatButton from './FloatingChatButton.vue'
 
 const authStore = useAuthStore()
 const ownerType = ref('')
@@ -49,6 +50,8 @@ watch(() => authStore.user, (newUser) => {
   <div v-if="isLoaded">
     <OwnerSidebarPribadi v-if="ownerType === 'pribadi'" />
     <OwnerSidebarUmum v-else />
+    <!-- Floating Chat Button -->
+    <FloatingChatButton chat-route="/owner/chat" />
   </div>
   <!-- Optional loading skeleton could go here -->
   <aside v-else class="sidebar loading">

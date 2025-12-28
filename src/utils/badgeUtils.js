@@ -11,25 +11,41 @@ export const levelOptions = [
 export const typeOptions = [
   { value: 'offline', label: 'Offline', color: '#2e7d32', bgColor: '#e8f5e9' },
   { value: 'online', label: 'Online', color: '#1565c0', bgColor: '#e3f2fd' },
-  { value: 'offline_online', label: 'Hybrid', color: '#ef6c00', bgColor: '#fff3e0' }
+  { value: 'hybrid', label: 'Hybrid', color: '#ef6c00', bgColor: '#fff3e0' }
 ]
 
+// Helper to normalize type value (case-insensitive matching)
+function normalizeType(type) {
+  if (!type) return null
+  const normalized = type.toLowerCase().trim()
+  // Handle various aliases
+  if (normalized === 'offline_online' || normalized === 'offline-online') return 'hybrid'
+  return normalized
+}
+
 export function getLevelLabel(level) {
-  return levelOptions.find(l => l.value === level)?.label || level?.toUpperCase() || '-'
+  if (!level) return '-'
+  const normalized = level.toLowerCase()
+  return levelOptions.find(l => l.value === normalized)?.label || level.toUpperCase()
 }
 
 export function getLevelColor(level) {
-  return levelOptions.find(l => l.value === level)?.color || '#6b7280'
+  if (!level) return '#6b7280'
+  const normalized = level.toLowerCase()
+  return levelOptions.find(l => l.value === normalized)?.color || '#6b7280'
 }
 
 export function getTypeLabel(type) {
-  return typeOptions.find(t => t.value === type)?.label || 'Offline'
+  const normalized = normalizeType(type)
+  return typeOptions.find(t => t.value === normalized)?.label || type || 'Offline'
 }
 
 export function getTypeColor(type) {
-  return typeOptions.find(t => t.value === type)?.color || '#2e7d32'
+  const normalized = normalizeType(type)
+  return typeOptions.find(t => t.value === normalized)?.color || '#2e7d32'
 }
 
 export function getTypeBgColor(type) {
-  return typeOptions.find(t => t.value === type)?.bgColor || '#e8f5e9'
+  const normalized = normalizeType(type)
+  return typeOptions.find(t => t.value === normalized)?.bgColor || '#e8f5e9'
 }

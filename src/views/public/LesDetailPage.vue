@@ -623,7 +623,7 @@ function toast(msg, type = 'success') {
                     <p class="program-desc">{{ program.description }}</p>
                     
                     <!-- Schedule info for offline programs -->
-                    <div v-if="program.type !== 'online'" class="program-schedule-info">
+                    <div v-if="program.type?.toLowerCase() !== 'online'" class="program-schedule-info">
                       <div class="schedule-row">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                           <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>

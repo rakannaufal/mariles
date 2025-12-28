@@ -1,15 +1,52 @@
 <script setup>
-import { onMounted, computed } from 'vue'
+import { ref, onMounted, computed } from 'vue'
+import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useStudentData } from '@/composables/useStudentData'
+import { useChat } from '@/composables/useChat'
 import StudentSidebar from '@/components/StudentSidebar.vue'
 
+const router = useRouter()
 const authStore = useAuthStore()
 const { loading, bookings, favorites, stats, fetchAllData } = useStudentData()
+const { getAvailableChatPartners, getOrCreateChatRoom } = useChat()
 
-onMounted(() => {
+// Teachers data
+const teachers = ref([])
+const teachersLoading = ref(false)
+const chatLoading = ref(null) // Store which teacher is being loaded
+
+onMounted(async () => {
   fetchAllData()
+  await fetchTeachers()
 })
+
+async function fetchTeachers() {
+  if (!authStore.user?.id) return
+  teachersLoading.value = true
+  try {
+    const partners = await getAvailableChatPartners(authStore.user.id)
+    teachers.value = partners.teachers || []
+  } catch (err) {
+    console.error('Error fetching teachers:', err)
+  } finally {
+    teachersLoading.value = false
+  }
+}
+
+async function startChatWithTeacher(teacher) {
+  if (!authStore.user?.id) return
+  chatLoading.value = teacher.id
+  try {
+    const room = await getOrCreateChatRoom(authStore.user.id, teacher.id, teacher.lesPlaceId)
+    router.push({ name: 'student-chat', query: { room: room.id } })
+  } catch (err) {
+    console.error('Error starting chat:', err)
+    alert('Gagal memulai chat')
+  } finally {
+    chatLoading.value = null
+  }
+}
 
 const recentBookings = computed(() => bookings.value.slice(0, 3))
 
@@ -142,6 +179,69 @@ function getStatusText(status) {
           </section>
         </div>
 
+        <!-- Guru Pengajar Section -->
+        <section v-if="teachers.length || teachersLoading" class="card teachers-section">
+          <div class="card-header">
+            <h2>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="section-icon">
+                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                <circle cx="9" cy="7" r="4"/>
+                <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+                <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+              </svg>
+              Guru Pengajar Anda
+            </h2>
+            <router-link to="/student/chat" class="link">Lihat Chat</router-link>
+          </div>
+          
+          <div v-if="teachersLoading" class="teachers-loading">
+            <div class="loading-spinner small"></div>
+            <span>Memuat data guru...</span>
+          </div>
+          
+          <div v-else-if="teachers.length" class="teachers-grid">
+            <div v-for="teacher in teachers" :key="teacher.id" class="teacher-card">
+              <div class="teacher-avatar">
+                <img v-if="teacher.avatar_url" :src="teacher.avatar_url" :alt="teacher.name">
+                <span v-else class="avatar-placeholder">{{ teacher.name?.charAt(0)?.toUpperCase() }}</span>
+              </div>
+              <div class="teacher-info">
+                <h4>{{ teacher.name }}</h4>
+                <p class="teacher-place">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
+                    <circle cx="12" cy="10" r="3"/>
+                  </svg>
+                  {{ teacher.lesPlaceName || 'Tempat Les' }}
+                </p>
+                <div v-if="teacher.specialization?.length" class="teacher-specialization">
+                  <span v-for="spec in teacher.specialization.slice(0, 2)" :key="spec" class="spec-tag">
+                    {{ spec }}
+                  </span>
+                  <span v-if="teacher.specialization.length > 2" class="spec-more">
+                    +{{ teacher.specialization.length - 2 }}
+                  </span>
+                </div>
+              </div>
+              <button 
+                class="chat-teacher-btn" 
+                @click="startChatWithTeacher(teacher)"
+                :disabled="chatLoading === teacher.id"
+              >
+                <svg v-if="chatLoading !== teacher.id" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                </svg>
+                <span v-if="chatLoading === teacher.id" class="loading-spinner tiny"></span>
+                <span v-else>Chat</span>
+              </button>
+            </div>
+          </div>
+          
+          <div v-else class="empty-teachers">
+            <p>Belum ada guru yang terhubung. Daftar kelas terlebih dahulu untuk melihat guru pengajar.</p>
+          </div>
+        </section>
+
         <!-- Favorites -->
         <section v-if="favorites.length" class="card favorites-section">
           <div class="card-header">
@@ -223,8 +323,40 @@ function getStatusText(status) {
 .favorite-info h4{font-size:14px;font-weight:600;margin-bottom:2px}
 .favorite-info p{font-size:12px;color:var(--text-secondary)}
 
+/* Teachers Section */
+.teachers-section{margin-bottom:24px}
+.teachers-section .card-header h2{display:flex;align-items:center;gap:10px}
+.section-icon{width:22px;height:22px;color:var(--secondary)}
+.teachers-loading{display:flex;align-items:center;justify-content:center;gap:12px;padding:40px;color:var(--text-secondary)}
+.loading-spinner.small{width:24px;height:24px;border-width:2px}
+.loading-spinner.tiny{width:16px;height:16px;border-width:2px}
+
+.teachers-grid{display:grid;grid-template-columns:repeat(auto-fill, minmax(280px, 1fr));gap:16px}
+.teacher-card{display:flex;align-items:center;gap:16px;padding:16px;background:var(--background);border-radius:14px;transition:all 0.2s;border:2px solid transparent}
+.teacher-card:hover{border-color:var(--primary);transform:translateY(-2px);box-shadow:0 4px 12px rgba(0,0,0,0.08)}
+
+.teacher-avatar{width:56px;height:56px;border-radius:50%;overflow:hidden;flex-shrink:0;background:linear-gradient(135deg, var(--secondary), var(--primary))}
+.teacher-avatar img{width:100%;height:100%;object-fit:cover}
+.avatar-placeholder{width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:white;font-size:24px;font-weight:600}
+
+.teacher-info{flex:1;min-width:0}
+.teacher-info h4{font-size:15px;font-weight:600;color:var(--text);margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.teacher-place{display:flex;align-items:center;gap:4px;font-size:12px;color:var(--text-secondary);margin-bottom:8px}
+.teacher-place svg{width:12px;height:12px}
+
+.teacher-specialization{display:flex;flex-wrap:wrap;gap:4px}
+.spec-tag{padding:3px 8px;background:rgba(13, 87, 130, 0.1);color:var(--secondary);font-size:10px;font-weight:600;border-radius:12px;white-space:nowrap}
+.spec-more{padding:3px 8px;background:var(--border-light);color:var(--text-muted);font-size:10px;font-weight:500;border-radius:12px}
+
+.chat-teacher-btn{display:flex;align-items:center;gap:6px;padding:10px 16px;background:#0d5782;color:white;border:none;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;transition:all 0.2s;white-space:nowrap}
+.chat-teacher-btn:hover{transform:scale(1.05);box-shadow:0 4px 12px rgba(13, 87, 130, 0.3)}
+.chat-teacher-btn:disabled{opacity:0.7;cursor:not-allowed;transform:none}
+.chat-teacher-btn svg{width:16px;height:16px}
+
+.empty-teachers{text-align:center;padding:32px;color:var(--text-muted);font-size:14px}
+
 .empty-state{text-align:center;padding:32px;color:var(--text-muted)}
 
-@media(max-width:1024px){.stats-grid{grid-template-columns:repeat(2,1fr)}.content-grid{grid-template-columns:1fr}.favorites-grid{grid-template-columns:repeat(2,1fr)}}
-@media(max-width:768px){.header{flex-direction:column;text-align:center;gap:16px}.stats-grid{grid-template-columns:1fr 1fr}.favorites-grid{grid-template-columns:1fr}}
+@media(max-width:1024px){.stats-grid{grid-template-columns:repeat(2,1fr)}.content-grid{grid-template-columns:1fr}.favorites-grid{grid-template-columns:repeat(2,1fr)}.teachers-grid{grid-template-columns:1fr}}
+@media(max-width:768px){.header{flex-direction:column;text-align:center;gap:16px}.stats-grid{grid-template-columns:1fr 1fr}.favorites-grid{grid-template-columns:1fr}.teacher-card{flex-wrap:wrap}.chat-teacher-btn{width:100%;justify-content:center;margin-top:8px}}
 </style>

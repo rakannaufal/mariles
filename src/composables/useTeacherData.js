@@ -88,7 +88,7 @@ export function useTeacherData() {
           session_duration_minutes, sessions_per_week,
           capacity, current_students, is_active,
           type, meeting_url,
-          les_places (id, name)
+          les_places (id, name, type)
         `)
         .eq('les_place_id', teacherProfile.value.les_place_id)
         .eq('is_active', true)
@@ -125,7 +125,7 @@ export function useTeacherData() {
               les_place: program.les_places?.name || lesPlace.value?.name || '-',
               students: program.current_students || 0,
               capacity: program.capacity || 0,
-              type: program.type || 'Offline',
+              type: program.les_places?.type || program.type || 'Offline',
               meeting_url: program.meeting_url
             })
           } else {
@@ -156,7 +156,7 @@ export function useTeacherData() {
                   les_place: program.les_places?.name || lesPlace.value?.name || '-',
                   students: program.current_students || 0,
                   capacity: program.capacity || 0,
-                  type: program.type || 'Offline',
+                  type: program.les_places?.type || program.type || 'Offline',
                   meeting_url: program.meeting_url
                 })
               }
