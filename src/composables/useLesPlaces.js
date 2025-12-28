@@ -29,11 +29,18 @@ export function useLesPlaces() {
             price_type,
             level,
             is_active,
-            current_students
+            current_students,
+            capacity
           ),
           reviews (
             id,
             rating
+          ),
+          bookings!bookings_les_place_id_fkey (
+            id,
+            program_id,
+            status,
+            payment_status
           )
         `)
         .eq('is_active', true)

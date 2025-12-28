@@ -29,6 +29,11 @@ export function useFavorites() {
             programs (
               id,
               price
+            ),
+            bookings!bookings_les_place_id_fkey (
+              id,
+              status,
+              payment_status
             )
           )
         `)

@@ -7,6 +7,7 @@ import Footer from '@/components/Footer.vue'
 import { createPayment } from '@/services/paymentService'
 import { supabase } from '@/lib/supabase'
 import { loadSnapScript } from '@/lib/midtrans'
+import { getLevelLabel, getLevelColor, getTypeLabel, getTypeColor, getTypeBgColor } from '@/utils/badgeUtils'
 
 // Import logos
 import qrisLogo from '@/assets/payment-logos/qris.png'
@@ -407,7 +408,14 @@ onMounted(fetchData)
             <div class="program-info">
               <div class="program-header">
                 <h3>{{ program?.name || 'Memuat...' }}</h3>
-                <span v-if="program?.level" class="badge">{{ program.level }}</span>
+                <div class="badges-row">
+                  <span v-if="program?.level" class="level-badge" :style="{ backgroundColor: getLevelColor(program.level) }">
+                    {{ getLevelLabel(program.level) }}
+                  </span>
+                  <span v-if="lesPlace?.type" class="type-badge" :style="{ backgroundColor: getTypeBgColor(lesPlace.type), color: getTypeColor(lesPlace.type) }">
+                    {{ getTypeLabel(lesPlace.type) }}
+                  </span>
+                </div>
               </div>
               <p class="les-name">{{ lesPlace?.name }}</p>
               <p class="les-address">{{ lesPlace?.address }}, {{ lesPlace?.city }}</p>
@@ -543,7 +551,6 @@ onMounted(fetchData)
                 </button>
               </div>
               <p v-if="voucherError" class="voucher-error">{{ voucherError }}</p>
-              <p class="voucher-hint">Coba: DISKON10, DISKON20, HEMAT50K, NEWUSER</p>
             </div>
             
             <button 
@@ -553,18 +560,6 @@ onMounted(fetchData)
             >
               <span v-if="processing" class="spinner"></span>
               {{ processing ? 'Memproses...' : `Bayar ${formatPrice(total)}` }}
-            </button>
-            <p class="secure-text">🔒 Pembayaran aman dengan Midtrans</p>
-            
-            <!-- Dev Only Button -->
-             <button 
-              v-if="isDev"
-              class="btn btn-outline"
-              style="width: 100%; margin-top: 10px; border-style: dashed; opacity: 0.7;"
-              @click="simulateDevSuccess"
-              :disabled="processing"
-            >
-              🛠️ DEV: Simulate Success
             </button>
           </div>
         </aside>
@@ -618,7 +613,9 @@ onMounted(fetchData)
 /* Program Info */
 .program-header{display:flex;align-items:center;gap:12px;margin-bottom:8px;flex-wrap:wrap}
 .program-header h3{font-size:20px;margin:0;color:var(--text)}
-.badge{background:var(--primary-light);color:var(--primary);padding:4px 12px;border-radius:var(--radius-full);font-size:12px;font-weight:500}
+.badges-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.level-badge{padding:4px 12px;border-radius:var(--radius-full);color:white;font-size:12px;font-weight:600}
+.type-badge{padding:4px 12px;border-radius:var(--radius-full);font-size:12px;font-weight:600}
 .les-name{font-weight:600;color:var(--text-secondary);margin-bottom:4px}
 .les-address{font-size:14px;color:var(--text-muted);margin-bottom:12px}
 .program-meta{display:flex;gap:32px;padding-top:12px;border-top:1px solid var(--border-light)}

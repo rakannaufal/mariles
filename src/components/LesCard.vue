@@ -51,11 +51,14 @@ const reviewCount = computed(() => {
   return props.lesPlace.reviews?.length || props.lesPlace.total_reviews || 0
 })
 
-// Calculate student count from programs if available
+// Calculate student count from paid bookings
 const studentCount = computed(() => {
-  const programs = props.lesPlace.programs
-  if (programs?.length) {
-    return programs.reduce((sum, p) => sum + (p.current_students || 0), 0)
+  const bookings = props.lesPlace.bookings
+  if (bookings?.length) {
+    return bookings.filter(b => 
+      ['confirmed', 'active'].includes(b.status) && 
+      ['paid', 'settlement', 'capture'].includes(b.payment_status)
+    ).length
   }
   return props.lesPlace.total_students || 0
 })

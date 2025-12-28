@@ -12,6 +12,7 @@ import Footer from '@/components/Footer.vue'
 import { createPayment } from '@/services/paymentService'
 import { supabase } from '@/lib/supabase'
 import { loadSnapScript, generateOrderId } from '@/lib/midtrans'
+import { getLevelLabel, getLevelColor, getTypeLabel, getTypeColor, getTypeBgColor } from '@/utils/badgeUtils'
 
 const route = useRoute()
 const router = useRouter()
@@ -31,6 +32,7 @@ const showProgramModal = ref(false)
 const modalProgram = ref(null)
 const paymentStatus = ref(null) // 'success', 'pending', 'error', null
 const paymentMessage = ref('')
+const enrolledProgramIds = ref([]) // Track which programs user has enrolled
 
 // Report feature
 const showReportModal = ref(false)
@@ -76,23 +78,58 @@ const reviewCount = computed(() => {
   return lesPlace.value?.reviews?.length || lesPlace.value?.total_reviews || 0
 })
 
-// Calculate student count from paid bookings in programs
-const studentCount = computed(() => {
-  const programs = lesPlace.value?.programs
-  if (programs?.length) {
-    return programs.reduce((sum, p) => sum + (p.current_students || 0), 0)
+// Student count and per-program counts - will be fetched from bookings
+const studentCount = ref(0)
+const programStudentCounts = ref({}) // { programId: count }
+
+// Fetch actual student counts from paid bookings
+async function fetchStudentCounts() {
+  if (!lesPlace.value?.id) return
+  
+  try {
+    // Get all paid bookings for this les place
+    const { data: bookings, error } = await supabase
+      .from('bookings')
+      .select('id, program_id')
+      .eq('les_place_id', lesPlace.value.id)
+      .in('payment_status', ['paid', 'settlement', 'capture'])
+      .in('status', ['confirmed', 'active'])
+    
+    if (!error && bookings) {
+      // Total student count
+      studentCount.value = bookings.length
+      
+      // Count per program
+      const counts = {}
+      bookings.forEach(b => {
+        counts[b.program_id] = (counts[b.program_id] || 0) + 1
+      })
+      programStudentCounts.value = counts
+    }
+  } catch (err) {
+    console.error('Error fetching student counts:', err)
   }
-  return lesPlace.value?.total_students || 0
-})
+}
 
 const formatPrice = (p) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(p)
 
 function getAvailableSlots(program) {
-  return (program.capacity || 20) - (program.current_students || 0)
+  const enrolled = programStudentCounts.value[program.id] || 0
+  return (program.capacity || 20) - enrolled
+}
+
+function getEnrolledCount(program) {
+  return programStudentCounts.value[program.id] || 0
 }
 
 function isProgramFull(program) {
-  return (program.current_students || 0) >= (program.capacity || 20)
+  const enrolled = programStudentCounts.value[program.id] || 0
+  return enrolled >= (program.capacity || 20)
+}
+
+// Check if user has already enrolled in a specific program
+function isProgramEnrolled(programId) {
+  return enrolledProgramIds.value.includes(programId)
 }
 
 function selectProgram(program) {
@@ -133,6 +170,23 @@ function getScheduleText(program) {
   }
   
   return 'Jadwal fleksibel'
+}
+
+// Get count of schedule days per week
+function getScheduleCount(program) {
+  if (!program.schedule) return 2 // default
+  
+  // Handle new format: { day: { start, end } }
+  if (typeof program.schedule === 'object' && !Array.isArray(program.schedule)) {
+    return Object.values(program.schedule).filter(data => data.start && data.end).length || 2
+  }
+  
+  // Handle old format: [{ day, time }]
+  if (Array.isArray(program.schedule)) {
+    return program.schedule.length || 2
+  }
+  
+  return 2
 }
 
 function getScheduleArray(schedule) {
@@ -244,6 +298,20 @@ async function handleBooking() {
 
     const studentId = studentData.id
     
+    // Check if user already enrolled in this specific program before
+    // User can buy different programs, but cannot buy the same program twice
+    const { data: existingBooking } = await supabase
+      .from('bookings')
+      .select('id, status, payment_status')
+      .eq('student_id', studentId)
+      .eq('program_id', selectedProgram.value.id)
+      .in('payment_status', ['paid', 'settlement', 'capture'])
+      .limit(1)
+    
+    if (existingBooking && existingBooking.length > 0) {
+      throw new Error(`Anda sudah pernah mendaftar program "${selectedProgram.value.name}". Silakan pilih program lain.`)
+    }
+    
     // Create booking and redirect to payment page
     const booking = await createBooking({
       student_id: studentId,
@@ -288,6 +356,42 @@ async function checkFavorite() {
   }
 }
 
+// Check which programs user has already enrolled in
+async function checkEnrolledPrograms() {
+  if (!authStore.isAuthenticated) {
+    enrolledProgramIds.value = []
+    return
+  }
+  
+  try {
+    const userId = authStore.user?.id
+    if (!userId) return
+    
+    // Get student ID
+    const { data: studentData } = await supabase
+      .from('students')
+      .select('id')
+      .eq('user_id', userId)
+      .single()
+    
+    if (!studentData?.id) return
+    
+    // Get all paid bookings for this student at this les place
+    const { data: bookings } = await supabase
+      .from('bookings')
+      .select('program_id')
+      .eq('student_id', studentData.id)
+      .eq('les_place_id', lesPlace.value?.id)
+      .in('payment_status', ['paid', 'settlement', 'capture'])
+    
+    if (bookings) {
+      enrolledProgramIds.value = bookings.map(b => b.program_id)
+    }
+  } catch (err) {
+    console.error('Error checking enrolled programs:', err)
+  }
+}
+
 async function handleChatOwner() {
   if (!authStore.isAuthenticated) {
     router.push({ name: 'login', query: { redirect: route.fullPath } })
@@ -318,7 +422,9 @@ onMounted(async () => {
   const lesId = route.params.id
   if (lesId) {
     await fetchLesPlaceById(lesId)
+    await fetchStudentCounts()
     await checkFavorite()
+    await checkEnrolledPrograms()
     // Fetch other les places for related section
     await fetchLesPlaces()
   }
@@ -510,21 +616,21 @@ function toast(msg, type = 'success') {
                   <div class="program-main">
                     <div class="program-top">
                       <h3>{{ program.name }}</h3>
-                      <span v-if="program.level" class="program-level">{{ program.level }}</span>
-                      <span class="program-type-badge" :class="program.type || 'offline'">{{ getProgramTypeLabel(program.type) }}</span>
+                      <span v-if="program.level" class="level-badge" :style="{ backgroundColor: getLevelColor(program.level) }">{{ getLevelLabel(program.level) }}</span>
+                      <span class="type-badge" :style="{ backgroundColor: getTypeBgColor(lesPlace.type), color: getTypeColor(lesPlace.type) }">{{ getTypeLabel(lesPlace.type) }}</span>
                     </div>
                     
                     <p class="program-desc">{{ program.description }}</p>
                     
                     <!-- Schedule info for offline programs -->
-                    <div v-if="program.type !== 'online' && program.schedule" class="program-schedule-info">
+                    <div v-if="program.type !== 'online'" class="program-schedule-info">
                       <div class="schedule-row">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                           <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
                           <line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/>
                           <line x1="3" y1="10" x2="21" y2="10"/>
                         </svg>
-                        <span>{{ getScheduleText(program) }}</span>
+                        <span>{{ program.sessions_per_week || getScheduleCount(program) }}x pertemuan/minggu</span>
                       </div>
                       <div class="schedule-meta">
                         <span v-if="program.duration_months">{{ program.duration_months }} bulan</span>
@@ -602,11 +708,15 @@ function toast(msg, type = 'success') {
               <p v-else-if="!paymentStatus" class="select-hint">Pilih program terlebih dahulu</p>
               
               <div class="action-buttons" v-if="!paymentStatus">
-                <button class="btn btn-primary action-btn" :disabled="!selectedProgram || bookingLoading" @click="handleBooking">
+                <button 
+                  class="btn btn-primary action-btn" 
+                  :disabled="!selectedProgram || bookingLoading || isProgramEnrolled(selectedProgram?.id)" 
+                  @click="handleBooking"
+                >
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
                   </svg>
-                  <span>{{ bookingLoading ? 'Memproses...' : 'Daftar & Bayar' }}</span>
+                  <span>{{ bookingLoading ? 'Memproses...' : (isProgramEnrolled(selectedProgram?.id) ? 'Sudah Terdaftar' : 'Daftar & Bayar') }}</span>
                 </button>
                 <button class="btn btn-outline action-btn" :disabled="chatLoading" @click="handleChatOwner">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -931,11 +1041,8 @@ function toast(msg, type = 'success') {
 .program-main{flex:1;display:flex;flex-direction:column;gap:var(--spacing-xs)}
 .program-top{display:flex;align-items:center;gap:var(--spacing-sm);flex-wrap:wrap}
 .program-top h3{font-size:var(--font-size-base);font-weight:600;margin:0}
-.program-level{font-size:10px;padding:2px 8px;background:var(--info-bg);color:var(--info);border-radius:var(--radius-sm)}
-.program-type-badge{font-size:10px;padding:2px 8px;border-radius:var(--radius-sm);font-weight:500}
-.program-type-badge.offline{background:#e8f5e9;color:#2e7d32}
-.program-type-badge.online{background:#e3f2fd;color:#1565c0}
-.program-type-badge.offline_online{background:#fff3e0;color:#ef6c00}
+.level-badge{font-size:11px;padding:4px 10px;border-radius:var(--radius-full);color:white;font-weight:600}
+.type-badge{font-size:11px;padding:4px 10px;border-radius:var(--radius-full);font-weight:600}
 .program-desc{font-size:var(--font-size-xs);color:var(--text-muted);margin:0;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:1;-webkit-box-orient:vertical;line-clamp:1}
 .program-schedule-info{margin-top:var(--spacing-xs)}
 .schedule-row{display:flex;align-items:center;gap:6px;font-size:var(--font-size-xs);color:var(--text-secondary)}

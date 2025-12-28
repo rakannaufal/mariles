@@ -17,7 +17,10 @@ onMounted(async () => {
 // Group by les place
 const lesPlaces = computed(() => {
   const places = []
-  const activeBookings = bookings.value.filter(b => b.status === 'active' || b.status === 'completed')
+  // Include confirmed, active, and completed bookings
+  const activeBookings = bookings.value.filter(b => 
+    ['confirmed', 'active', 'completed'].includes(b.status)
+  )
   
   activeBookings.forEach(booking => {
     const place = booking.program?.les_place
@@ -43,10 +46,10 @@ const lesPlaces = computed(() => {
       subject: booking.program.subject,
       status: booking.status,
       bookingId: booking.id,
-      progress: progress?.progress_percent || Math.floor(Math.random() * 40) + 50,
-      attendance: progress?.attendance_percent || Math.floor(Math.random() * 15) + 80,
-      score: progress?.average_score || Math.floor(Math.random() * 15) + 75,
-      hours: progress?.hours_completed || Math.floor(Math.random() * 20) + 10
+      progress: progress?.progress_percent || 0,
+      attendance: progress?.attendance_percent || 0,
+      score: progress?.average_score || 0,
+      hours: progress?.hours_completed || 0
     })
   })
   

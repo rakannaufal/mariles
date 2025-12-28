@@ -3,6 +3,7 @@ import OwnerSidebar from '@/components/OwnerSidebar.vue'
 import { ref, onMounted, computed, watch } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { supabase } from '@/lib/supabase'
+import { levelOptions, getLevelLabel, getLevelColor } from '@/utils/badgeUtils'
 
 const authStore = useAuthStore()
 const programs = ref([])
@@ -54,14 +55,6 @@ const dayLabels = {
   saturday: 'Sabtu',
   sunday: 'Minggu'
 }
-
-const levelOptions = [
-  { value: 'sd', label: 'SD', color: '#22c55e' },
-  { value: 'smp', label: 'SMP', color: '#3b82f6' },
-  { value: 'sma', label: 'SMA', color: '#8b5cf6' },
-  { value: 'kuliah', label: 'Kuliah/Universitas', color: '#f59e0b' },
-  { value: 'umum', label: 'Umum', color: '#6b7280' }
-]
 
 const priceTypeOptions = [
   { value: 'hourly', label: 'Per Jam' },
@@ -310,14 +303,6 @@ async function toggleActive(program) {
 
 function formatPrice(price) {
   return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(price)
-}
-
-function getLevelLabel(level) {
-  return levelOptions.find(l => l.value === level)?.label || level
-}
-
-function getLevelColor(level) {
-  return levelOptions.find(l => l.value === level)?.color || '#6b7280'
 }
 
 function getPriceTypeLabel(type) {
