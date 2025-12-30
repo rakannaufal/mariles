@@ -362,7 +362,7 @@ async function handleWithdraw() {
               <polyline points="7 10 12 15 17 10"/>
               <line x1="12" y1="15" x2="12" y2="3"/>
             </svg>
-            Ekspor
+            Export
           </button>
         </div>
         <select v-if="lesPlaces.length > 1" v-model="selectedLesPlace" class="select-input" @change="fetchData">

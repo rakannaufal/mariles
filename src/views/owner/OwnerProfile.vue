@@ -45,6 +45,7 @@ const loadingProvinces = ref(false)
 const loadingCities = ref(false)
 const loadingLesPlaces = ref(false)
 const generatingCode = ref(null)
+const togglingActive = ref(false)
 
 // Computed: Completion Percentage
 const completionPercent = computed(() => {
@@ -214,7 +215,7 @@ async function fetchLesPlaces() {
     // Filter berdasarkan owner_email yang sama dengan user saat ini
     const { data, error } = await supabase
       .from('les_places_with_owner')
-      .select('id, name, is_private, is_verified, owner_name, owner_email')
+      .select('id, name, is_private, is_verified, is_active, owner_name, owner_email')
       .eq('owner_email', authStore.user.email)
     
     if (error) {
@@ -228,6 +229,33 @@ async function fetchLesPlaces() {
     lesPlaces.value = []
   }
   finally { loadingLesPlaces.value = false }
+}
+
+async function toggleLesPlaceActive(lesPlace) {
+  if (togglingActive.value) return
+  togglingActive.value = true
+  
+  const newStatus = !(lesPlace.is_active ?? true)
+  
+  try {
+    const { error } = await supabase
+      .from('les_places')
+      .update({ is_active: newStatus })
+      .eq('id', lesPlace.id)
+    
+    if (error) throw error
+    
+    // Update local state
+    const idx = lesPlaces.value.findIndex(lp => lp.id === lesPlace.id)
+    if (idx !== -1) {
+      lesPlaces.value[idx].is_active = newStatus
+    }
+  } catch (err) {
+    console.error('Error toggling les place:', err)
+    message.value = { type: 'error', text: 'Gagal mengubah status: ' + err.message }
+  } finally {
+    togglingActive.value = false
+  }
 }
 
 function onProvinceChange(e) {
@@ -372,6 +400,19 @@ async function handleSave() {
                 <span>{{ completionPercent }}%</span>
               </div>
               <span class="stat-label">Kelengkapan</span>
+            </div>
+            <!-- Toggle Aktif Tempat Les -->
+            <div v-if="lesPlaces.length > 0" class="stat-box toggle-box" :class="(lesPlaces[0]?.is_active ?? true) ? 'active' : 'inactive'">
+              <label class="toggle-switch" :class="{ disabled: togglingActive }">
+                <input 
+                  type="checkbox" 
+                  :checked="lesPlaces[0]?.is_active ?? true" 
+                  :disabled="togglingActive"
+                  @change="toggleLesPlaceActive(lesPlaces[0])"
+                >
+                <span class="toggle-slider"></span>
+              </label>
+              <span class="stat-label">{{ (lesPlaces[0]?.is_active ?? true) ? 'Aktif' : 'Nonaktif' }}</span>
             </div>
           </div>
         </div>
@@ -716,4 +757,17 @@ async function handleSave() {
 .alert-box { padding: 12px; border-radius: 8px; margin-bottom: 20px; font-size: 14px; }
 .alert-box.success { background: #dcfce7; color: #166534; }
 .alert-box.error { background: #fee2e2; color: #991b1b; }
+
+/* Toggle Switch for Les Place Active Status */
+.toggle-box { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.toggle-box.active { background: #d1fae5; }
+.toggle-box.inactive { background: #fee2e2; }
+.toggle-switch { position: relative; display: inline-block; width: 50px; height: 26px; }
+.toggle-switch input { opacity: 0; width: 0; height: 0; }
+.toggle-slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #cbd5e1; transition: 0.3s; border-radius: 26px; }
+.toggle-slider:before { position: absolute; content: ""; height: 20px; width: 20px; left: 3px; bottom: 3px; background-color: white; transition: 0.3s; border-radius: 50%; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+.toggle-switch input:checked + .toggle-slider { background-color: #10b981; }
+.toggle-switch input:checked + .toggle-slider:before { transform: translateX(24px); }
+.toggle-switch.disabled { opacity: 0.6; cursor: not-allowed; }
+.toggle-switch.disabled .toggle-slider { cursor: not-allowed; }
 </style>

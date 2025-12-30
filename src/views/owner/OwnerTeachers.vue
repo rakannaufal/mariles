@@ -316,7 +316,7 @@ function calculateAge(birthDate) {
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="btn-icon">
             <path d="M12 5v14M5 12h14"/>
           </svg>
-          Generate Kode Undangan
+          Buat Kode Guru
         </button>
       </header>
       
@@ -419,8 +419,7 @@ function calculateAge(birthDate) {
         
         <div class="modal-body">
           <div class="invite-info">
-            <div class="info-icon">💡</div>
-            <p>Generate kode undangan untuk mengundang guru bergabung. Kode berlaku selama <strong>7 hari</strong>.</p>
+            <p>Buat kode undangan untuk mengundang guru bergabung. Kode berlaku selama <strong>7 hari</strong>.</p>
           </div>
           
           <button 
@@ -429,7 +428,7 @@ function calculateAge(birthDate) {
             :disabled="generatingCode"
           >
             <span v-if="generatingCode">Memproses...</span>
-            <span v-else>+ Generate Kode Baru</span>
+            <span v-else>+ Buat Kode Baru</span>
           </button>
           
           <div v-if="loadingCodes" class="loading-state"><div class="loading-spinner"></div></div>

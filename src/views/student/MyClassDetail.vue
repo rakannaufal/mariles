@@ -172,10 +172,10 @@ async function handleExerciseSubmit() {
     await fetchExercises(currentCourse.value.program.id, authStore.user.id)
     
     showUploadModal.value = false
-    alert('Jawaban berhasil disubmit!')
+    alert('Jawaban berhasil dikirim!')
   } catch (err) {
     console.error('Error submitting exercise:', err)
-    alert('Gagal submit: ' + err.message)
+    alert('Gagal mengirim jawaban: ' + err.message)
   } finally {
     uploading.value = false
   }

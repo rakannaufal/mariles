@@ -122,6 +122,7 @@ async function verifyPlace(place) {
   try {
     await supabase.from('les_places').update({ 
       verification_status: 'verified',
+      is_verified: true,
       rejection_reason: null 
     }).eq('id', place.id)
     
@@ -161,6 +162,7 @@ async function rejectPlace() {
   try {
     await supabase.from('les_places').update({ 
       verification_status: 'rejected',
+      is_verified: false,
       rejection_reason: rejectionReason.value 
     }).eq('id', rejectingPlace.value.id)
     
