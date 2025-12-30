@@ -185,29 +185,50 @@ async function handleSave() {
   saving.value = true
   message.value = { type: '', text: '' }
   try {
-    await supabase.from('users').update({
-      name: profile.value.name, phone: profile.value.phone, gender: profile.value.gender,
-      birth_date: profile.value.birth_date || null, address: profile.value.address
+    // Update users table
+    const { error: userError } = await supabase.from('users').update({
+      name: profile.value.name, 
+      phone: profile.value.phone, 
+      gender: profile.value.gender,
+      birth_date: profile.value.birth_date || null, 
+      address: profile.value.address
     }).eq('id', authStore.user.id)
+    
+    if (userError) throw userError
     
     // Check if profile is complete (100%)
     const isComplete = completionPercent.value >= 100
     
-    await supabase.from('teachers').upsert({
-      user_id: authStore.user.id, specialization: profile.value.specialization,
-      experience_years: profile.value.experience_years, qualification: profile.value.qualification,
-      bio: profile.value.bio, nik: profile.value.nik, province_id: profile.value.province_id,
-      province_name: profile.value.province_name, city_id: profile.value.city_id, city_name: profile.value.city_name,
+    // Upsert teachers table with onConflict
+    const { error: teacherError } = await supabase.from('teachers').upsert({
+      user_id: authStore.user.id, 
+      specialization: profile.value.specialization,
+      experience_years: profile.value.experience_years, 
+      qualification: profile.value.qualification,
+      bio: profile.value.bio, 
+      nik: profile.value.nik, 
+      province_id: profile.value.province_id,
+      province_name: profile.value.province_name, 
+      city_id: profile.value.city_id, 
+      city_name: profile.value.city_name,
       payment_type: profile.value.payment_type,
-      bank_name: profile.value.bank_name, bank_account: profile.value.bank_account, bank_holder: profile.value.bank_holder,
-      ewallet_type: profile.value.ewallet_type, ewallet_number: profile.value.ewallet_number,
+      bank_name: profile.value.bank_name, 
+      bank_account: profile.value.bank_account, 
+      bank_holder: profile.value.bank_holder,
+      ewallet_type: profile.value.ewallet_type, 
+      ewallet_number: profile.value.ewallet_number,
       is_profile_complete: isComplete
-    })
+    }, { onConflict: 'user_id' })
+    
+    if (teacherError) throw teacherError
     
     await authStore.fetchUserProfile()
     showSaved.value = true
     setTimeout(() => showSaved.value = false, 3000)
-  } catch (err) { message.value = { type: 'error', text: 'Gagal menyimpan: ' + err.message } }
+  } catch (err) { 
+    console.error('Error saving profile:', err)
+    message.value = { type: 'error', text: 'Gagal menyimpan: ' + err.message } 
+  }
   finally { saving.value = false }
 }
 

@@ -1,0 +1,75 @@
+HASIL BLACK BOX TESTING - BAGIAN 4: OWNER,,,,
+
+Tabel 4.1 Hasil Pengujian Dashboard Owner,,,,
+Skenario Pengujian,Kasus Pengujian,Hasil Yang Diharapkan,Kesimpulan
+Owner mengakses dashboard,Login sebagai owner dan buka dashboard,Dashboard dengan statistik tampil,Valid
+Owner mengakses dashboard,Melihat widget total pendapatan,Jumlah pendapatan tampil akurat,Valid
+Owner mengakses dashboard,Melihat widget jumlah siswa,Jumlah siswa terdaftar tampil,Valid
+Owner mengakses dashboard,Melihat widget jumlah guru,Jumlah guru aktif tampil,Valid
+Owner mengakses dashboard,Melihat grafik transaksi,Grafik pendapatan tampil,Valid
+
+,,,,
+Tabel 4.2 Hasil Pengujian Kelola Tempat Les,,,,
+Skenario Pengujian,Kasus Pengujian,Hasil Yang Diharapkan,Kesimpulan
+Owner mengelola tempat les,Membuka menu Kelola Tempat Les,Detail tempat les tampil,Valid
+Owner mengelola tempat les,Mengubah nama dan deskripsi,Perubahan tersimpan,Valid
+Owner mengelola tempat les,Mengubah alamat kota provinsi,Data alamat tersimpan,Valid
+Owner mengelola tempat les,Mengupload logo tempat les,Logo berhasil diupload,Valid
+Owner mengelola tempat les,Mengupload foto-foto tempat les,Foto berhasil diupload,Valid
+
+,,,,
+Tabel 4.3 Hasil Pengujian Program,,,,
+Skenario Pengujian,Kasus Pengujian,Hasil Yang Diharapkan,Kesimpulan
+Owner mengelola program,Membuka menu Program,Daftar program tampil,Valid
+Owner mengelola program,Menambah program baru,Program berhasil tersimpan,Valid
+Owner mengelola program,Mengatur harga program,Harga tersimpan dengan benar,Valid
+Owner mengelola program,Mengatur jadwal program (hari & jam),Jadwal tersimpan,Valid
+Owner mengelola program,Menetapkan guru untuk program,Guru berhasil di-assign,Valid
+Owner mengelola program,Mengedit program existing,Perubahan tersimpan,Valid
+Owner mengelola program,Menghapus program,Program berhasil dihapus,Valid
+Owner mengelola program,Mengaktifkan program,Program tampil di halaman public,Valid
+Owner mengelola program,Menonaktifkan program,Program tidak tampil di public,Valid
+
+,,,,
+Tabel 4.4 Hasil Pengujian Guru,,,,
+Skenario Pengujian,Kasus Pengujian,Hasil Yang Diharapkan,Kesimpulan
+Owner mengelola guru,Membuka menu Guru,Daftar guru tampil,Valid
+Owner mengelola guru,Membuat kode undangan guru,Kode undangan berhasil digenerate,Valid
+Owner mengelola guru,Mengcopy kode undangan,Kode tercopy ke clipboard,Valid
+Owner mengelola guru,Melihat detail guru,Modal detail guru terbuka,Valid
+Owner mengelola guru,Mengaktifkan guru,Status guru menjadi aktif mengajar,Valid
+Owner mengelola guru,Menonaktifkan guru,Status guru menjadi tidak aktif,Valid
+
+,,,,
+Tabel 4.5 Hasil Pengujian Pendaftaran & Keuangan,,,,
+Skenario Pengujian,Kasus Pengujian,Hasil Yang Diharapkan,Kesimpulan
+Owner melihat pendaftaran,Membuka menu Pendaftaran,Daftar registrasi siswa tampil,Valid
+Owner melihat pendaftaran,Memfilter berdasarkan status,Tampil registrasi sesuai status,Valid
+Owner melihat pendaftaran,Memfilter berdasarkan program,Tampil registrasi program tersebut,Valid
+Owner melihat keuangan,Membuka menu Keuangan,Ringkasan keuangan tampil,Valid
+Owner melihat keuangan,Melihat total pendapatan,Angka pendapatan akurat,Valid
+Owner melihat keuangan,Memfilter berdasarkan periode,Data periode tersebut tampil,Valid
+Owner melihat keuangan,Export laporan keuangan,File Excel berhasil terdownload,Valid
+
+,,,,
+Tabel 4.6 Hasil Pengujian Voucher,,,,
+Skenario Pengujian,Kasus Pengujian,Hasil Yang Diharapkan,Kesimpulan
+Owner mengelola voucher,Membuka menu Voucher,Daftar voucher tampil,Valid
+Owner mengelola voucher,Membuat voucher dengan diskon persen,Voucher dengan diskon % tersimpan,Valid
+Owner mengelola voucher,Membuat voucher dengan diskon nominal,Voucher dengan diskon Rp tersimpan,Valid
+Owner mengelola voucher,Mengatur periode berlaku voucher,Periode voucher tersimpan,Valid
+Owner mengelola voucher,Mengatur kuota maksimal penggunaan,Kuota voucher tersimpan,Valid
+Owner mengelola voucher,Mengaktifkan voucher,Voucher dapat digunakan siswa,Valid
+Owner mengelola voucher,Menonaktifkan voucher,Voucher tidak dapat digunakan,Valid
+Owner mengelola voucher,Menghapus voucher,Voucher berhasil dihapus,Valid
+
+,,,,
+Tabel 4.7 Hasil Pengujian Profil Owner,,,,
+Skenario Pengujian,Kasus Pengujian,Hasil Yang Diharapkan,Kesimpulan
+Owner mengelola profil,Membuka menu Profil,Data profil tampil lengkap,Valid
+Owner mengelola profil,Mengedit identitas (nama telepon NIK),Data tersimpan,Valid
+Owner mengelola profil,Mengedit info bisnis (nama usaha tipe),Data bisnis tersimpan,Valid
+Owner mengelola profil,Mengedit alamat lengkap,Data alamat tersimpan,Valid
+Owner mengelola profil,Mengedit info rekening/e-wallet,Data pembayaran tersimpan,Valid
+Owner mengelola profil,Mengaktifkan toggle tempat les,Tempat les aktif tampil di public,Valid
+Owner mengelola profil,Menonaktifkan toggle tempat les,Tempat les tidak tampil di public,Valid

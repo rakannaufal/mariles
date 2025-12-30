@@ -1,0 +1,54 @@
+HASIL BLACK BOX TESTING - BAGIAN 1: PUBLIC,,,,
+
+Tabel 1.1 Hasil Pengujian Login,,,,
+Skenario Pengujian,Kasus Pengujian,Hasil Yang Diharapkan,Kesimpulan
+Pengguna melakukan login,Mengosongkan field email dan password,Tampil pesan kesalahan "Field wajib diisi",Valid
+Pengguna melakukan login,Mengisi field email yang tidak terdaftar,Tampil pesan kesalahan "Email tidak ditemukan",Valid
+Pengguna melakukan login,Mengisi field email benar dan password salah,Tampil pesan kesalahan "Password salah",Valid
+Pengguna melakukan login,Mengisi field email dan password dengan benar,Tampil dashboard pengguna sesuai level akses,Valid
+Pengguna melakukan login,Login menggunakan Google OAuth,Redirect ke Google lalu ke dashboard sesuai role,Valid
+
+,,,,
+Tabel 1.2 Hasil Pengujian Register,,,,
+Skenario Pengujian,Kasus Pengujian,Hasil Yang Diharapkan,Kesimpulan
+Pengguna melakukan registrasi,Mengosongkan semua field wajib,Tampil validasi untuk setiap field,Valid
+Pengguna melakukan registrasi,Mengisi email dengan format tidak valid,Tampil pesan "Format email tidak valid",Valid
+Pengguna melakukan registrasi,Mengisi email yang sudah terdaftar,Tampil pesan "Email sudah terdaftar",Valid
+Pengguna melakukan registrasi,Mengisi password kurang dari 6 karakter,Tampil pesan "Password minimal 6 karakter",Valid
+Pengguna melakukan registrasi,Mengisi password dan konfirmasi tidak sama,Tampil pesan "Password tidak sama",Valid
+Pengguna melakukan registrasi,Mengisi semua data dengan benar sebagai Student,Akun Student berhasil dibuat redirect ke login,Valid
+Pengguna melakukan registrasi,Mengisi semua data dengan benar sebagai Teacher,Akun Teacher berhasil dibuat redirect ke login,Valid
+Pengguna melakukan registrasi,Mengisi semua data dengan benar sebagai Owner,Akun Owner berhasil dibuat redirect ke login,Valid
+
+,,,,
+Tabel 1.3 Hasil Pengujian Pencarian Tempat Les,,,,
+Skenario Pengujian,Kasus Pengujian,Hasil Yang Diharapkan,Kesimpulan
+Pengguna mencari tempat les,Memasukkan kata kunci di kolom pencarian,Tampil hasil pencarian yang sesuai,Valid
+Pengguna mencari tempat les,Memilih filter provinsi,Tampil tempat les di provinsi tersebut,Valid
+Pengguna mencari tempat les,Memilih filter provinsi lalu kota,Tampil tempat les di kota tersebut,Valid
+Pengguna mencari tempat les,Memilih filter kategori,Tampil tempat les dengan kategori tersebut,Valid
+Pengguna mencari tempat les,Memilih filter tipe (Umum/Pribadi),Tampil tempat les sesuai tipe yang dipilih,Valid
+Pengguna mencari tempat les,Memilih filter range harga,Tampil tempat les dalam range harga tersebut,Valid
+Pengguna mencari tempat les,Memilih filter minimal rating,Tampil tempat les dengan rating >= pilihan,Valid
+Pengguna mencari tempat les,Melakukan pencarian dengan hasil kosong,Tampil pesan "Tidak ada hasil ditemukan",Valid
+Pengguna mencari tempat les,Mengklik tombol Reset filter,Semua filter dikosongkan,Valid
+
+,,,,
+Tabel 1.4 Hasil Pengujian Detail Tempat Les,,,,
+Skenario Pengujian,Kasus Pengujian,Hasil Yang Diharapkan,Kesimpulan
+Pengguna melihat detail tempat les,Membuka halaman detail tempat les,Informasi lengkap program dan foto tampil,Valid
+Pengguna melihat detail tempat les,Mengklik detail program,Modal detail program terbuka,Valid
+Pengguna melihat detail tempat les,Mengklik tombol daftar tanpa login,Redirect ke halaman login,Valid
+Pengguna melihat detail tempat les,Mengklik tombol daftar setelah login,Modal booking/pembayaran terbuka,Valid
+Pengguna melihat detail tempat les,Melihat bagian ulasan,Daftar ulasan dari siswa tampil,Valid
+Pengguna melihat detail tempat les,Melihat lokasi di peta,Peta dengan marker lokasi tampil,Valid
+
+,,,,
+Tabel 1.5 Hasil Pengujian Halaman Statis,,,,
+Skenario Pengujian,Kasus Pengujian,Hasil Yang Diharapkan,Kesimpulan
+Pengguna mengakses halaman statis,Membuka halaman About/Tentang Kami,Konten tentang Mariles tampil dengan benar,Valid
+Pengguna mengakses halaman statis,Membuka halaman Contact dan submit form,Form terkirim tampil pesan konfirmasi,Valid
+Pengguna mengakses halaman statis,Membuka halaman FAQ dan klik salah satu,Jawaban expand/collapse dengan benar,Valid
+Pengguna mengakses halaman statis,Membuka halaman Cara Kerja,Langkah-langkah penggunaan tampil,Valid
+Pengguna mengakses halaman statis,Membuka halaman Kebijakan Privasi,Konten kebijakan privasi lengkap tampil,Valid
+Pengguna mengakses halaman statis,Membuka halaman Syarat & Ketentuan,Konten syarat ketentuan lengkap tampil,Valid

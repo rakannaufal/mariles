@@ -1,0 +1,81 @@
+HASIL BLACK BOX TESTING - BAGIAN 5: ADMIN,,,,
+
+Tabel 5.1 Hasil Pengujian Dashboard Admin,,,,
+Skenario Pengujian,Kasus Pengujian,Hasil Yang Diharapkan,Kesimpulan
+Admin mengakses dashboard,Login sebagai admin dan buka dashboard,Dashboard dengan statistik tampil,Valid
+Admin mengakses dashboard,Melihat widget total users,Jumlah user akurat,Valid
+Admin mengakses dashboard,Melihat widget total tempat les,Jumlah tempat les akurat,Valid
+Admin mengakses dashboard,Melihat widget pending verifikasi,Jumlah menunggu verifikasi tampil,Valid
+Admin mengakses dashboard,Melihat grafik pertumbuhan,Grafik trend tampil,Valid
+
+,,,,
+Tabel 5.2 Hasil Pengujian Manajemen User,,,,
+Skenario Pengujian,Kasus Pengujian,Hasil Yang Diharapkan,Kesimpulan
+Admin mengelola user,Membuka menu Pengguna,Daftar user tampil,Valid
+Admin mengelola user,Memfilter berdasarkan role,User sesuai role tampil,Valid
+Admin mengelola user,Mencari user berdasarkan nama/email,Hasil pencarian tampil,Valid
+Admin mengelola user,Melihat detail user,Modal detail user terbuka,Valid
+Admin mengelola user,Mengedit data user,Perubahan tersimpan,Valid
+Admin mengelola user,Melakukan suspend user,User tidak dapat login,Valid
+Admin mengelola user,Mengaktifkan kembali user,User dapat login kembali,Valid
+Admin mengelola user,Menghapus user,User berhasil dihapus,Valid
+
+,,,,
+Tabel 5.3 Hasil Pengujian Manajemen Tempat Les,,,,
+Skenario Pengujian,Kasus Pengujian,Hasil Yang Diharapkan,Kesimpulan
+Admin mengelola tempat les,Membuka menu Tempat Les,Daftar tempat les tampil,Valid
+Admin mengelola tempat les,Memfilter yang terverifikasi,Tampil tempat les terverifikasi,Valid
+Admin mengelola tempat les,Memfilter yang pending,Tampil tempat les pending,Valid
+Admin mengelola tempat les,Memfilter yang ditolak,Tampil tempat les ditolak,Valid
+Admin mengelola tempat les,Melihat detail tempat les,Modal detail terbuka,Valid
+Admin mengelola tempat les,Melakukan verifikasi tempat les,Status berubah jadi Terverifikasi,Valid
+Admin mengelola tempat les,Menolak verifikasi dengan alasan,Status berubah jadi Ditolak,Valid
+Admin mengelola tempat les,Menolak verifikasi tanpa alasan,Tampil validasi wajib isi alasan,Valid
+Admin mengelola tempat les,Menghapus tempat les,Tempat les berhasil dihapus,Valid
+
+,,,,
+Tabel 5.4 Hasil Pengujian Kategori & Banner,,,,
+Skenario Pengujian,Kasus Pengujian,Hasil Yang Diharapkan,Kesimpulan
+Admin mengelola kategori,Membuka menu Kategori,Daftar kategori tampil,Valid
+Admin mengelola kategori,Menambah kategori dengan icon,Kategori dan icon tersimpan,Valid
+Admin mengelola kategori,Mengedit kategori,Perubahan tersimpan,Valid
+Admin mengelola kategori,Mengaktifkan kategori,Kategori tampil di public,Valid
+Admin mengelola kategori,Menonaktifkan kategori,Kategori tidak tampil di public,Valid
+Admin mengelola banner,Membuka menu Banner,Daftar banner tampil,Valid
+Admin mengelola banner,Menambah banner dengan gambar,Banner berhasil tersimpan,Valid
+Admin mengelola banner,Mengatur link tujuan banner,Link tersimpan,Valid
+Admin mengelola banner,Mengaktifkan banner,Banner tampil di homepage,Valid
+Admin mengelola banner,Menonaktifkan banner,Banner tidak tampil,Valid
+
+,,,,
+Tabel 5.5 Hasil Pengujian Voucher Admin,,,,
+Skenario Pengujian,Kasus Pengujian,Hasil Yang Diharapkan,Kesimpulan
+Admin mengelola voucher,Membuka menu Voucher,Daftar voucher tampil,Valid
+Admin mengelola voucher,Membuat voucher global,Voucher tersimpan untuk semua,Valid
+Admin mengelola voucher,Mengedit voucher,Perubahan tersimpan,Valid
+Admin mengelola voucher,Melihat statistik penggunaan voucher,Data pemakaian tampil,Valid
+Admin mengelola voucher,Menghapus voucher,Voucher berhasil dihapus,Valid
+
+,,,,
+Tabel 5.6 Hasil Pengujian Laporan & Moderasi,,,,
+Skenario Pengujian,Kasus Pengujian,Hasil Yang Diharapkan,Kesimpulan
+Admin mengelola laporan,Membuka menu Laporan,Daftar laporan tampil,Valid
+Admin mengelola laporan,Memfilter berdasarkan tipe laporan,Laporan sesuai tipe tampil,Valid
+Admin mengelola laporan,Melihat detail laporan,Detail dan bukti tampil,Valid
+Admin mengelola laporan,Menandai laporan sedang diproses,Status berubah,Valid
+Admin mengelola laporan,Menyelesaikan laporan,Status jadi resolved,Valid
+Admin mengelola moderasi,Membuka menu Moderasi,Konten untuk review tampil,Valid
+Admin mengelola moderasi,Menyetujui konten,Konten disetujui,Valid
+Admin mengelola moderasi,Menolak konten,Konten ditolak,Valid
+
+,,,,
+Tabel 5.7 Hasil Pengujian Notifikasi & Pengaturan,,,,
+Skenario Pengujian,Kasus Pengujian,Hasil Yang Diharapkan,Kesimpulan
+Admin mengirim notifikasi,Membuka menu Notifikasi,Daftar notifikasi tampil,Valid
+Admin mengirim notifikasi,Mengirim notifikasi ke semua user,Notifikasi terkirim ke semua,Valid
+Admin mengirim notifikasi,Mengirim notifikasi ke role tertentu,Notifikasi terkirim ke role,Valid
+Admin mengirim notifikasi,Mengirim notifikasi ke user spesifik,Notifikasi terkirim ke user,Valid
+Admin mengelola pengaturan,Membuka menu Pengaturan,Setting sistem tampil,Valid
+Admin mengelola pengaturan,Mengubah informasi aplikasi,Perubahan tersimpan,Valid
+Admin mengelola pengaturan,Mengaktifkan mode maintenance,User tidak dapat akses aplikasi,Valid
+Admin mengelola pengaturan,Logout dari sistem,Redirect ke halaman login,Valid

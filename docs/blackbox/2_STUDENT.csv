@@ -1,0 +1,61 @@
+HASIL BLACK BOX TESTING - BAGIAN 2: STUDENT,,,,
+
+Tabel 2.1 Hasil Pengujian Dashboard Student,,,,
+Skenario Pengujian,Kasus Pengujian,Hasil Yang Diharapkan,Kesimpulan
+Student mengakses dashboard,Login sebagai student dan buka dashboard,Dashboard dengan statistik tampil,Valid
+Student mengakses dashboard,Melihat widget kelas aktif,Jumlah kelas yang diikuti tampil benar,Valid
+Student mengakses dashboard,Melihat widget progress belajar,Persentase progress belajar tampil,Valid
+Student mengakses dashboard,Mengklik menu cepat/shortcut,Redirect ke halaman yang sesuai,Valid
+
+,,,,
+Tabel 2.2 Hasil Pengujian Kelas Saya,,,,
+Skenario Pengujian,Kasus Pengujian,Hasil Yang Diharapkan,Kesimpulan
+Student melihat kelas,Membuka menu Kelas Saya,Daftar kelas yang diikuti tampil,Valid
+Student melihat kelas,Memilih filter kelas aktif,Tampil kelas yang masih aktif saja,Valid
+Student melihat kelas,Memilih filter kelas selesai,Tampil kelas yang sudah selesai saja,Valid
+Student melihat kelas,Mengklik salah satu kelas,Halaman detail kelas terbuka,Valid
+Student melihat kelas,Melihat modul di detail kelas,Daftar modul pembelajaran tampil,Valid
+
+,,,,
+Tabel 2.3 Hasil Pengujian Belajar (Video & Quiz),,,,
+Skenario Pengujian,Kasus Pengujian,Hasil Yang Diharapkan,Kesimpulan
+Student belajar video,Mengklik video di modul,Video player terbuka dan bisa diputar,Valid
+Student belajar video,Menonton video sampai selesai,Video ditandai selesai progress terupdate,Valid
+Student mengerjakan quiz,Mengklik quiz di modul,Modal/halaman quiz terbuka,Valid
+Student mengerjakan quiz,Menjawab semua soal dan submit,Nilai ditampilkan jawaban tersimpan,Valid
+Student mengerjakan quiz,Membiarkan waktu quiz habis,Quiz ter-submit otomatis,Valid
+Student mengerjakan quiz,Melihat tab nilai,Daftar nilai quiz dan tugas tampil,Valid
+
+,,,,
+Tabel 2.4 Hasil Pengujian Booking & Pembayaran,,,,
+Skenario Pengujian,Kasus Pengujian,Hasil Yang Diharapkan,Kesimpulan
+Student melihat booking,Membuka menu Booking,Daftar booking tampil,Valid
+Student melihat booking,Memilih filter pending,Tampil booking menunggu pembayaran,Valid
+Student melihat booking,Memilih filter aktif,Tampil booking yang sudah aktif,Valid
+Student melakukan pembayaran,Mengklik lanjutkan bayar,Redirect ke payment gateway,Valid
+Student melakukan pembayaran,Memasukkan kode voucher valid,Diskon berhasil diterapkan,Valid
+Student melakukan pembayaran,Memasukkan kode voucher tidak valid,Tampil pesan "Voucher tidak valid",Valid
+Student melakukan pembayaran,Menyelesaikan pembayaran,Redirect ke halaman sukses kelas aktif,Valid
+Student membatalkan booking,Mengklik batal di booking pending,Konfirmasi muncul booking dibatalkan,Valid
+
+,,,,
+Tabel 2.5 Hasil Pengujian Fitur Lainnya,,,,
+Skenario Pengujian,Kasus Pengujian,Hasil Yang Diharapkan,Kesimpulan
+Student mengelola favorit,Mengklik tombol favorit di detail tempat les,Tempat les ditambahkan ke favorit,Valid
+Student mengelola favorit,Menghapus dari daftar favorit,Tempat les dihapus dari favorit,Valid
+Student melihat progress,Membuka menu Progress,Grafik progress belajar tampil,Valid
+Student menggunakan chat,Membuka menu Chat,Daftar percakapan tampil,Valid
+Student menggunakan chat,Mengirim pesan ke guru,Pesan terkirim dan tampil,Valid
+Student menggunakan forum,Membuat post baru di forum,Post baru berhasil dibuat,Valid
+Student menggunakan forum,Mengomentari post,Komentar berhasil tersimpan,Valid
+
+,,,,
+Tabel 2.6 Hasil Pengujian Profil Student,,,,
+Skenario Pengujian,Kasus Pengujian,Hasil Yang Diharapkan,Kesimpulan
+Student mengelola profil,Membuka menu Profil,Data profil tampil lengkap,Valid
+Student mengelola profil,Mengubah nama dan menyimpan,Nama berhasil diupdate,Valid
+Student mengelola profil,Mengupload foto baru,Foto profil berhasil diupdate,Valid
+Student mengelola profil,Mengubah data pendidikan,Data pendidikan tersimpan,Valid
+Student mengelola profil,Mengosongkan field wajib dan menyimpan,Tampil validasi field wajib,Valid
+Student mengelola akun,Mengubah password dengan benar,Password berhasil diubah,Valid
+Student mengelola akun,Mengklik logout,Redirect ke halaman login,Valid

@@ -31,7 +31,7 @@ const metrics = computed(() => [
   { 
     id: 'punctuality', 
     label: 'Ketepatan Waktu', 
-    value: stats.value.attendanceRate || 0, 
+    value: stats.value.punctualityRate || 0, 
     target: 100,
     color: '#2563eb',
     icon: 'clock'

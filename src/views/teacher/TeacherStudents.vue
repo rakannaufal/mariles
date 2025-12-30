@@ -10,7 +10,7 @@ import { supabase } from '@/lib/supabase'
 const route = useRoute()
 const isOwner = computed(() => route.path.startsWith('/owner'))
 
-const { loading, students, lesPlace, fetchTeacherStudents, fetchTeacherProfile } = useTeacherData()
+const { loading, students, lesPlace, programs: teacherPrograms, fetchTeacherStudents, fetchTeacherProfile, fetchTeacherSchedule } = useTeacherData()
 const { fetchReportCard } = useMyClass()
 
 const filter = ref('all')
@@ -35,14 +35,24 @@ const studentStats = computed(() => {
   return { total, active, avgProgress, newThisMonth }
 })
 
-// Get unique programs for filter dropdown (using program_id and name)
+// Get all programs - combine from students (for filtering) and teacherPrograms (for showing all)
 const programs = computed(() => {
   const programMap = new Map()
+  
+  // First, add programs from students data (these have correct IDs that match student.program_id)
   students.value.forEach(s => {
     if (s.program_id && s.program?.name) {
       programMap.set(s.program_id, s.program.name)
     }
   })
+  
+  // Also add from teacherPrograms (in case some programs have no students yet)
+  teacherPrograms.value.forEach(p => {
+    if (p.id && p.name && !programMap.has(p.id)) {
+      programMap.set(p.id, p.name)
+    }
+  })
+  
   return Array.from(programMap.entries()).map(([id, name]) => ({ id, name }))
 })
 
@@ -142,7 +152,7 @@ function getGradeFromScore(score) {
 
 onMounted(async () => {
   await fetchTeacherProfile()
-  await fetchTeacherStudents()
+  await Promise.all([fetchTeacherStudents(), fetchTeacherSchedule()])
 })
 </script>
 
@@ -305,7 +315,7 @@ onMounted(async () => {
               </svg>
               {{ student.class || '-' }}
             </p>
-            <p class="student-subject">{{ student.subject || '-' }}</p>
+            <p class="student-subject">{{ student.program?.name || '-' }}</p>
           </div>
 
           <!-- Progress Section -->
@@ -382,7 +392,7 @@ onMounted(async () => {
             <tr>
               <th>Siswa</th>
               <th>Kelas</th>
-              <th>Mata Pelajaran</th>
+              <th>Program</th>
               <th>Progress</th>
               <th>Status</th>
               <th>Tanggal Bergabung</th>
@@ -404,7 +414,7 @@ onMounted(async () => {
                 </div>
               </td>
               <td>{{ student.class || '-' }}</td>
-              <td>{{ student.subject || '-' }}</td>
+              <td>{{ student.program?.name || '-' }}</td>
               <td>
                 <div class="table-progress">
                   <div class="progress-bar-mini">
@@ -465,8 +475,8 @@ onMounted(async () => {
                 <span class="detail-value">{{ selectedStudent?.class || '-' }}</span>
               </div>
               <div class="detail-item">
-                <span class="detail-label">Mata Pelajaran</span>
-                <span class="detail-value">{{ selectedStudent?.subject || '-' }}</span>
+                <span class="detail-label">Program</span>
+                <span class="detail-value">{{ selectedStudent?.program?.name || '-' }}</span>
               </div>
               <div class="detail-item">
                 <span class="detail-label">Tempat Les</span>

@@ -143,11 +143,11 @@ function goToSlide(index) {
 }
 
 function prevSlide() {
-  currentSlide.value = (currentSlide.value - 1 + promoSlides.length) % promoSlides.length
+  currentSlide.value = (currentSlide.value - 1 + promoSlides.value.length) % promoSlides.value.length
 }
 
 function nextSlide() {
-  currentSlide.value = (currentSlide.value + 1) % promoSlides.length
+  currentSlide.value = (currentSlide.value + 1) % promoSlides.value.length
 }
 
 function toggleShowAllLes() {

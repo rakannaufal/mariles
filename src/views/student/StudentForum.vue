@@ -455,7 +455,7 @@ onMounted(fetchPosts)
 .forum-page { min-height: 100vh; background: #f8fafc; padding-top: 64px; }
 
 .page-header { background: linear-gradient(135deg, #0d5782, #0a4568); padding: 40px 24px; color: white; text-align: center; }
-.header-content h1 { font-size: 32px; font-weight: 700; margin: 0 0 8px; }
+.header-content h1 { font-size: 32px; font-weight: 700; margin: 0 0 8px; color: white; }
 .header-subtitle { opacity: 0.9; font-size: 16px; margin: 0; }
 
 .forum-content { max-width: 1200px; margin: 0 auto; padding: 24px; }

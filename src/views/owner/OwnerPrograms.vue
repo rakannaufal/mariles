@@ -1,6 +1,6 @@
 <script setup>
 import OwnerSidebar from '@/components/OwnerSidebar.vue'
-import { ref, onMounted, computed, watch } from 'vue'
+import { ref, onMounted, onUnmounted, computed, watch } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { supabase } from '@/lib/supabase'
 import { levelOptions, getLevelLabel, getLevelColor } from '@/utils/badgeUtils'
@@ -15,6 +15,104 @@ const saving = ref(false)
 const showModal = ref(false)
 const editingProgram = ref(null)
 const message = ref({ type: '', text: '' })
+const customCategory = ref('')
+const showCustomCategory = ref(false)
+const categorySearch = ref('')
+const showCategoryDropdown = ref(false)
+
+// Daftar kategori akademik lengkap (SD-SMA, Kuliah)
+const academicCategories = [
+  // Mata Pelajaran Umum (SD-SMA)
+  'Matematika',
+  'Bahasa Indonesia',
+  'Bahasa Inggris',
+  'IPA',
+  'IPS',
+  'Fisika',
+  'Kimia',
+  'Biologi',
+  'Ekonomi',
+  'Geografi',
+  'Sosiologi',
+  'Sejarah',
+  'PKN',
+  'Agama Islam',
+  'Agama Kristen',
+  'Agama Katolik',
+  'Agama Hindu',
+  'Agama Buddha',
+  'Seni Budaya',
+  'Prakarya',
+  'PJOK',
+  'TIK/Informatika',
+  // Bahasa Asing
+  'Bahasa Mandarin',
+  'Bahasa Jepang',
+  'Bahasa Korea',
+  'Bahasa Jerman',
+  'Bahasa Prancis',
+  'Bahasa Arab',
+  // Persiapan Ujian
+  'UTBK/SBMPTN',
+  'TOEFL',
+  'IELTS',
+  'SAT',
+  // Mata Kuliah Umum
+  'Kalkulus',
+  'Statistika',
+  'Fisika Dasar',
+  'Kimia Dasar',
+  'Biologi Umum',
+  'Akuntansi',
+  'Manajemen',
+  'Ekonomi Mikro',
+  'Ekonomi Makro',
+  'Hukum',
+  'Psikologi',
+  'Sosiologi Umum',
+  'Filsafat',
+  // Teknik & Sains
+  'Pemrograman',
+  'Algoritma',
+  'Struktur Data',
+  'Basis Data',
+  'Jaringan Komputer',
+  'Matematika Teknik',
+  'Mekanika',
+  'Termodinamika',
+  'Elektronika',
+  // Kesehatan
+  'Anatomi',
+  'Fisiologi',
+  'Farmakologi',
+  'Biokimia',
+  // Bisnis & Ekonomi
+  'Akuntansi Dasar',
+  'Akuntansi Keuangan',
+  'Manajemen Keuangan',
+  'Manajemen Pemasaran',
+  'Manajemen SDM',
+  'Perpajakan',
+  // Bahasa & Komunikasi
+  'Bahasa Inggris Akademik',
+  'Public Speaking',
+  'Academic Writing',
+  // Lainnya Akademik
+  'Calistung',
+  'Mengaji/Iqra',
+  'Olimpiade Matematika',
+  'Olimpiade Fisika',
+  'Olimpiade Kimia',
+  'Olimpiade Biologi',
+  'Olimpiade Informatika'
+]
+
+// Filtered categories based on search
+const filteredCategories = computed(() => {
+  const search = categorySearch.value.toLowerCase()
+  if (!search) return academicCategories
+  return academicCategories.filter(cat => cat.toLowerCase().includes(search))
+})
 
 // Form data
 const form = ref({
@@ -22,6 +120,7 @@ const form = ref({
   description: '',
   level: '',
   category_id: '',
+  category_name: '', // untuk custom category
   duration_months: 0,
   sessions_per_week: 0,
   session_duration_minutes: 0,
@@ -75,10 +174,23 @@ const availableSlots = computed(() => {
   return form.value.capacity - current
 })
 
+// Click outside handler untuk tutup dropdown
+function handleClickOutside(e) {
+  const categoryGroup = document.querySelector('.category-group')
+  if (categoryGroup && !categoryGroup.contains(e.target)) {
+    showCategoryDropdown.value = false
+  }
+}
+
 onMounted(async () => {
+  document.addEventListener('click', handleClickOutside)
   await fetchOwnerAndLesPlace()
   await fetchCategories()
   await fetchPrograms()
+})
+
+onUnmounted(() => {
+  document.removeEventListener('click', handleClickOutside)
 })
 
 async function fetchOwnerAndLesPlace() {
@@ -130,6 +242,32 @@ async function fetchPrograms() {
       .eq('les_places.owner_id', owner.value.id)
       .order('created_at', { ascending: false })
 
+    // Hitung jumlah siswa aktif per program dari bookings
+    if (data && data.length > 0) {
+      const programIds = data.map(p => p.id)
+      
+      // Query bookings dengan status confirmed/active dan payment sudah paid
+      const { data: bookingCounts } = await supabase
+        .from('bookings')
+        .select('program_id')
+        .in('program_id', programIds)
+        .in('status', ['confirmed', 'active'])
+        .in('payment_status', ['paid', 'settlement', 'capture'])
+      
+      // Count bookings per program
+      const countMap = {}
+      if (bookingCounts) {
+        bookingCounts.forEach(b => {
+          countMap[b.program_id] = (countMap[b.program_id] || 0) + 1
+        })
+      }
+      
+      // Attach counts to programs
+      data.forEach(p => {
+        p.current_students = countMap[p.id] || 0
+      })
+    }
+
     programs.value = data || []
   } catch (err) {
     console.error('Error:', err)
@@ -146,11 +284,16 @@ function openAddModal() {
 
 function openEditModal(program) {
   editingProgram.value = program
+  
+  // Get category name from relation or category_name field
+  const catName = program.categories?.name || program.category_name || ''
+  
   form.value = {
     name: program.name || '',
     description: program.description || '',
     level: program.level || '',
     category_id: program.category_id || '',
+    category_name: catName,
     duration_months: program.duration_months || 3,
     sessions_per_week: program.sessions_per_week || 4,
     session_duration_minutes: program.session_duration_minutes || 120,
@@ -163,6 +306,10 @@ function openEditModal(program) {
     schedule: program.schedule || {},
     is_active: program.is_active !== false
   }
+  
+  // Set category search field
+  categorySearch.value = catName
+  showCategoryDropdown.value = false
   
   // Load schedule into form
   Object.keys(scheduleForm.value).forEach(day => {
@@ -186,6 +333,7 @@ function resetForm() {
     description: '',
     level: '',
     category_id: '',
+    category_name: '',
     duration_months: 0,
     sessions_per_week: 0,
     session_duration_minutes: 0,
@@ -199,9 +347,27 @@ function resetForm() {
     is_active: true
   }
   
+  categorySearch.value = ''
+  showCategoryDropdown.value = false
+  showCustomCategory.value = false
+  customCategory.value = ''
+  
   Object.keys(scheduleForm.value).forEach(day => {
     scheduleForm.value[day] = { enabled: false, start: '09:00', end: '11:00' }
   })
+}
+
+function selectCategory(catName) {
+  form.value.category_name = catName
+  categorySearch.value = catName
+  showCategoryDropdown.value = false
+}
+
+function useCustomCategory() {
+  if (categorySearch.value.trim()) {
+    form.value.category_name = categorySearch.value.trim()
+    showCategoryDropdown.value = false
+  }
 }
 
 function buildSchedule() {
@@ -221,12 +387,26 @@ async function saveProgram() {
   message.value = { type: '', text: '' }
   
   try {
+    // Cari category_id dari nama kategori yang dipilih
+    let categoryId = null
+    if (form.value.category_name) {
+      const { data: catData } = await supabase
+        .from('categories')
+        .select('id')
+        .ilike('name', form.value.category_name)
+        .single()
+      
+      if (catData) {
+        categoryId = catData.id
+      }
+    }
+    
     const programData = {
       les_place_id: lesPlace.value.id,
       name: form.value.name,
       description: form.value.description,
       level: form.value.level,
-      category_id: form.value.category_id || null,
+      category_id: categoryId, // gunakan category_id hasil lookup
       duration_months: form.value.duration_months,
       sessions_per_week: form.value.sessions_per_week,
       session_duration_minutes: form.value.session_duration_minutes,
@@ -453,12 +633,40 @@ function getScheduleDays(schedule) {
                   <option v-for="opt in levelOptions" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
                 </select>
               </div>
-              <div class="form-group">
+              <div class="form-group category-group">
                 <label class="form-label">Kategori</label>
-                <select v-model="form.category_id" class="form-input">
-                  <option value="">Pilih Kategori</option>
-                  <option v-for="cat in categories" :key="cat.id" :value="cat.id">{{ cat.name }}</option>
-                </select>
+                <div class="category-input-wrapper">
+                  <input 
+                    v-model="categorySearch" 
+                    type="text" 
+                    class="form-input" 
+                    placeholder="Ketik atau pilih kategori..."
+                    @focus="showCategoryDropdown = true"
+                    @input="showCategoryDropdown = true"
+                  >
+                  <div v-if="form.category_name" class="selected-category">
+                    {{ form.category_name }}
+                    <button type="button" @click="form.category_name = ''; categorySearch = ''" class="clear-btn">&times;</button>
+                  </div>
+                </div>
+                
+                <!-- Dropdown suggestions -->
+                <div v-if="showCategoryDropdown && categorySearch" class="category-dropdown">
+                  <div 
+                    v-for="cat in filteredCategories" 
+                    :key="cat" 
+                    class="category-option"
+                    @click="selectCategory(cat)"
+                  >
+                    {{ cat }}
+                  </div>
+                  <div v-if="filteredCategories.length === 0 && categorySearch" class="category-option custom-option" @click="useCustomCategory()">
+                    <span class="custom-icon">+</span> Gunakan "{{ categorySearch }}"
+                  </div>
+                  <div v-else-if="categorySearch && !filteredCategories.includes(categorySearch)" class="category-option custom-option" @click="useCustomCategory()">
+                    <span class="custom-icon">+</span> Gunakan "{{ categorySearch }}"
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -677,6 +885,19 @@ function getScheduleDays(schedule) {
 .toggle-slider:before{content:"";position:absolute;height:20px;width:20px;left:3px;bottom:3px;background:white;transition:.3s;border-radius:50%}
 .toggle-switch input:checked+.toggle-slider{background:var(--primary)}
 .toggle-switch input:checked+.toggle-slider:before{transform:translateX(22px)}
+
+/* Category Searchable Dropdown */
+.category-group{position:relative}
+.category-input-wrapper{position:relative}
+.selected-category{display:flex;align-items:center;gap:var(--spacing-xs);margin-top:var(--spacing-xs);padding:var(--spacing-xs) var(--spacing-sm);background:var(--primary);color:white;border-radius:var(--radius-md);font-size:var(--font-size-sm);width:fit-content}
+.clear-btn{background:none;border:none;color:white;font-size:16px;cursor:pointer;padding:0 4px;opacity:0.8}
+.clear-btn:hover{opacity:1}
+.category-dropdown{position:absolute;top:100%;left:0;right:0;max-height:200px;overflow-y:auto;background:white;border:2px solid var(--primary);border-radius:var(--radius-lg);box-shadow:var(--shadow-lg);z-index:100;margin-top:4px}
+.category-option{padding:var(--spacing-sm) var(--spacing-md);cursor:pointer;font-size:var(--font-size-sm);transition:background var(--transition-fast)}
+.category-option:hover{background:var(--background)}
+.category-option.custom-option{background:#f0fdf4;color:var(--secondary);font-weight:500;border-top:1px solid var(--border)}
+.category-option.custom-option:hover{background:#dcfce7}
+.custom-icon{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;background:var(--secondary);color:white;border-radius:50%;font-size:12px;margin-right:var(--spacing-xs)}
 
 /* Responsive */
 @media(max-width:768px){

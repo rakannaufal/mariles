@@ -548,9 +548,10 @@ const activePrograms = computed(() => lesPlace.value?.programs?.filter(p => p.is
                 </div>
               </div>
 
-              <div class="form-group" v-if="form.type !== 'online'">
+              <div class="form-group">
                 <label class="form-label">Alamat Lengkap</label>
                 <textarea v-model="form.address" class="form-input" rows="2" placeholder="Jl. Contoh No. 123, Kelurahan, Kecamatan"></textarea>
+                <span class="form-hint">Alamat ini akan ditampilkan di kartu tempat les Anda</span>
               </div>
 
               <div class="form-group" v-if="form.type !== 'online'">
@@ -558,10 +559,7 @@ const activePrograms = computed(() => lesPlace.value?.programs?.filter(p => p.is
                 <input v-model="form.postal_code" type="text" class="form-input" placeholder="12345" maxlength="5" style="max-width: 150px;">
               </div>
 
-              <div v-if="form.type === 'online'" class="info-box">
-                <span class="info-icon">ℹ️</span>
-                <p>Untuk les online, lokasi fisik tidak diperlukan. Siswa akan mengakses kelas melalui platform digital.</p>
-              </div>
+        
             </div>
           </div>
 

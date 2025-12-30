@@ -1,0 +1,68 @@
+HASIL BLACK BOX TESTING - BAGIAN 3: TEACHER,,,,
+
+Tabel 3.1 Hasil Pengujian Dashboard Teacher,,,,
+Skenario Pengujian,Kasus Pengujian,Hasil Yang Diharapkan,Kesimpulan
+Teacher mengakses dashboard,Login sebagai teacher dan buka dashboard,Dashboard dengan statistik tampil,Valid
+Teacher mengakses dashboard,Melihat widget jadwal hari ini,Jadwal mengajar hari ini tampil,Valid
+Teacher mengakses dashboard,Melihat widget jumlah siswa,Jumlah siswa yang diajar tampil benar,Valid
+Teacher mengakses dashboard,Melihat widget pendapatan,Total pendapatan tampil,Valid
+
+,,,,
+Tabel 3.2 Hasil Pengujian Jadwal,,,,
+Skenario Pengujian,Kasus Pengujian,Hasil Yang Diharapkan,Kesimpulan
+Teacher mengelola jadwal,Membuka menu Jadwal,Kalender jadwal tampil,Valid
+Teacher mengelola jadwal,Menambah jadwal baru,Jadwal baru berhasil tersimpan,Valid
+Teacher mengelola jadwal,Mengedit jadwal existing,Perubahan jadwal tersimpan,Valid
+Teacher mengelola jadwal,Menghapus jadwal,Jadwal berhasil dihapus,Valid
+Teacher mengelola jadwal,Membuat jadwal yang overlap,Tampil warning konflik jadwal,Valid
+
+,,,,
+Tabel 3.3 Hasil Pengujian Siswa,,,,
+Skenario Pengujian,Kasus Pengujian,Hasil Yang Diharapkan,Kesimpulan
+Teacher melihat siswa,Membuka menu Siswa,Daftar siswa tampil,Valid
+Teacher melihat siswa,Memilih filter berdasarkan kelas,Tampil siswa kelas tersebut saja,Valid
+Teacher melihat siswa,Mencari nama siswa,Hasil pencarian tampil,Valid
+Teacher melihat siswa,Mengklik detail siswa,Modal detail siswa terbuka,Valid
+Teacher melihat siswa,Melihat progress belajar siswa,Data progress siswa tampil,Valid
+
+,,,,
+Tabel 3.4 Hasil Pengujian Materi,,,,
+Skenario Pengujian,Kasus Pengujian,Hasil Yang Diharapkan,Kesimpulan
+Teacher mengelola materi,Membuka menu Materi,Daftar materi tampil,Valid
+Teacher mengelola materi,Menambah materi baru dengan upload video,Video berhasil diupload,Valid
+Teacher mengelola materi,Menambah materi dengan upload dokumen,Dokumen berhasil diupload,Valid
+Teacher mengelola materi,Mengedit judul/deskripsi materi,Perubahan tersimpan,Valid
+Teacher mengelola materi,Menghapus materi,Materi berhasil dihapus,Valid
+Teacher mengelola materi,Upload file melebihi batas ukuran,Tampil error batas ukuran file,Valid
+
+,,,,
+Tabel 3.5 Hasil Pengujian Quiz,,,,
+Skenario Pengujian,Kasus Pengujian,Hasil Yang Diharapkan,Kesimpulan
+Teacher mengelola quiz,Membuka menu Quiz,Daftar quiz tampil,Valid
+Teacher mengelola quiz,Membuat quiz baru dengan pertanyaan,Quiz dan soal berhasil tersimpan,Valid
+Teacher mengelola quiz,Mengedit quiz existing,Perubahan quiz tersimpan,Valid
+Teacher mengelola quiz,Menghapus quiz,Quiz berhasil dihapus,Valid
+Teacher mengelola quiz,Mengaktifkan/publish quiz,Quiz dapat diakses oleh siswa,Valid
+Teacher mengelola quiz,Menonaktifkan quiz,Quiz tidak dapat diakses siswa,Valid
+
+,,,,
+Tabel 3.6 Hasil Pengujian Nilai & Absensi,,,,
+Skenario Pengujian,Kasus Pengujian,Hasil Yang Diharapkan,Kesimpulan
+Teacher melihat nilai,Membuka menu Nilai,Daftar nilai siswa tampil,Valid
+Teacher melihat nilai,Memfilter berdasarkan quiz tertentu,Tampil nilai quiz tersebut,Valid
+Teacher melihat nilai,Melihat detail jawaban siswa,Detail jawaban quiz tampil,Valid
+Teacher melihat nilai,Export nilai ke Excel,File Excel berhasil terdownload,Valid
+Teacher mengelola absensi,Membuka menu Absensi,Daftar absensi tampil,Valid
+Teacher mengelola absensi,Menandai siswa hadir,Status absensi hadir tersimpan,Valid
+Teacher mengelola absensi,Menandai siswa tidak hadir,Status absensi tidak hadir tersimpan,Valid
+Teacher mengelola absensi,Melihat rekap absensi bulanan,Statistik kehadiran tampil,Valid
+
+,,,,
+Tabel 3.7 Hasil Pengujian Profil Teacher,,,,
+Skenario Pengujian,Kasus Pengujian,Hasil Yang Diharapkan,Kesimpulan
+Teacher mengelola profil,Membuka menu Profil,Data profil tampil lengkap,Valid
+Teacher mengelola profil,Mengedit identitas (nama telepon),Data tersimpan,Valid
+Teacher mengelola profil,Menambah/menghapus spesialisasi,Bidang keahlian terupdate,Valid
+Teacher mengelola profil,Mengubah kualifikasi pendidikan,Data pendidikan tersimpan,Valid
+Teacher mengelola profil,Mengubah info rekening bank,Data rekening tersimpan,Valid
+Teacher mengelola profil,Mengisi semua field profil,Persentase kelengkapan 100%,Valid
