@@ -60,11 +60,15 @@ async function fetchDashboardData() {
         todaySchedule.value = []
     } else {
         // 1. Fetch Key Metrics
-        // Count Places
-        const { count: lesCount } = await supabase.from('les_places').select('*', { count: 'exact', head: true }).eq('owner_id', owner.id)
+        // Count Programs (Active)
+        const { count: programCount } = await supabase
+            .from('programs')
+            .select('*', { count: 'exact', head: true })
+            .eq('les_place_id', lpData?.id)
+            .eq('is_active', true)
         
         // Revenue & Students
-        stats.value.totalLes.value = lesCount || 0
+        stats.value.totalPrograms = { value: programCount || 0, trend: 'Aktif' }
         
         // Calculate total students from PAID bookings for this les_place's programs
         // First get program IDs for this les_place
@@ -76,8 +80,14 @@ async function fetchDashboardData() {
         const ownerProgramIds = ownerProgramsData?.map(p => p.id) || []
         
         let studentCount = 0
+        // Calculate revenue from ALL paid bookings for accuracy
+        let totalRevenue = 0
+        let allPaidBookings = []
+        let allActiveBookings = []
+
         if (ownerProgramIds.length > 0) {
-          const { count } = await supabase
+           // Get Active Student Count
+           const { count } = await supabase
             .from('bookings')
             .select('*', { count: 'exact', head: true })
             .in('program_id', ownerProgramIds)
@@ -85,41 +95,142 @@ async function fetchDashboardData() {
             .in('payment_status', ['paid', 'settlement', 'capture'])
           
           studentCount = count || 0
+
+          // Get All Paid Bookings (For Revenue)
+          const { data: bookings } = await supabase
+            .from('bookings')
+            .select('created_at, program_id, programs(name, price)')
+            .in('program_id', ownerProgramIds)
+            .in('payment_status', ['paid', 'settlement', 'capture'])
+            .order('created_at', { ascending: true })
+          
+          allPaidBookings = bookings || []
+          totalRevenue = allPaidBookings.reduce((sum, b) => sum + (b.programs?.price || 0), 0)
+
+          // Get Active Bookings (For Program Counts)
+          const { data: activeB } = await supabase
+            .from('bookings')
+            .select('program_id')
+            .in('program_id', ownerProgramIds)
+            .in('status', ['active', 'confirmed'])
+          
+          allActiveBookings = activeB || []
         }
         
         stats.value.totalStudents.value = studentCount 
-
-        // Calculate total revenue from COMPLETED transactions
-        const { data: txnData } = await supabase
-          .from('transactions')
-          .select('net_amount, amount, payment_status')
-          .eq('les_place_id', lpData?.id)
-          .in('payment_status', ['completed', 'paid', 'settlement', 'capture'])
-        
-        let totalRevenue = (txnData || []).reduce((sum, t) => sum + (t.net_amount || t.amount || 0), 0)
-
-        // Fallback: If no transactions, calculate from paid bookings
-        if (totalRevenue === 0) {
-          const { data: paidBookings } = await supabase
-            .from('bookings')
-            .select('programs(price)')
-            .in('payment_status', ['paid', 'settlement', 'capture'])
-          
-          totalRevenue = (paidBookings || []).reduce((sum, b) => sum + (b.programs?.price || 0), 0)
-        }
-
         stats.value.totalRevenue.value = totalRevenue
 
-        // 2. Fetch Charts Data (Implemented as empty for now until backend analytics are ready)
-        revenueData.value = []
-        studentTrendData.value = []
-        programDistData.value = []
+        // Calculate Average Rating from Reviews
+        const { data: reviewData } = await supabase
+            .from('reviews')
+            .select('rating')
+            .eq('les_place_id', lpData?.id)
+            .eq('is_visible', true)
+        
+        if (reviewData && reviewData.length > 0) {
+            const totalRating = reviewData.reduce((sum, r) => sum + r.rating, 0)
+            stats.value.averageRating.value = (totalRating / reviewData.length).toFixed(1)
+            stats.value.averageRating.trend = reviewData.length + ' ulasan'
+        } else {
+             stats.value.averageRating.value = 0
+             stats.value.averageRating.trend = '-'
+        }
+
+        // 2. Fetch Charts Data
+        // Revenue History (Last 6 Months)
+        const months = []
+        const now = new Date()
+        for (let i = 5; i >= 0; i--) {
+          const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
+          months.push({
+            label: d.toLocaleDateString('id-ID', { month: 'short' }),
+            monthIdx: d.getMonth(),
+            year: d.getFullYear()
+          })
+        }
+
+        // Process Revenue Data (Cumulative per month)
+        const monthlyRevenue = months.map(m => {
+            const monthlyBookings = allPaidBookings.filter(b => {
+                const d = new Date(b.created_at)
+                return d.getMonth() === m.monthIdx && d.getFullYear() === m.year
+            })
+            const val = monthlyBookings.reduce((sum, b) => sum + (b.programs?.price || 0), 0)
+            return { label: m.label, value: val }
+        })
+        revenueData.value = monthlyRevenue
+
+        // Process Student Trend (Daily for last 7 days)
+        const days = []
+        const today = new Date()
+        for (let i = 6; i >= 0; i--) {
+            const d = new Date(today)
+            d.setDate(d.getDate() - i)
+            days.push({
+                label: d.toLocaleDateString('id-ID', { weekday: 'short' }), // Sen, Sel (Important: Use short weekday)
+                dateStr: d.toDateString()
+            })
+        }
+        
+        const { data: recentBookings } = await supabase
+            .from('bookings')
+            .select('created_at')
+            .eq('les_place_id', lpData?.id)
+            .in('payment_status', ['paid', 'settlement', 'capture']) // Only paid for charts too
+            .gte('created_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString())
+        
+        const dailyStudents = days.map(d => {
+            const count = (recentBookings || []).filter(b => new Date(b.created_at).toDateString() === d.dateStr).length
+            return { label: d.label, value: count } // RETURN 'value' NOT 'y'
+        })
+        studentTrendData.value = dailyStudents
+
+        // Process Popular Programs (Calculate dynamically from bookings)
+        const { data: allPrograms } = await supabase
+            .from('programs')
+            .select('id, name, capacity, price')
+            .eq('les_place_id', lpData?.id)
+            .eq('is_active', true)
+        
+        // Count students per program from allActiveBookings
+        const programCounts = {}
+        allActiveBookings.forEach(b => {
+            programCounts[b.program_id] = (programCounts[b.program_id] || 0) + 1
+        })
+
+        // first map and sort
+        let tempPrograms = (allPrograms || []).map(p => ({
+            name: p.name,
+            count: programCounts[p.id] || 0,
+            capacity: p.capacity || 0,
+            price: p.price || 0,
+        })).sort((a, b) => b.count - a.count).slice(0, 5)
+
+        // Final map with capacity-based percentage
+        programDistData.value = tempPrograms.map(p => {
+             let pct = 0
+             if (p.capacity && p.capacity > 0) {
+                 pct = Math.round((p.count / p.capacity) * 100)
+             } else {
+                 // If capacity is 0/null (Unlimited), we can show full bar or relative?
+                 // Let's show 100% to indicate 'Available' or maybe relative to max?
+                 // But user specifically asked about 4/10. So for 4/10 it MUST be 40%
+                 // For unlimited, let's just default to 100 for now or handling it visually elsewhere?
+                 // Actually, if it's unlimited, a "progress bar" doesn't make much sense. 
+                 // Let's set to 100 but maybe color differently? For now just 100.
+                 pct = 100
+             }
+             return {
+                ...p,
+                percentage: pct
+             }
+        })
         
         // Reset trends
         stats.value.totalRevenue.trend = totalRevenue > 0 ? '+' + new Intl.NumberFormat('id-ID').format(totalRevenue) : '-'
-        stats.value.totalStudents.trend = studentCount > 0 ? '+' + studentCount + ' siswa' : '-'
-        stats.value.averageRating.value = 0
-        stats.value.averageRating.trend = '-'
+        stats.value.totalStudents.trend = studentCount > 0 ? '+' + studentCount : '-'
+        // stats.value.averageRating.value = lpData.rating ? lpData.rating.toFixed(1) : 0
+        // stats.value.averageRating.trend = '-' 
 
         // 3. Recent Registrations
         const { data: registrations } = await supabase
@@ -129,6 +240,8 @@ async function fetchDashboardData() {
             students(users(name, email, phone)),
             programs(name, price)
           `)
+          .eq('les_place_id', lpData?.id)
+          .in('payment_status', ['paid', 'settlement', 'capture']) // Only paid
           .order('created_at', { ascending: false })
           .limit(5)
 
@@ -141,19 +254,21 @@ async function fetchDashboardData() {
     loading.value = false
   }
 }
-
+// Helper for currency
+function formatCurrency(val) {
+    return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(val)
+}
 
 function formatDate(date) {
   return new Date(date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })
 }
 
 function getStatusClass(status) {
-  const classes = { pending: 'warning', active: 'success', completed: 'info', cancelled: 'error' }
-  return classes[status] || ''
+  // Since we only show paid, we can just use success/info
+  return 'success' 
 }
 function getStatusText(status) {
-    const texts = { pending:'Menunggu', active:'Aktif', completed:'Selesai', cancelled:'Batal' }
-    return texts[status] || status
+    return 'Lunas'
 }
 </script>
 
@@ -181,13 +296,13 @@ function getStatusText(status) {
         <section class="summary-cards">
             <div class="card stat-card">
                 <div class="icon-wrapper blue">
-                    <span style="font-weight: 700; font-size: 1.2rem;">Rp.</span>
+                    <span style="font-weight: 700; font-size: 1.2rem;">Rp</span>
                 </div>
                 <div class="stat-content">
                     <span class="label">Total Pendapatan</span>
-                    <h3 class="value">Rp {{ new Intl.NumberFormat('id-ID').format(stats.totalRevenue.value) }}</h3>
+                    <h3 class="value">{{ formatCurrency(stats.totalRevenue.value) }}</h3>
                     <span class="trend" :class="stats.totalRevenue.trendUp ? 'up' : 'down'">
-                        {{ stats.totalRevenue.trend }} <span class="muted" v-if="stats.totalRevenue.trend !== '-'">bulan ini</span>
+                        {{ stats.totalRevenue.trend }} <span class="muted" v-if="stats.totalRevenue.trend !== '-'">total</span>
                     </span>
                 </div>
             </div>
@@ -207,13 +322,13 @@ function getStatusText(status) {
 
            <div class="card stat-card">
                <div class="icon-wrapper purple">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
                </div>
                <div class="stat-content">
-                   <span class="label">Total Tempat Les</span>
-                   <h3 class="value">{{ stats.totalLes.value }}</h3>
+                   <span class="label">Total Program</span>
+                   <h3 class="value">{{ stats.totalPrograms?.value || 0 }}</h3>
                    <span class="trend neutral">
-                        Stabil
+                        {{ stats.totalPrograms?.trend || '-' }}
                     </span>
                </div>
            </div>
@@ -237,23 +352,38 @@ function getStatusText(status) {
             <!-- Revenue Main Chart -->
             <div class="card revenue-chart-card">
                 <div class="card-header">
-                    <h3>Statistik Pendapatan</h3>
-                    <select class="chart-filter">
-                        <option>6 Bulan Terakhir</option>
-                        <option>Tahun Ini</option>
-                    </select>
+                    <h3 class="section-title">Statistik Pendapatan</h3>
+                    <div class="chart-badge">6 Bulan Terakhir</div>
                 </div>
                 <RevenueChart :data="revenueData" :height="320" />
             </div>
 
             <!-- Side Charts Column -->
             <div class="side-charts">
+                <!-- Popular Programs (List View) -->
                 <div class="card distribution-card">
-                    <h3>Program Populer</h3>
-                    <ProgramDistributionChart :data="programDistData" :height="250" />
+                    <h3 class="section-title">Program Populer</h3>
+                    <div class="programs-list-view">
+                        <div v-for="(prog, idx) in programDistData" :key="idx" class="program-row">
+                            <div class="prog-info">
+                                <span class="prog-name">{{ prog.name }}</span>
+                                <span class="prog-count">
+                                    {{ prog.count }} <span class="muted">/ {{ prog.capacity || '∞' }}</span> Siswa
+                                </span>
+                            </div>
+                            <div class="prog-bar-bg">
+                                <div class="prog-bar-fill" :style="{ width: prog.percentage + '%' }"></div>
+                            </div>
+                        </div>
+                        <div v-if="programDistData.length === 0" class="empty-data">
+                            Belum ada data program
+                        </div>
+                    </div>
                 </div>
+
+                <!-- Student Trend (Chart) -->
                 <div class="card trend-card">
-                    <h3>Siswa Baru (Mingguan)</h3>
+                    <h3 class="section-title">Siswa Baru (Mingguan)</h3>
                     <StudentTrendChart :data="studentTrendData" :height="200" />
                 </div>
             </div>
@@ -435,10 +565,12 @@ function getStatusText(status) {
   margin-bottom: 24px;
 }
 
-.card-header h3 {
-  font-size: 16px;
+.card-header h3,
+.section-title {
+  font-size: 15px; /* Slightly smaller as requested */
   font-weight: 600;
   color: #1E293B;
+  margin: 0;
 }
 
 .link {
@@ -550,6 +682,69 @@ function getStatusText(status) {
   .main-content {
     padding: 16px;
   }
+}
+
+/* Programs List View */
+.programs-list-view {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-top: 10px;
+}
+
+.program-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.prog-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 14px;
+}
+
+.prog-name {
+  font-weight: 500;
+  color: #334155;
+}
+
+.prog-count {
+  font-size: 12px;
+  color: #64748B;
+  font-weight: 600;
+}
+
+.prog-bar-bg {
+  width: 100%;
+  height: 8px;
+  background-color: #F1F5F9;
+  border-radius: 99px;
+  overflow: hidden;
+}
+
+.prog-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #0D5782 0%, #0891B2 100%);
+  border-radius: 99px;
+  transition: width 0.5s ease;
+}
+
+.empty-data {
+    text-align: center;
+    color: #94A3B8;
+    font-size: 13px;
+    padding: 20px;
+}
+
+.chart-badge {
+    background: #F1F5F9;
+    padding: 6px 12px;
+    border-radius: 8px;
+    font-size: 12px;
+    color: #475569;
+    font-weight: 500;
 }
 
 /* Utils */

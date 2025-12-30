@@ -13,39 +13,42 @@ const props = defineProps({
   }
 })
 
-const series = computed(() => props.data.map(d => d.value))
+const series = computed(() => [{
+  name: 'Siswa',
+  data: props.data.map(d => d.value)
+}])
 
 const chartOptions = computed(() => ({
   chart: {
-    type: 'donut',
+    type: 'bar',
     height: props.height,
+    toolbar: { show: false },
     fontFamily: 'Poppins, sans-serif'
   },
-  labels: props.data.map(d => d.label),
-  colors: ['#0D5782', '#88D0E4', '#FB7185', '#F59E0B', '#10B981'],
   plotOptions: {
-    pie: {
-      donut: {
-        size: '70%',
-        labels: {
-          show: true,
-          total: {
-            show: true,
-            label: 'Total',
-            formatter: (w) => {
-              return w.globals.seriesTotals.reduce((a, b) => a + b, 0)
-            }
-          }
-        }
-      }
+    bar: {
+      horizontal: true,
+      borderRadius: 4,
+      barHeight: '50%',
+      distributed: true
     }
   },
-  dataLabels: { enabled: false },
-  legend: {
-    position: 'bottom',
-    horizontalAlign: 'center'
+  colors: ['#0D5782', '#0E7490', '#0891B2', '#06B6D4', '#22D3EE'],
+  dataLabels: { enabled: true, formatter: (val) => val },
+  xaxis: {
+    categories: props.data.map(d => d.label),
+    labels: { show: false },
+    axisBorder: { show: false },
+    axisTicks: { show: false }
   },
-  stroke: { show: false },
+  yaxis: {
+    labels: {
+      show: true,
+      style: { fontSize: '12px', fontFamily: 'Poppins, sans-serif' }
+    }
+  },
+  grid: { show: false },
+  legend: { show: false },
   tooltip: {
     y: {
       formatter: (val) => val + ' Siswa'
@@ -57,7 +60,7 @@ const chartOptions = computed(() => ({
 <template>
   <div class="chart-container">
     <VueApexCharts
-      type="donut"
+      type="bar"
       :height="height"
       :options="chartOptions"
       :series="series"

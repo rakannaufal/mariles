@@ -4,6 +4,7 @@ import { ref, onMounted, watch, onUnmounted, computed, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useChat } from '@/composables/useChat'
+import { usePresence } from '@/composables/usePresence'
 
 const route = useRoute()
 const router = useRouter()
@@ -20,6 +21,15 @@ const {
   unsubscribe
 } = useChat()
 
+// Use shared presence tracking
+const { 
+  isUserOnline, 
+  getStatusText,
+  getLastActivityText,
+  subscribeToPresence, 
+  unsubscribeFromPresence 
+} = usePresence()
+
 const selectedRoom = ref(null)
 const messagesLoading = ref(false)
 const newMessage = ref('')
@@ -31,9 +41,20 @@ const currentParticipant = computed(() => {
   return selectedRoom.value.otherParticipant
 })
 
+// Get role label in Indonesian
+function getRoleLabel(role) {
+  switch(role) {
+    case 'teacher': return 'Guru'
+    case 'owner': return 'Owner'
+    case 'student': return 'Siswa'
+    default: return role || 'Pengguna'
+  }
+}
+
 onMounted(async () => {
   if (authStore.user) {
     await fetchChatRooms(authStore.user.id)
+    subscribeToPresence()
     
     const roomId = route.query.room
     if (roomId) {
@@ -116,6 +137,7 @@ function shouldShowDateSeparator(index) {
 
 onUnmounted(() => {
   unsubscribe()
+  unsubscribeFromPresence()
 })
 </script>
 
@@ -160,15 +182,15 @@ onUnmounted(() => {
                   class="conversation-item" 
                   :class="{ active: selectedRoom?.id === room.id }"
                   @click="handleSelectRoom(room)">
-            <div class="conv-avatar">
+            <div class="conv-avatar" :class="room.otherParticipant?.role">
               <img v-if="room.otherParticipant?.avatar_url" :src="room.otherParticipant.avatar_url" :alt="room.otherParticipant?.name">
               <span v-else>{{ room.otherParticipant?.name?.charAt(0)?.toUpperCase() }}</span>
-              <span class="online-dot"></span>
             </div>
             <div class="conv-info">
               <div class="conv-header">
                 <span class="conv-name">{{ room.otherParticipant?.name || 'Pengguna' }}</span>
-                <span class="conv-time">{{ formatDate(room.last_message_at || room.created_at) }}</span>
+                <span class="role-badge" :class="room.otherParticipant?.role">{{ getRoleLabel(room.otherParticipant?.role) }}</span>
+                <span class="conv-status">{{ getLastActivityText(room.otherParticipant?.id) }}</span>
               </div>
               <div class="conv-preview">
                 <p>{{ room.last_message || 'Belum ada pesan' }}</p>
@@ -189,13 +211,17 @@ onUnmounted(() => {
               </svg>
             </button>
             <div class="participant-info">
-              <div class="participant-avatar">
+              <div class="participant-avatar" :class="currentParticipant?.role">
                 <img v-if="currentParticipant?.avatar_url" :src="currentParticipant.avatar_url" :alt="currentParticipant?.name">
                 <span v-else>{{ currentParticipant?.name?.charAt(0)?.toUpperCase() }}</span>
+                <span class="status-dot" :class="{ online: isUserOnline(currentParticipant?.id), offline: !isUserOnline(currentParticipant?.id) }"></span>
               </div>
               <div class="participant-details">
-                <h3>{{ currentParticipant?.name }}</h3>
-                <span class="participant-role">{{ currentParticipant?.role || 'Pengguna' }}</span>
+                <div class="participant-header-row">
+                  <h3>{{ currentParticipant?.name }}</h3>
+                  <span class="status-text" :class="{ online: isUserOnline(currentParticipant?.id) }">{{ getStatusText(currentParticipant?.id) }}</span>
+                </div>
+                <span class="participant-role">{{ getRoleLabel(currentParticipant?.role) }}</span>
               </div>
             </div>
           </div>
@@ -261,7 +287,9 @@ onUnmounted(() => {
 .dashboard {
   display: flex;
   min-height: 100vh;
+  max-height: 100vh;
   background: var(--background);
+  overflow: hidden;
 }
 
 .main {
@@ -269,10 +297,14 @@ onUnmounted(() => {
   padding: var(--spacing-xl);
   display: flex;
   flex-direction: column;
+  min-height: 0;
+  max-height: 100vh;
+  overflow: hidden;
 }
 
 .header {
   margin-bottom: var(--spacing-lg);
+  flex-shrink: 0;
 }
 
 .header h1 {
@@ -396,21 +428,39 @@ onUnmounted(() => {
   overflow: hidden;
 }
 
+.conv-avatar.teacher {
+  background: #10b981;
+}
+
+.conv-avatar.student {
+  background: #f59e0b;
+}
+
 .conv-avatar img {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  border-radius: 50%;
 }
 
-.online-dot {
+/* Status Dot - Clean compact design */
+.status-dot {
   position: absolute;
-  bottom: 2px;
-  right: 2px;
+  bottom: 1px;
+  right: 1px;
   width: 12px;
   height: 12px;
-  background: var(--success);
-  border: 2px solid white;
   border-radius: 50%;
+  border: 2px solid white;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+}
+
+.status-dot.online {
+  background: #22c55e;
+}
+
+.status-dot.offline {
+  background: #94a3b8;
 }
 
 .conv-info {
@@ -420,8 +470,8 @@ onUnmounted(() => {
 
 .conv-header {
   display: flex;
-  justify-content: space-between;
   align-items: center;
+  gap: 8px;
   margin-bottom: 4px;
 }
 
@@ -431,9 +481,46 @@ onUnmounted(() => {
   font-size: var(--font-size-sm);
 }
 
+/* Role Badge - Compact pill style */
+.role-badge {
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.role-badge.teacher {
+  background: #d1fae5;
+  color: #059669;
+}
+
+.role-badge.owner {
+  background: #e0e7ff;
+  color: #4f46e5;
+}
+
+.role-badge.student {
+  background: #fef3c7;
+  color: #d97706;
+}
+
+/* Status text in conversation list */
+.conv-status {
+  font-size: 11px;
+  color: #94a3b8;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+.conv-status.online {
+  color: #22c55e;
+}
+
 .conv-time {
   font-size: var(--font-size-xs);
   color: var(--text-muted);
+  flex-shrink: 0;
 }
 
 .conv-preview {
@@ -507,20 +594,49 @@ onUnmounted(() => {
   color: white;
   font-weight: 600;
   font-size: var(--font-size-lg);
-  overflow: hidden;
+  overflow: visible;
+  position: relative;
+}
+
+.participant-avatar.teacher {
+  background: #10b981;
+}
+
+.participant-avatar.student {
+  background: #f59e0b;
 }
 
 .participant-avatar img {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  border-radius: 50%;
+}
+
+.participant-header-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
 .participant-details h3 {
   font-size: var(--font-size-base);
   font-weight: 600;
   color: var(--text);
-  margin-bottom: 2px;
+}
+
+.status-text {
+  font-size: 11px;
+  font-weight: 500;
+  padding: 2px 8px;
+  border-radius: 10px;
+  background: #f1f5f9;
+  color: #94a3b8;
+}
+
+.status-text.online {
+  background: #dcfce7;
+  color: #16a34a;
 }
 
 .participant-role {

@@ -17,7 +17,9 @@ const nickname = ref('')
 const email = ref('')
 const phone = ref('')
 const password = ref('')
+const showPassword = ref(false)
 const confirmPassword = ref('')
+const showConfirmPassword = ref(false)
 const gender = ref('')
 const birthDate = ref('')
 const role = ref('')
@@ -488,7 +490,12 @@ function getStepLabels() {
                   class="owner-type-card-large" 
                   @click="selectOwnerType('pribadi')"
                 >
-                  <div class="card-icon">👤</div>
+                  <div class="card-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                      <circle cx="12" cy="7" r="4"/>
+                    </svg>
+                  </div>
                   <div class="card-content">
                     <strong>Pribadi</strong>
                     <p>Saya mengajar sendiri di tempat les saya. Tidak ada guru lain yang mengajar.</p>
@@ -500,7 +507,14 @@ function getStepLabels() {
                   class="owner-type-card-large" 
                   @click="selectOwnerType('umum')"
                 >
-                  <div class="card-icon">👥</div>
+                  <div class="card-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                      <circle cx="9" cy="7" r="4"/>
+                      <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+                      <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                    </svg>
+                  </div>
                   <div class="card-content">
                     <strong>Umum</strong>
                     <p>Saya memiliki satu atau lebih guru yang mengajar di tempat les saya.</p>
@@ -655,12 +669,42 @@ function getStepLabels() {
               <div v-if="step === 2" class="form-step animate-fade-in">
                 <div class="form-group">
                   <label class="form-label">Password <span class="required">*</span></label>
-                  <input v-model="password" type="password" class="form-input" placeholder="Minimal 6 karakter">
+                  <div class="password-wrapper">
+                    <input 
+                      v-model="password" 
+                      :type="showPassword ? 'text' : 'password'" 
+                      class="form-input password-input" 
+                      placeholder="Minimal 6 karakter"
+                    >
+                    <button type="button" class="password-toggle" @click="showPassword = !showPassword">
+                      <svg v-if="!showPassword" viewBox="0 0 24 24" fill="none" class="toggle-icon">
+                        <path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z" fill="currentColor"/>
+                      </svg>
+                      <svg v-else viewBox="0 0 24 24" fill="none" class="toggle-icon">
+                        <path d="M12 7c2.76 0 5 2.24 5 5 0 .65-.13 1.26-.36 1.83l2.92 2.92c1.51-1.26 2.7-2.89 3.43-4.75-1.73-4.39-6-7.5-11-7.5-1.4 0-2.74.25-3.98.7l2.16 2.16C10.74 7.13 11.35 7 12 7zM2 4.27l2.28 2.28.46.46C3.08 8.3 1.78 10.02 1 12c1.73 4.39 6 7.5 11 7.5 1.55 0 3.03-.3 4.38-.84l.42.42L19.73 22 21 20.73 3.27 3 2 4.27zM7.53 9.8l1.55 1.55c-.05.21-.08.43-.08.65 0 1.66 1.34 3 3 3 .22 0 .44-.03.65-.08l1.55 1.55c-.67.33-1.41.53-2.2.53-2.76 0-5-2.24-5-5 0-.79.2-1.53.53-2.2zm4.31-.78l3.15 3.15.02-.16c0-1.66-1.34-3-3-3l-.17.01z" fill="currentColor"/>
+                      </svg>
+                    </button>
+                  </div>
                 </div>
                 <div class="form-group">
                   <label class="form-label">Konfirmasi Password <span class="required">*</span></label>
-                  <input v-model="confirmPassword" type="password" class="form-input" placeholder="Ulangi password" 
-                    :class="{ error: confirmPassword && password !== confirmPassword }">
+                  <div class="password-wrapper">
+                    <input 
+                      v-model="confirmPassword" 
+                      :type="showConfirmPassword ? 'text' : 'password'" 
+                      class="form-input password-input" 
+                      placeholder="Ulangi password" 
+                      :class="{ error: confirmPassword && password !== confirmPassword }"
+                    >
+                    <button type="button" class="password-toggle" @click="showConfirmPassword = !showConfirmPassword">
+                      <svg v-if="!showConfirmPassword" viewBox="0 0 24 24" fill="none" class="toggle-icon">
+                        <path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z" fill="currentColor"/>
+                      </svg>
+                      <svg v-else viewBox="0 0 24 24" fill="none" class="toggle-icon">
+                        <path d="M12 7c2.76 0 5 2.24 5 5 0 .65-.13 1.26-.36 1.83l2.92 2.92c1.51-1.26 2.7-2.89 3.43-4.75-1.73-4.39-6-7.5-11-7.5-1.4 0-2.74.25-3.98.7l2.16 2.16C10.74 7.13 11.35 7 12 7zM2 4.27l2.28 2.28.46.46C3.08 8.3 1.78 10.02 1 12c1.73 4.39 6 7.5 11 7.5 1.55 0 3.03-.3 4.38-.84l.42.42L19.73 22 21 20.73 3.27 3 2 4.27zM7.53 9.8l1.55 1.55c-.05.21-.08.43-.08.65 0 1.66 1.34 3 3 3 .22 0 .44-.03.65-.08l1.55 1.55c-.67.33-1.41.53-2.2.53-2.76 0-5-2.24-5-5 0-.79.2-1.53.53-2.2zm4.31-.78l3.15 3.15.02-.16c0-1.66-1.34-3-3-3l-.17.01z" fill="currentColor"/>
+                      </svg>
+                    </button>
+                  </div>
                   <span v-if="confirmPassword && password !== confirmPassword" class="form-error">Password tidak cocok</span>
                 </div>
                 <div class="form-actions">
@@ -941,20 +985,11 @@ function getStepLabels() {
 
       <div class="register-illustration">
         <div class="illustration-content">
-          <div class="illustration-shapes">
-            <div class="shape shape-1"></div>
-            <div class="shape shape-2"></div>
-            <div class="shape shape-3"></div>
-          </div>
           <div class="illustration-text">
             <h1>Mulai Perjalanan Belajar Anda</h1>
-            <p>Bergabunglah dengan ribuan siswa dan guru di Mariles untuk pengalaman belajar yang lebih baik.</p>
-            <div class="illustration-features">
-              <div class="feature"><span class="check">✓</span><span>Temukan les yang sesuai kebutuhanmu</span></div>
-              <div class="feature"><span class="check">✓</span><span>Berbagai metode pembayaran</span></div>
-              <div class="feature"><span class="check">✓</span><span>Guru berkualitas & terverifikasi</span></div>
-            </div>
+            <p>Bergabunglah dengan siswa dan guru di Mariles untuk pengalaman belajar yang lebih baik.</p>
           </div>
+          <img src="/images/belajar_2.png" alt="Ilustrasi siswa belajar" class="illustration-image">
         </div>
       </div>
     </div>
@@ -1060,18 +1095,11 @@ function getStepLabels() {
 .back-link:hover{color:var(--secondary)}
 
 .register-illustration{flex:1;background:linear-gradient(135deg,var(--secondary),#0A4568);display:flex;align-items:center;justify-content:center;padding:var(--spacing-2xl);position:relative;overflow:hidden}
-.illustration-content{position:relative;z-index:1;max-width:480px}
-.illustration-shapes{position:absolute;inset:0}
-.shape{position:absolute;border-radius:50%;opacity:0.1}
-.shape-1{width:400px;height:400px;background:white;top:-100px;right:-100px;animation:float 6s ease-in-out infinite}
-.shape-2{width:300px;height:300px;background:var(--primary);bottom:-50px;left:-80px;animation:float 8s ease-in-out infinite reverse}
-.shape-3{width:200px;height:200px;background:var(--accent);top:50%;left:20%;animation:float 7s ease-in-out infinite}
-.illustration-text{color:white}
-.illustration-text h1{font-size:var(--font-size-3xl);font-weight:700;line-height:1.3;margin-bottom:var(--spacing-lg);color:white}
-.illustration-text p{font-size:var(--font-size-lg);opacity:0.9;margin-bottom:var(--spacing-2xl);line-height:1.6}
-.illustration-features{display:flex;flex-direction:column;gap:var(--spacing-md)}
-.feature{display:flex;align-items:center;gap:var(--spacing-sm);font-size:var(--font-size-base)}
-.feature .check{color:#4ade80;font-weight:bold}
+.illustration-content{position:relative;z-index:1;width:100%;height:100%;max-width:520px;display:flex;flex-direction:column;align-items:center}
+.illustration-text{color:white;margin-bottom:0;margin-top:2rem;position:relative;z-index:2;text-align:center}
+.illustration-text h1{font-size:var(--font-size-3xl);font-weight:700;line-height:1.2;margin-bottom:var(--spacing-sm);color:white}
+.illustration-text p{font-size:var(--font-size-base);opacity:0.9;line-height:1.6}
+.illustration-image{position:absolute;bottom:40px;left:50%;transform:translateX(-50%);width:100%;max-width:560px;height:auto;object-fit:contain;z-index:1;opacity:0.9}
 @keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-20px)}}
 
 @media(max-width:1024px){.register-illustration{display:none}}
@@ -1096,7 +1124,8 @@ function getStepLabels() {
 .owner-type-cards-large{display:flex;flex-direction:column;gap:var(--spacing-md)}
 .owner-type-card-large{display:flex;align-items:center;gap:var(--spacing-lg);padding:var(--spacing-lg) var(--spacing-xl);background:white;border:2px solid var(--border);border-radius:var(--radius-xl);cursor:pointer;transition:all var(--transition-fast)}
 .owner-type-card-large:hover{border-color:var(--secondary);background:#f0faff;transform:translateX(4px)}
-.owner-type-card-large .card-icon{font-size:32px;width:56px;height:56px;display:flex;align-items:center;justify-content:center;background:var(--background);border-radius:var(--radius-lg)}
+.owner-type-card-large .card-icon{width:56px;height:56px;min-width:56px;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#e0f2fe,#bae6fd);border-radius:var(--radius-lg);color:#0284c7}
+.owner-type-card-large .card-icon svg{width:28px;height:28px}
 .owner-type-card-large .card-content{flex:1}
 .owner-type-card-large .card-content strong{display:block;font-size:var(--font-size-lg);color:var(--text);margin-bottom:4px}
 .owner-type-card-large .card-content p{font-size:var(--font-size-sm);color:var(--text-secondary);margin:0;line-height:1.5}
@@ -1105,6 +1134,12 @@ function getStepLabels() {
 
 /* Badge separator */
 .badge-separator{margin:0 var(--spacing-xs);color:var(--text-muted)}
+
+.password-wrapper{position:relative}
+.password-input{padding-right:40px}
+.password-toggle{position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--text-secondary);opacity:0.6;transition:all 0.2s;padding:4px;display:flex;align-items:center;justify-content:center}
+.password-toggle:hover{opacity:1;color:var(--primary)}
+.toggle-icon{width:20px;height:20px}
 
 /* Teacher Code Section */
 .teacher-code-section{margin-top:var(--spacing-lg)}

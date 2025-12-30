@@ -44,6 +44,9 @@ async function fetchRegistrations() {
 
 const filteredRegistrations = computed(() => {
   if (filter.value === 'all') return registrations.value
+  if (filter.value === 'paid') {
+      return registrations.value.filter(reg => ['paid', 'settlement', 'capture'].includes(reg.payment_status))
+  }
   return registrations.value.filter(reg => reg.status === filter.value)
 })
 
@@ -52,12 +55,12 @@ function formatDate(date) {
 }
 
 function getStatusClass(status) {
-  const classes = { pending: 'warning', active: 'success', completed: 'info', cancelled: 'error' }
+  const classes = { pending: 'warning', active: 'success', confirmed: 'success', completed: 'info', cancelled: 'error' }
   return classes[status] || ''
 }
 
 function getStatusText(status) {
-  const texts = { pending: 'Menunggu', active: 'Aktif', completed: 'Selesai', cancelled: 'Dibatalkan' }
+  const texts = { pending: 'Menunggu', active: 'Aktif', confirmed: 'Terkonfirmasi', completed: 'Selesai', cancelled: 'Dibatalkan' }
   return texts[status] || status
 }
 
@@ -84,8 +87,7 @@ function getPaymentStatusText(status) {
       <div class="filter-bar">
         <button :class="['filter-btn', { active: filter === 'all' }]" @click="filter = 'all'">Semua</button>
         <button :class="['filter-btn', { active: filter === 'pending' }]" @click="filter = 'pending'">Menunggu</button>
-        <button :class="['filter-btn', { active: filter === 'active' }]" @click="filter = 'active'">Aktif</button>
-        <button :class="['filter-btn', { active: filter === 'completed' }]" @click="filter = 'completed'">Selesai</button>
+        <button :class="['filter-btn', { active: filter === 'paid' }]" @click="filter = 'paid'">Lunas</button>
         <button :class="['filter-btn', { active: filter === 'cancelled' }]" @click="filter = 'cancelled'">Dibatalkan</button>
       </div>
 
@@ -99,7 +101,6 @@ function getPaymentStatusText(status) {
               <th>Siswa</th>
               <th>Program</th>
               <th>Tanggal Daftar</th>
-              <th>Pembayaran</th>
               <th>Status</th>
             </tr>
           </thead>
@@ -108,12 +109,11 @@ function getPaymentStatusText(status) {
               <td style="text-align: center; color: var(--text-muted); font-size: 13px;">{{ index + 1 }}</td>
               <td>
                 <strong>{{ reg.students?.users?.name || 'N/A' }}</strong>
-                <div class="text-muted">{{ reg.students?.users?.phone || '-' }}</div>
+                <div v-if="reg.students?.users?.phone" class="text-muted">{{ reg.students?.users?.phone }}</div>
                 <div class="text-muted" style="font-size: 11px">{{ reg.students?.users?.email }}</div>
               </td>
               <td>{{ reg.programs?.name }}</td>
               <td>{{ formatDate(reg.created_at) }}</td>
-              <td><span class="badge" :class="getPaymentStatusClass(reg.payment_status)">{{ getPaymentStatusText(reg.payment_status) }}</span></td>
               <td><span class="badge" :class="getStatusClass(reg.status)">{{ getStatusText(reg.status) }}</span></td>
             </tr>
           </tbody>

@@ -9,6 +9,7 @@ const authStore = useAuthStore()
 
 const email = ref('')
 const password = ref('')
+const showPassword = ref(false)
 const error = ref('')
 const loading = ref(false)
 
@@ -49,17 +50,11 @@ async function handleGoogleLogin() {
     <div class="login-container">
       <div class="login-illustration">
         <div class="illustration-content">
-          <div class="illustration-shapes"><div class="shape shape-1"></div><div class="shape shape-2"></div><div class="shape shape-3"></div></div>
           <div class="illustration-text">
-            <router-link to="/" class="logo"><span class="logo-text">Mariles</span></router-link>
-            <h1>Selamat Datang<br>Kembali!</h1>
+            <h1>Selamat Datang Kembali!</h1>
             <p>Masuk ke akun Anda untuk melanjutkan pencarian tempat les terbaik.</p>
-            <div class="illustration-features">
-              <div class="feature"><span class="check">✓</span><span>10,000+ Siswa Aktif</span></div>
-              <div class="feature"><span class="check">✓</span><span>1,500+ Tempat Les</span></div>
-              <div class="feature"><span class="check">✓</span><span>Pembayaran Aman</span></div>
-            </div>
           </div>
+          <img src="/images/belajar_1.png" alt="Ilustrasi siswa belajar" class="illustration-image">
         </div>
       </div>
 
@@ -80,7 +75,23 @@ async function handleGoogleLogin() {
 
             <div class="form-group">
               <label class="form-label">Password</label>
-              <input v-model="password" type="password" class="form-input" placeholder="Masukkan password" autocomplete="current-password">
+              <div class="password-wrapper">
+                <input 
+                  v-model="password" 
+                  :type="showPassword ? 'text' : 'password'" 
+                  class="form-input password-input" 
+                  placeholder="Masukkan password" 
+                  autocomplete="current-password"
+                >
+                <button type="button" class="password-toggle" @click="showPassword = !showPassword">
+                  <svg v-if="!showPassword" viewBox="0 0 24 24" fill="none" class="toggle-icon">
+                    <path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z" fill="currentColor"/>
+                  </svg>
+                  <svg v-else viewBox="0 0 24 24" fill="none" class="toggle-icon">
+                    <path d="M12 7c2.76 0 5 2.24 5 5 0 .65-.13 1.26-.36 1.83l2.92 2.92c1.51-1.26 2.7-2.89 3.43-4.75-1.73-4.39-6-7.5-11-7.5-1.4 0-2.74.25-3.98.7l2.16 2.16C10.74 7.13 11.35 7 12 7zM2 4.27l2.28 2.28.46.46C3.08 8.3 1.78 10.02 1 12c1.73 4.39 6 7.5 11 7.5 1.55 0 3.03-.3 4.38-.84l.42.42L19.73 22 21 20.73 3.27 3 2 4.27zM7.53 9.8l1.55 1.55c-.05.21-.08.43-.08.65 0 1.66 1.34 3 3 3 .22 0 .44-.03.65-.08l1.55 1.55c-.67.33-1.41.53-2.2.53-2.76 0-5-2.24-5-5 0-.79.2-1.53.53-2.2zm4.31-.78l3.15 3.15.02-.16c0-1.66-1.34-3-3-3l-.17.01z" fill="currentColor"/>
+                  </svg>
+                </button>
+              </div>
             </div>
 
             <div class="form-options">
@@ -117,20 +128,13 @@ async function handleGoogleLogin() {
 .login-page{min-height:100vh;background:var(--background)}
 .login-container{display:flex;min-height:100vh}
 .login-illustration{flex:1;background:linear-gradient(135deg,var(--secondary),#0A4568);display:flex;align-items:center;justify-content:center;padding:var(--spacing-2xl);position:relative;overflow:hidden}
-.illustration-content{position:relative;z-index:1;max-width:480px}
-.illustration-shapes{position:absolute;inset:0}
-.shape{position:absolute;border-radius:50%;opacity:0.1}
-.shape-1{width:400px;height:400px;background:white;top:-100px;left:-100px;animation:float 6s ease-in-out infinite}
-.shape-2{width:300px;height:300px;background:var(--primary);bottom:-50px;right:-80px;animation:float 8s ease-in-out infinite reverse}
-.shape-3{width:200px;height:200px;background:var(--accent);top:50%;right:20%;animation:float 7s ease-in-out infinite}
-.illustration-text{color:white}
-.illustration-text .logo{display:flex;align-items:center;gap:var(--spacing-sm);margin-bottom:var(--spacing-2xl)}
+.illustration-content{display:flex;flex-direction:column;align-items:center;text-align:center;position:relative;z-index:1;width:100%;max-width:520px}
+.illustration-text{color:white;margin-bottom:var(--spacing-md)}
+.illustration-text .logo{display:inline-flex;align-items:center;gap:var(--spacing-sm);margin-bottom:var(--spacing-xl)}
 .illustration-text .logo-text{font-size:var(--font-size-2xl);font-weight:700;color:white;background:none;-webkit-text-fill-color:white}
-.illustration-text h1{font-size:var(--font-size-4xl);font-weight:700;line-height:1.2;margin-bottom:var(--spacing-lg);color:white}
-.illustration-text p{font-size:var(--font-size-lg);opacity:0.9;margin-bottom:var(--spacing-2xl);line-height:1.6}
-.illustration-features{display:flex;flex-direction:column;gap:var(--spacing-md)}
-.feature{display:flex;align-items:center;gap:var(--spacing-sm);font-size:var(--font-size-base)}
-.feature .check{color:#4ade80;font-weight:bold}
+.illustration-text h1{font-size:var(--font-size-3xl);font-weight:700;line-height:1.2;margin-bottom:var(--spacing-sm);color:white}
+.illustration-text p{font-size:var(--font-size-base);opacity:0.9;line-height:1.6}
+.illustration-image{width:100%;max-width:480px;height:auto;object-fit:contain;margin:var(--spacing-md) auto 0}
 .login-form-container{flex:1;display:flex;align-items:center;justify-content:center;padding:var(--spacing-2xl)}
 .login-form-wrapper{width:100%;max-width:440px}
 .form-header{text-align:center;margin-bottom:var(--spacing-2xl)}
@@ -149,6 +153,11 @@ async function handleGoogleLogin() {
 .form-footer{margin-top:var(--spacing-xl);text-align:center}
 .back-link{color:var(--text-secondary);font-size:var(--font-size-sm);transition:color var(--transition-fast)}
 .back-link:hover{color:var(--secondary)}
+.password-wrapper{position:relative}
+.password-input{padding-right:40px}
+.password-toggle{position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--text-secondary);opacity:0.6;transition:all 0.2s;padding:4px;display:flex;align-items:center;justify-content:center}
+.password-toggle:hover{opacity:1;color:var(--primary)}
+.toggle-icon{width:20px;height:20px}
 @media(max-width:1024px){.login-illustration{display:none}.login-form-container{padding:var(--spacing-lg)}}
 @media(max-width:640px){.form-options{flex-direction:column;gap:var(--spacing-sm);align-items:flex-start}}
 </style>

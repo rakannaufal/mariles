@@ -266,6 +266,31 @@ async function updateTeacher() {
   }
 }
 
+async function toggleTeacherStatus(teacher) {
+  const originalStatus = teacher.is_active
+  // Optimistic update
+  const idx = teachers.value.findIndex(t => t.id === teacher.id)
+  if (idx !== -1) {
+    teachers.value[idx].is_active = !originalStatus
+  }
+
+  try {
+    const { error } = await supabase
+      .from('teachers')
+      .update({ is_active: !originalStatus })
+      .eq('id', teacher.id)
+
+    if (error) throw error
+  } catch (err) {
+    console.error('Error toggling status:', err)
+    // Revert on error
+    if (idx !== -1) {
+      teachers.value[idx].is_active = originalStatus
+    }
+    alert('Gagal mengubah status guru')
+  }
+}
+
 function calculateAge(birthDate) {
   if (!birthDate) return null
   const today = new Date()
@@ -315,15 +340,6 @@ function calculateAge(birthDate) {
             <span class="stat-label">Guru Aktif</span>
           </div>
         </div>
-        <div class="stat-card">
-          <div class="stat-icon warning">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
-          </div>
-          <div class="stat-info">
-            <span class="stat-value">{{ uniqueSpecializations }}</span>
-            <span class="stat-label">Spesialisasi</span>
-          </div>
-        </div>
       </div>
 
       <!-- Search & Filters -->
@@ -342,8 +358,14 @@ function calculateAge(birthDate) {
             <div class="teacher-avatar">
               <img :src="teacher.users?.avatar_url || `https://ui-avatars.com/api/?name=${teacher.users?.name}&background=0a4568&color=fff`" :alt="teacher.users?.name">
             </div>
-            <div class="teacher-status" :class="teacher.is_active !== false ? 'active' : 'inactive'">
-              {{ teacher.is_active !== false ? 'Aktif' : 'Nonaktif' }}
+            <div class="teacher-status-toggle">
+               <label class="switch">
+                  <input type="checkbox" :checked="teacher.is_active !== false" @change="toggleTeacherStatus(teacher)">
+                  <span class="slider round"></span>
+                </label>
+                <span class="status-label" :class="teacher.is_active !== false ? 'active' : 'inactive'">
+                  {{ teacher.is_active !== false ? 'Aktif' : 'Nonaktif' }}
+                </span>
             </div>
           </div>
           
@@ -406,7 +428,7 @@ function calculateAge(birthDate) {
             @click="generateNewCode" 
             :disabled="generatingCode"
           >
-            <span v-if="generatingCode">Generating...</span>
+            <span v-if="generatingCode">Memproses...</span>
             <span v-else>+ Generate Kode Baru</span>
           </button>
           
@@ -602,9 +624,74 @@ function calculateAge(birthDate) {
 .card-header{padding:var(--spacing-lg);display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:0}
 .teacher-avatar{width:64px;height:64px;border-radius:50%;overflow:hidden;border:2px solid var(--background)}
 .teacher-avatar img{width:100%;height:100%;object-fit:cover}
-.teacher-status{font-size:11px;font-weight:600;padding:2px 8px;border-radius:var(--radius-full)}
-.teacher-status.active{background:#f0fdf4;color:var(--success)}
-.teacher-status.inactive{background:#fef2f2;color:var(--error)}
+.teacher-status-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.status-label {
+  font-size: 11px;
+  font-weight: 600;
+}
+.status-label.active { color: var(--success); }
+.status-label.inactive { color: var(--text-muted); }
+
+/* Toggle Switch */
+.switch {
+  position: relative;
+  display: inline-block;
+  width: 36px;
+  height: 20px;
+}
+
+.switch input { 
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #ccc;
+  transition: .4s;
+}
+
+.slider:before {
+  position: absolute;
+  content: "";
+  height: 14px;
+  width: 14px;
+  left: 3px;
+  bottom: 3px;
+  background-color: white;
+  transition: .4s;
+}
+
+input:checked + .slider {
+  background-color: var(--success);
+}
+
+input:focus + .slider {
+  box-shadow: 0 0 1px var(--success);
+}
+
+input:checked + .slider:before {
+  transform: translateX(16px);
+}
+
+.slider.round {
+  border-radius: 34px;
+}
+
+.slider.round:before {
+  border-radius: 50%;
+}
 
 .card-body{padding:var(--spacing-lg)}
 .teacher-name{font-size:var(--font-size-md);font-weight:600;color:var(--text);margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -777,11 +864,11 @@ function calculateAge(birthDate) {
 .empty-icon-small{font-size:32px;margin-bottom:8px}
 
 /* Detail Modal Profile */
-.detail-header-profile{padding:30px 20px;background:linear-gradient(to right, #0a4568, #0ea5e9);color:white;display:flex;align-items:center;gap:20px}
+.detail-header-profile{padding:30px 20px;background:#0D5782;color:white;display:flex;align-items:center;gap:20px}
 .detail-avatar{width:80px;height:80px;border-radius:50%;border:3px solid rgba(255,255,255,0.3);overflow:hidden;flex-shrink:0}
 .detail-avatar img{width:100%;height:100%;object-fit:cover}
 .detail-header-info{flex:1}
-.detail-name{font-size:20px;font-weight:700;margin:0 0 4px 0}
+.detail-name{font-size:20px;font-weight:700;margin:0 0 4px 0;color:white}
 .detail-subtitle{opacity:0.9;font-size:14px;margin:0 0 10px 0}
 .status-badge{font-size:11px;padding:2px 10px;border-radius:12px;background:rgba(255,255,255,0.2);font-weight:600}
 .status-badge.active{background:#dcfce7;color:#15803d}

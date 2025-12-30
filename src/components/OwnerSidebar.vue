@@ -1,14 +1,19 @@
 <script setup>
-import { ref, onMounted, watch } from 'vue'
+import { ref, onMounted, watch, computed } from 'vue'
+import { useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { supabase } from '@/lib/supabase'
 import OwnerSidebarPribadi from './OwnerSidebarPribadi.vue'
 import OwnerSidebarUmum from './OwnerSidebarUmum.vue'
-import FloatingChatButton from './FloatingChatButton.vue'
+import FloatingChatWidget from './FloatingChatWidget.vue'
 
+const route = useRoute()
 const authStore = useAuthStore()
 const ownerType = ref('')
 const isLoaded = ref(false)
+
+// Hide floating chat when on chat page
+const isChatPage = computed(() => route.path.includes('/owner/chat'))
 
 const fetchOwnerType = async () => {
   if (!authStore.user?.id) return
@@ -50,8 +55,8 @@ watch(() => authStore.user, (newUser) => {
   <div v-if="isLoaded">
     <OwnerSidebarPribadi v-if="ownerType === 'pribadi'" />
     <OwnerSidebarUmum v-else />
-    <!-- Floating Chat Button -->
-    <FloatingChatButton chat-route="/owner/chat" />
+    <!-- Floating Chat Widget - hidden on chat page -->
+    <FloatingChatWidget v-if="!isChatPage" user-role="owner" />
   </div>
   <!-- Optional loading skeleton could go here -->
   <aside v-else class="sidebar loading">

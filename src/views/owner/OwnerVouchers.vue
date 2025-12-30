@@ -390,7 +390,7 @@ function getVoucherStatus(voucher) {
               <span class="discount-value">
                 {{ voucher.type === 'percent' ? `${voucher.discount}%` : formatPrice(voucher.discount) }}
               </span>
-              <span class="discount-label">off</span>
+              <span class="discount-label">Diskon</span>
             </div>
             <p class="desc">{{ voucher.description || 'Tidak ada deskripsi' }}</p>
           </div>
@@ -414,7 +414,7 @@ function getVoucherStatus(voucher) {
             <div class="usage-info">
               <span>Terpakai: <b>{{ voucher.usage_count }}</b></span>
               <span v-if="voucher.usage_limit">dari {{ voucher.usage_limit }}</span>
-              <span v-else>Unlimited</span>
+              <span v-else>Tak Terbatas</span>
             </div>
             <div class="progress-bg">
               <div 

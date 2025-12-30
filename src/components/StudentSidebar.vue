@@ -1,12 +1,17 @@
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
+import { useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useChat } from '@/composables/useChat'
 import NotificationBell from '@/components/NotificationBell.vue'
-import FloatingChatButton from '@/components/FloatingChatButton.vue'
+import FloatingChatWidget from '@/components/FloatingChatWidget.vue'
 
+const route = useRoute()
 const authStore = useAuthStore()
 const { getTotalUnreadCount } = useChat()
+
+// Hide floating chat when on chat page
+const isChatPage = computed(() => route.path.includes('/student/chat'))
 
 // Unread chat count
 const unreadCount = ref(0)
@@ -134,8 +139,8 @@ async function handleLogout() {
     </button>
   </aside>
   
-  <!-- Floating Chat Button -->
-  <FloatingChatButton chat-route="/student/chat" />
+  <!-- Floating Chat Widget - hidden on chat page -->
+  <FloatingChatWidget v-if="!isChatPage" user-role="student" />
 </template>
 
 <style scoped>

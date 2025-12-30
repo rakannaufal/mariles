@@ -3,6 +3,8 @@ import { ref, watch, nextTick, onMounted, onUnmounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useChat } from '@/composables/useChat'
+import { usePresence } from '@/composables/usePresence'
+import { supabase } from '@/lib/supabase'
 
 const props = defineProps({
   userRole: {
@@ -26,10 +28,17 @@ const {
   getTotalUnreadCount
 } = useChat()
 
-// Unread count
-const unreadCount = ref(0)
+// Use shared presence tracking
+const { 
+  isUserOnline, 
+  getStatusText,
+  subscribeToPresence, 
+  unsubscribeFromPresence 
+} = usePresence()
 
-// Import dummy chat removed
+// Unread count with real-time updates
+const unreadCount = ref(0)
+let notificationChannel = null
 
 // Computed to get the right chat rooms
 const displayChatRooms = computed(() => {
@@ -52,10 +61,66 @@ const currentParticipant = computed(() => {
   return selectedRoom.value.otherParticipant
 })
 
+// Subscribe to message notifications for real-time unread count
+function subscribeToNotifications() {
+  if (!authStore.user?.id) return
+  
+  notificationChannel = supabase
+    .channel('chat-notifications-widget')
+    .on(
+      'postgres_changes',
+      {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'chat_messages'
+      },
+      async (payload) => {
+        // Only increment if message is for us (not sent by us)
+        if (payload.new.sender_id !== authStore.user.id) {
+          // Check if we're a participant in this room
+          const { data: room } = await supabase
+            .from('chat_rooms')
+            .select('id')
+            .eq('id', payload.new.room_id)
+            .or(`participant_1.eq.${authStore.user.id},participant_2.eq.${authStore.user.id}`)
+            .single()
+          
+          if (room) {
+            // Don't increment if we're currently viewing this room
+            if (selectedRoom.value?.id !== payload.new.room_id) {
+              unreadCount.value++
+            } else {
+              // Auto-mark as read if in the room
+              await markAsRead(room.id, authStore.user.id)
+            }
+            // Refresh chat rooms to update last message
+            await fetchChatRooms(authStore.user.id)
+          }
+        }
+      }
+    )
+    .on(
+      'postgres_changes',
+      {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'chat_messages',
+        filter: 'is_read=eq.true'
+      },
+      async () => {
+        // Refresh unread count when messages are marked as read
+        unreadCount.value = await getTotalUnreadCount(authStore.user.id)
+      }
+    )
+    .subscribe()
+}
+
 onMounted(async () => {
   if (authStore.user) {
     await fetchChatRooms(authStore.user.id)
     unreadCount.value = await getTotalUnreadCount(authStore.user.id)
+    subscribeToNotifications()
+    subscribeToPresence()
   }
 })
 
@@ -65,6 +130,8 @@ watch(selectedRoom, async (room) => {
     await fetchMessages(room.id)
     subscribeToMessages(room.id)
     await markAsRead(room.id, authStore.user.id)
+    // Update unread count after marking as read
+    unreadCount.value = await getTotalUnreadCount(authStore.user.id)
     messagesLoading.value = false
     await nextTick()
     scrollToBottom()
@@ -81,10 +148,11 @@ function scrollToBottom() {
   }
 }
 
-function toggleChat() {
+async function toggleChat() {
   isOpen.value = !isOpen.value
   if (isOpen.value && authStore.user) {
-    fetchChatRooms(authStore.user.id)
+    await fetchChatRooms(authStore.user.id)
+    unreadCount.value = await getTotalUnreadCount(authStore.user.id)
   }
 }
 
@@ -92,8 +160,10 @@ function selectRoom(room) {
   selectedRoom.value = room
 }
 
-function goBack() {
+async function goBack() {
   selectedRoom.value = null
+  // Refresh unread count when going back
+  unreadCount.value = await getTotalUnreadCount(authStore.user.id)
 }
 
 async function handleSendMessage() {
@@ -126,8 +196,21 @@ function formatDate(date) {
   return d.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })
 }
 
+function getRoleLabel(role) {
+  switch(role) {
+    case 'teacher': return 'Guru'
+    case 'owner': return 'Owner'
+    case 'student': return 'Siswa'
+    default: return role || 'Pengguna'
+  }
+}
+
 onUnmounted(() => {
   unsubscribe()
+  if (notificationChannel) {
+    supabase.removeChannel(notificationChannel)
+  }
+  unsubscribeFromPresence()
 })
 </script>
 
@@ -147,10 +230,11 @@ onUnmounted(() => {
             <div class="participant-avatar" :class="currentParticipant?.role">
               <img v-if="currentParticipant?.avatar_url" :src="currentParticipant.avatar_url" :alt="currentParticipant?.name">
               <span v-else>{{ currentParticipant?.name?.charAt(0)?.toUpperCase() }}</span>
+              <span class="status-dot" :class="{ online: isUserOnline(currentParticipant?.id), offline: !isUserOnline(currentParticipant?.id) }"></span>
             </div>
             <div class="participant-info">
               <span class="participant-name">{{ currentParticipant?.name }}</span>
-              <span class="participant-role">{{ currentParticipant?.role === 'teacher' ? 'Guru' : 'Owner' }}</span>
+              <span class="participant-role">{{ getRoleLabel(currentParticipant?.role) }}</span>
             </div>
           </div>
           <span v-else class="header-title">Chat</span>
@@ -189,9 +273,13 @@ onUnmounted(() => {
                 <div class="room-avatar" :class="room.otherParticipant?.role">
                   <img v-if="room.otherParticipant?.avatar_url" :src="room.otherParticipant.avatar_url" :alt="room.otherParticipant?.name">
                   <span v-else>{{ room.otherParticipant?.name?.charAt(0)?.toUpperCase() }}</span>
+                  <span class="status-dot" :class="{ online: isUserOnline(room.otherParticipant?.id), offline: !isUserOnline(room.otherParticipant?.id) }"></span>
                 </div>
                 <div class="room-info">
-                  <span class="room-name">{{ room.otherParticipant?.name || 'Unknown' }}</span>
+                  <div class="room-header-row">
+                    <span class="room-name">{{ room.otherParticipant?.name || 'Unknown' }}</span>
+                    <span class="role-badge" :class="room.otherParticipant?.role">{{ getRoleLabel(room.otherParticipant?.role) }}</span>
+                  </div>
                   <p class="room-preview">{{ room.last_message || 'Belum ada pesan' }}</p>
                 </div>
                 <span class="room-time">{{ formatDate(room.last_message_at || room.created_at) }}</span>
@@ -236,15 +324,14 @@ onUnmounted(() => {
       </div>
     </transition>
 
-    <!-- Floating Button -->
-    <button class="floating-btn" :class="{ active: isOpen, 'has-unread': unreadCount > 0 }" @click="toggleChat">
+    <!-- Floating Button - Clean Design -->
+    <button class="floating-btn" :class="{ active: isOpen, 'has-unread': unreadCount > 0 && !isOpen }" @click="toggleChat">
       <svg v-if="!isOpen" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
       </svg>
       <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
       </svg>
-      <span class="btn-label">Chat</span>
       <!-- Unread Badge -->
       <span v-if="unreadCount > 0 && !isOpen" class="unread-badge">
         {{ unreadCount > 99 ? '99+' : unreadCount }}
@@ -258,13 +345,13 @@ onUnmounted(() => {
   position: fixed;
   bottom: 24px;
   right: 24px;
-  z-index: 1000;
+  z-index: 9999;
 }
 
-/* Floating Button */
+/* Floating Button - Clean Circular Design */
 .floating-btn {
-  width: 60px;
-  height: 60px;
+  width: 56px;
+  height: 56px;
   border-radius: 50%;
   background: #0d5782;
   color: white;
@@ -273,129 +360,77 @@ onUnmounted(() => {
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  box-shadow: 0 8px 25px rgba(13, 87, 130, 0.35);
-  transition: all 0.3s ease;
+  box-shadow: 0 4px 20px rgba(13, 87, 130, 0.4);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
   overflow: visible;
 }
 
 .floating-btn svg {
-  width: 28px;
-  height: 28px;
-  transition: all 0.3s ease;
-}
-
-.btn-label {
-  position: absolute;
-  opacity: 0;
-  transform: translateX(10px);
-  font-size: 14px;
-  font-weight: 600;
-  white-space: nowrap;
-  transition: all 0.3s ease;
+  width: 24px;
+  height: 24px;
+  transition: transform 0.3s ease;
 }
 
 .floating-btn:hover {
-  width: 120px;
-  border-radius: 30px;
-  transform: translateY(-4px);
-  box-shadow: 0 12px 35px rgba(13, 87, 130, 0.45);
+  transform: scale(1.08);
+  box-shadow: 0 6px 28px rgba(13, 87, 130, 0.5);
 }
 
-.floating-btn:hover svg {
-  transform: translateX(-16px);
-}
-
-.floating-btn:hover .btn-label {
-  opacity: 1;
-  transform: translateX(12px);
+.floating-btn:active {
+  transform: scale(0.95);
 }
 
 .floating-btn.active {
-  background: #0d5782;
-  width: 60px;
-  border-radius: 50%;
-}
-
-.floating-btn.active:hover {
-  width: 60px;
-  border-radius: 50%;
-}
-
-.floating-btn.active svg {
-  transform: none;
+  background: #0a4568;
 }
 
 .floating-btn.has-unread {
-  animation: attention-bounce 2s infinite;
+  animation: gentle-pulse 2s ease-in-out infinite;
 }
 
-.floating-btn.has-unread:hover, .floating-btn.active {
-  animation: none;
-}
-
-@keyframes attention-bounce {
-  0%, 20%, 50%, 80%, 100% { transform: translateY(0); }
-  40% { transform: translateY(-10px); }
-  60% { transform: translateY(-5px); }
+@keyframes gentle-pulse {
+  0%, 100% { box-shadow: 0 4px 20px rgba(13, 87, 130, 0.4); }
+  50% { box-shadow: 0 4px 30px rgba(13, 87, 130, 0.6); }
 }
 
 /* Unread Badge */
 .unread-badge {
   position: absolute;
-  top: -6px;
-  right: -6px;
-  min-width: 24px;
-  height: 24px;
-  padding: 0 6px;
+  top: -4px;
+  right: -4px;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 5px;
   background: #ef4444;
   color: white;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 700;
-  border-radius: 12px;
+  border-radius: 10px;
   display: flex;
   align-items: center;
   justify-content: center;
-  border: 3px solid white;
-  box-shadow: 0 2px 10px rgba(239, 68, 68, 0.5);
-  animation: pulse-badge 2s infinite;
+  border: 2px solid white;
+  box-shadow: 0 2px 8px rgba(239, 68, 68, 0.4);
+  animation: badge-pop 0.3s ease;
 }
 
-@keyframes pulse-badge {
-  0%, 100% { transform: scale(1); }
-  50% { transform: scale(1.15); }
-}
-
-.floating-btn::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  background: inherit;
-  animation: pulse-ring 2s infinite;
-  z-index: -1;
-}
-
-.floating-btn.active::before {
-  animation: none;
-}
-
-@keyframes pulse-ring {
-  0% { transform: scale(1); opacity: 0.5; }
-  50% { transform: scale(1.15); opacity: 0; }
-  100% { transform: scale(1); opacity: 0; }
+@keyframes badge-pop {
+  0% { transform: scale(0); }
+  50% { transform: scale(1.2); }
+  100% { transform: scale(1); }
 }
 
 /* Chat Widget */
 .chat-widget {
   position: absolute;
-  bottom: 72px;
+  bottom: 68px;
   right: 0;
   width: 360px;
   height: 480px;
-  background: var(--surface);
-  border-radius: var(--radius-2xl);
-  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.2);
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -403,29 +438,29 @@ onUnmounted(() => {
 
 /* Popup Animation */
 .popup-enter-active, .popup-leave-active {
-  transition: all 0.3s ease;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .popup-enter-from, .popup-leave-to {
   opacity: 0;
-  transform: translateY(20px) scale(0.95);
+  transform: translateY(16px) scale(0.96);
 }
 
 /* Widget Header */
 .widget-header {
   display: flex;
   align-items: center;
-  gap: var(--spacing-sm);
-  padding: var(--spacing-md) var(--spacing-lg);
-  background: var(--primary);
+  gap: 12px;
+  padding: 16px;
+  background: linear-gradient(135deg, #0d5782 0%, #0a4568 100%);
   color: white;
 }
 
 .back-btn {
   width: 32px;
   height: 32px;
-  border-radius: var(--radius-md);
-  background: rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.15);
   border: none;
   display: flex;
   align-items: center;
@@ -433,6 +468,11 @@ onUnmounted(() => {
   color: white;
   cursor: pointer;
   flex-shrink: 0;
+  transition: background 0.2s;
+}
+
+.back-btn:hover {
+  background: rgba(255, 255, 255, 0.25);
 }
 
 .back-btn svg {
@@ -444,7 +484,7 @@ onUnmounted(() => {
   flex: 1;
   display: flex;
   align-items: center;
-  gap: var(--spacing-sm);
+  gap: 10px;
 }
 
 .participant-avatar {
@@ -456,8 +496,10 @@ onUnmounted(() => {
   justify-content: center;
   color: white;
   font-weight: 600;
+  font-size: 14px;
   overflow: hidden;
   background: rgba(255, 255, 255, 0.2);
+  position: relative;
 }
 
 .participant-avatar img {
@@ -469,45 +511,46 @@ onUnmounted(() => {
 .participant-info {
   display: flex;
   flex-direction: column;
+  gap: 2px;
 }
 
 .participant-name {
   font-weight: 600;
-  font-size: var(--font-size-sm);
+  font-size: 14px;
 }
 
 .participant-role {
-  font-size: var(--font-size-xs);
-  opacity: 0.8;
+  font-size: 11px;
+  opacity: 0.85;
 }
 
 .header-title {
   flex: 1;
   font-weight: 700;
-  font-size: var(--font-size-base);
+  font-size: 16px;
 }
 
 .header-actions {
   display: flex;
-  gap: var(--spacing-xs);
+  gap: 6px;
 }
 
 .expand-btn, .close-btn {
   width: 32px;
   height: 32px;
-  border-radius: var(--radius-md);
-  background: rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.15);
   border: none;
   display: flex;
   align-items: center;
   justify-content: center;
   color: white;
   cursor: pointer;
-  transition: background var(--transition-fast);
+  transition: background 0.2s;
 }
 
 .expand-btn:hover, .close-btn:hover {
-  background: rgba(255, 255, 255, 0.3);
+  background: rgba(255, 255, 255, 0.25);
 }
 
 .expand-btn svg, .close-btn svg {
@@ -521,6 +564,7 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   min-height: 0;
+  background: #f8fafc;
 }
 
 /* Room List */
@@ -534,15 +578,16 @@ onUnmounted(() => {
   justify-content: center;
   align-items: center;
   height: 100%;
+  padding: 48px;
 }
 
 .spinner {
-  width: 32px;
-  height: 32px;
-  border: 3px solid var(--border);
-  border-top-color: var(--primary);
+  width: 28px;
+  height: 28px;
+  border: 3px solid #e2e8f0;
+  border-top-color: #0d5782;
   border-radius: 50%;
-  animation: spin 1s linear infinite;
+  animation: spin 0.8s linear infinite;
 }
 
 @keyframes spin {
@@ -555,42 +600,43 @@ onUnmounted(() => {
   align-items: center;
   justify-content: center;
   height: 100%;
-  color: var(--text-muted);
-  padding: var(--spacing-xl);
+  color: #94a3b8;
+  padding: 32px;
   text-align: center;
 }
 
 .empty-state svg {
   width: 48px;
   height: 48px;
-  margin-bottom: var(--spacing-md);
+  margin-bottom: 12px;
   opacity: 0.5;
 }
 
 .empty-state p {
-  font-size: var(--font-size-sm);
+  font-size: 14px;
 }
 
 .rooms {
-  padding: var(--spacing-sm);
+  padding: 8px;
 }
 
 .room-item {
   display: flex;
   align-items: center;
-  gap: var(--spacing-sm);
-  padding: var(--spacing-md);
-  border-radius: var(--radius-lg);
+  gap: 12px;
+  padding: 12px;
+  border-radius: 12px;
   width: 100%;
   text-align: left;
-  background: transparent;
+  background: white;
   border: none;
   cursor: pointer;
-  transition: background var(--transition-fast);
+  transition: all 0.2s;
+  margin-bottom: 4px;
 }
 
 .room-item:hover {
-  background: var(--background);
+  background: #f1f5f9;
 }
 
 .room-avatar {
@@ -602,22 +648,50 @@ onUnmounted(() => {
   justify-content: center;
   color: white;
   font-weight: 600;
+  font-size: 16px;
   flex-shrink: 0;
-  overflow: hidden;
-}
-
-.room-avatar.owner {
-  background: var(--secondary);
+  overflow: visible;
+  background: #0d5782;
+  position: relative;
 }
 
 .room-avatar.teacher {
-  background: var(--success);
+  background: #10b981;
+}
+
+.room-avatar.owner {
+  background: #6366f1;
+}
+
+.room-avatar.student {
+  background: #f59e0b;
 }
 
 .room-avatar img {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  border-radius: 50%;
+}
+
+/* Status Dot - Clean and compact */
+.status-dot {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 2px solid white;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+}
+
+.status-dot.online {
+  background: #22c55e;
+}
+
+.status-dot.offline {
+  background: #94a3b8;
 }
 
 .room-info {
@@ -625,25 +699,53 @@ onUnmounted(() => {
   min-width: 0;
 }
 
+.room-header-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+
 .room-name {
   font-weight: 600;
-  font-size: var(--font-size-sm);
-  color: var(--text);
-  display: block;
-  margin-bottom: 2px;
+  font-size: 14px;
+  color: #1e293b;
+}
+
+.role-badge {
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.role-badge.teacher {
+  background: #d1fae5;
+  color: #059669;
+}
+
+.role-badge.owner {
+  background: #e0e7ff;
+  color: #4f46e5;
+}
+
+.role-badge.student {
+  background: #fef3c7;
+  color: #d97706;
 }
 
 .room-preview {
-  font-size: var(--font-size-xs);
-  color: var(--text-muted);
+  font-size: 13px;
+  color: #64748b;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
 .room-time {
-  font-size: 10px;
-  color: var(--text-muted);
+  font-size: 11px;
+  color: #94a3b8;
   flex-shrink: 0;
 }
 
@@ -658,14 +760,14 @@ onUnmounted(() => {
 .messages-area {
   flex: 1;
   overflow-y: auto;
-  padding: var(--spacing-md);
-  background: var(--background);
+  padding: 16px;
+  background: #f8fafc;
 }
 
 .messages {
   display: flex;
   flex-direction: column;
-  gap: var(--spacing-sm);
+  gap: 8px;
 }
 
 .message {
@@ -678,8 +780,8 @@ onUnmounted(() => {
 
 .message-bubble {
   max-width: 80%;
-  padding: var(--spacing-sm) var(--spacing-md);
-  border-radius: var(--radius-lg);
+  padding: 10px 14px;
+  border-radius: 16px;
   animation: bubbleIn 0.2s ease;
 }
 
@@ -689,21 +791,21 @@ onUnmounted(() => {
 }
 
 .message:not(.own) .message-bubble {
-  background: var(--surface);
-  border: 1px solid var(--border-light);
-  border-bottom-left-radius: var(--radius-xs);
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-bottom-left-radius: 4px;
 }
 
 .message.own .message-bubble {
-  background: var(--primary);
+  background: #0d5782;
   color: white;
-  border-bottom-right-radius: var(--radius-xs);
+  border-bottom-right-radius: 4px;
 }
 
 .message-bubble p {
-  font-size: var(--font-size-sm);
+  font-size: 14px;
   line-height: 1.4;
-  margin-bottom: 2px;
+  margin-bottom: 4px;
 }
 
 .message-time {
@@ -718,55 +820,57 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 14px 16px;
-  background: var(--surface);
-  border-top: 1px solid var(--border-light);
+  padding: 12px 16px;
+  background: white;
+  border-top: 1px solid #e2e8f0;
 }
 
 .message-input input {
   flex: 1;
   min-width: 0;
-  padding: 12px 16px;
-  border: 1px solid var(--border);
-  border-radius: 24px;
-  font-size: var(--font-size-sm);
+  padding: 10px 14px;
+  border: 1px solid #e2e8f0;
+  border-radius: 20px;
+  font-size: 14px;
   outline: none;
-  transition: border-color var(--transition-fast);
-  background: var(--background);
+  transition: border-color 0.2s, box-shadow 0.2s;
+  background: #f8fafc;
 }
 
 .message-input input:focus {
-  border-color: var(--primary);
+  border-color: #0d5782;
   background: white;
+  box-shadow: 0 0 0 3px rgba(13, 87, 130, 0.1);
 }
 
 .send-btn {
-  width: 40px;
-  height: 40px;
+  width: 38px;
+  height: 38px;
   border-radius: 50%;
-  background: var(--primary);
+  background: #0d5782;
   border: none;
   display: flex;
   align-items: center;
   justify-content: center;
   color: white;
   cursor: pointer;
-  transition: all var(--transition-fast);
+  transition: all 0.2s;
   flex-shrink: 0;
 }
 
 .send-btn:hover:not(:disabled) {
-  transform: scale(1.1);
+  background: #0a4568;
+  transform: scale(1.05);
 }
 
 .send-btn:disabled {
-  opacity: 0.5;
+  opacity: 0.4;
   cursor: not-allowed;
 }
 
 .send-btn svg {
-  width: 18px;
-  height: 18px;
+  width: 16px;
+  height: 16px;
 }
 
 /* Responsive */
@@ -777,15 +881,15 @@ onUnmounted(() => {
   }
 
   .floating-btn {
-    width: 56px;
-    height: 56px;
+    width: 52px;
+    height: 52px;
   }
 
   .chat-widget {
     width: calc(100vw - 32px);
     height: 60vh;
     right: 0;
-    bottom: 68px;
+    bottom: 64px;
   }
 }
 </style>

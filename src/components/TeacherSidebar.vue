@@ -1,11 +1,16 @@
 <script setup>
-import { onMounted } from 'vue'
+import { onMounted, computed } from 'vue'
+import { useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useTeacherData } from '@/composables/useTeacherData'
-import FloatingChatButton from './FloatingChatButton.vue'
+import FloatingChatWidget from './FloatingChatWidget.vue'
 
+const route = useRoute()
 const authStore = useAuthStore()
 const { lesPlace, fetchTeacherProfile } = useTeacherData()
+
+// Hide floating chat when on chat page
+const isChatPage = computed(() => route.path.includes('/teacher/chat'))
 
 onMounted(async () => {
   await fetchTeacherProfile()
@@ -154,8 +159,8 @@ async function handleLogout() {
     </button>
   </aside>
   
-  <!-- Floating Chat Button -->
-  <FloatingChatButton chat-route="/teacher/chat" />
+  <!-- Floating Chat Widget - hidden on chat page -->
+  <FloatingChatWidget v-if="!isChatPage" user-role="teacher" />
 </template>
 
 <style scoped>

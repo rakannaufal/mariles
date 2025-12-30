@@ -555,7 +555,7 @@ async function handleSave() {
               <div v-if="profile.ewallet_type" class="card-preview ewallet">
                 <div class="ewallet-logo">{{ profile.ewallet_type }}</div>
                 <div class="card-number">{{ profile.ewallet_number || '08xx-xxxx-xxxx' }}</div>
-                <div class="ewallet-badge">Connected</div>
+                <div class="ewallet-badge">Terhubung</div>
               </div>
             </div>
             

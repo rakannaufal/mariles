@@ -18,7 +18,7 @@
 /*
 INSERT INTO public.users (id, email, name, phone, role, avatar, created_at)
 VALUES (
-  'YOUR-UUID-HERE',
+  '49cd3070-bae2-4ee2-a361-26f0583d514e',
   'mariles@gmail.com',
   'Admin Mariles',
   '081234567890',

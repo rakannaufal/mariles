@@ -356,18 +356,18 @@ async function handleWithdraw() {
           <p class="subtitle">Kelola pendapatan dan pembayaran guru</p>
         </div>
         <div class="header-actions">
-          <button class="btn-export" @click="exportFinanceReport(transactions, 'csv')">
+          <button class="btn-export" @click="exportData">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
               <polyline points="7 10 12 15 17 10"/>
               <line x1="12" y1="15" x2="12" y2="3"/>
             </svg>
-            Export
+            Ekspor
           </button>
-          <select v-if="lesPlaces.length > 1" v-model="selectedLesPlace" class="select-input" @change="fetchData">
-            <option v-for="lp in lesPlaces" :key="lp.id" :value="lp.id">{{ lp.name }}</option>
-          </select>
         </div>
+        <select v-if="lesPlaces.length > 1" v-model="selectedLesPlace" class="select-input" @change="fetchData">
+          <option v-for="lp in lesPlaces" :key="lp.id" :value="lp.id">{{ lp.name }}</option>
+        </select>
       </header>
 
       <div v-if="loading" class="loading-state">
