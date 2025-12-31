@@ -44,6 +44,12 @@ const saving = ref(false)
 const message = ref({ type: '', text: '' })
 const activeTab = ref('identity')
 
+// Set to false to use real database data
+const USE_DUMMY_DATA = false
+
+// Flag to prevent resetting grade/major during initial load
+const isInitialLoad = ref(true)
+
 // Location Data
 const provinces = ref([])
 const cities = ref([])
@@ -148,10 +154,15 @@ const majorOptionsMap = {
   ]
 }
 
-// Watch education level to reset grade
-watch(() => profile.value.education_level, (newVal) => {
-  profile.value.grade = ''
-  profile.value.major = ''
+// Watch education level to reset grade (only when user changes it, not on initial load)
+watch(() => profile.value.education_level, (newVal, oldVal) => {
+  // Skip reset during initial profile loading
+  if (isInitialLoad.value) return
+  // Only reset if this is a user-initiated change
+  if (oldVal !== '' && newVal !== oldVal) {
+    profile.value.grade = ''
+    profile.value.major = ''
+  }
 })
 
 // Watch province to fetch cities
@@ -296,6 +307,9 @@ async function fetchProfile() {
       profile.value.email = authStore.userProfile.email || authStore.user?.email || ''
       profile.value.phone = authStore.userProfile.phone || ''
       profile.value.avatar_url = authStore.userProfile.avatar_url || ''
+      // Fallback for gender and birth_date from users table (for legacy registrations)
+      profile.value.gender = authStore.userProfile.gender || ''
+      profile.value.date_of_birth = authStore.userProfile.birth_date || ''
     }
     
     if (authStore.user) {
@@ -308,9 +322,10 @@ async function fetchProfile() {
       if (studentData) {
         profile.value = {
           ...profile.value,
-          nickname: studentData.nickname || '',
-          date_of_birth: studentData.date_of_birth || '',
-          gender: studentData.gender || '',
+          nickname: studentData.nickname || profile.value.nickname || '',
+          // Prefer students table data, fallback to users table data
+          date_of_birth: studentData.date_of_birth || profile.value.date_of_birth || '',
+          gender: studentData.gender || profile.value.gender || '',
           education_level: studentData.education_level || '',
           grade: studentData.grade || '',
           school_name: studentData.school || studentData.school_name || '',
@@ -336,6 +351,8 @@ async function fetchProfile() {
     console.error('Error loading profile:', err)
   } finally {
     loading.value = false
+    // Allow watchers to reset fields now that initial load is complete
+    isInitialLoad.value = false
   }
 }
 

@@ -352,6 +352,27 @@ function prevStep() {
   else backToMethod()
 }
 
+// Check if email already exists in database
+async function checkEmailExists(emailToCheck) {
+  try {
+    const { data, error } = await supabase
+      .from('users')
+      .select('id, email')
+      .eq('email', emailToCheck.toLowerCase())
+      .maybeSingle()
+    
+    if (error) {
+      console.error('Error checking email:', error)
+      return false
+    }
+    
+    return !!data
+  } catch (err) {
+    console.error('Error checking email:', err)
+    return false
+  }
+}
+
 async function handleRegister() {
   if (!isStep5Valid.value) return
   
@@ -366,6 +387,14 @@ async function handleRegister() {
   success.value = ''
   
   try {
+    // Check if email already exists
+    const emailExists = await checkEmailExists(email.value)
+    if (emailExists) {
+      error.value = 'Email sudah terdaftar! Silakan gunakan email lain atau login dengan akun yang sudah ada.'
+      loading.value = false
+      return
+    }
+    
     const profileData = {
       name: name.value,
       role: role.value,
@@ -411,7 +440,12 @@ async function handleRegister() {
     }
   } catch (err) {
     console.error('Registration error:', err)
-    error.value = err.message || 'Pendaftaran gagal. Silakan coba lagi.'
+    // Handle specific Supabase error for duplicate email
+    if (err.message?.includes('already registered') || err.message?.includes('already exists')) {
+      error.value = 'Email sudah terdaftar! Silakan gunakan email lain atau login dengan akun yang sudah ada.'
+    } else {
+      error.value = err.message || 'Pendaftaran gagal. Silakan coba lagi.'
+    }
   } finally {
     loading.value = false
   }

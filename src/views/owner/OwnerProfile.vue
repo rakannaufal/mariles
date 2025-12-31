@@ -377,7 +377,7 @@ async function handleSave() {
             <div class="profile-details">
               <div class="name-row">
                 <h2>{{ profile.name || 'Nama Belum Diisi' }}</h2>
-                <span class="badge" :class="profile.owner_type">Owner {{ profile.owner_type === 'pribadi' ? 'Pribadi' : 'Umum' }}</span>
+                <span class="badge" :class="profile.owner_type">Pemilik {{ profile.owner_type === 'pribadi' ? 'Pribadi' : 'Umum' }}</span>
                 <span v-if="lesPlaces.length > 0" class="badge" :class="lesPlaces[0]?.is_verified ? 'verified' : 'pending'">
                   {{ lesPlaces[0]?.is_verified ? 'Terverifikasi' : 'Menunggu Verifikasi' }}
                 </span>

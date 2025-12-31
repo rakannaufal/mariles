@@ -404,7 +404,7 @@ async function handleChatOwner() {
   try {
     const owner = await getOwnerByLesPlaceId(lesPlace.value.id)
     if (!owner) {
-      alert('Owner tidak ditemukan')
+      alert('Pemilik tidak ditemukan')
       return
     }
     
@@ -674,7 +674,7 @@ function toast(msg, type = 'success') {
                   <p>{{ review.comment }}</p>
                   <span class="date">{{ new Date(review.created_at).toLocaleDateString('id-ID') }}</span>
                   <div v-if="review.reply" class="reply">
-                    <strong>Balasan Owner:</strong> {{ review.reply }}
+                    <strong>Balasan Pemilik:</strong> {{ review.reply }}
                   </div>
                 </div>
               </div>
@@ -722,7 +722,7 @@ function toast(msg, type = 'success') {
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
                   </svg>
-                  <span>{{ chatLoading ? 'Memulai...' : 'Chat Owner' }}</span>
+                  <span>{{ chatLoading ? 'Memulai...' : 'Chat Pemilik' }}</span>
                 </button>
               </div>
               

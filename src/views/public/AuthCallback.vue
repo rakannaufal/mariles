@@ -12,10 +12,14 @@ const error = ref('')
 const handleLoginSuccess = async (user) => {
   try {
     // Get pending role and owner type from localStorage
-    const pendingRole = localStorage.getItem('pendingRole') || 'student'
+    const pendingRole = localStorage.getItem('pendingRole')
     const pendingOwnerType = localStorage.getItem('pendingOwnerType') || 'umum'
     // For teachers - get invite code data
     const pendingInviteCode = localStorage.getItem('pendingInviteCode')
+    
+    // Determine if this is a registration (has pendingRole) or login attempt (no pendingRole)
+    const isRegistrationAttempt = !!pendingRole
+    
     // 1. Check if user already exists in DB
     const { data: existingUser, error: fetchError } = await supabase
       .from('users')
@@ -23,16 +27,50 @@ const handleLoginSuccess = async (user) => {
       .eq('id', user.id)
       .single()
       
-    let roleToUse = pendingRole
+    let roleToUse = pendingRole || 'student'
     let isNewUser = false
+    const userName = user.user_metadata?.name || user.user_metadata?.full_name || user.email?.split('@')[0]
 
     if (existingUser) {
       // EXISTING USER: Use their actual role from DB
       console.log('User found in DB, using existing role:', existingUser.role)
       roleToUse = existingUser.role
-      status.value = `Selamat datang kembali, ${existingUser.name || userName}!`
+      
+      // If this is a registration attempt with existing account, show warning
+      if (isRegistrationAttempt) {
+        status.value = `Akun sudah terdaftar! Mengalihkan ke dashboard...`
+        // Clean up localStorage
+        localStorage.removeItem('pendingRole')
+        localStorage.removeItem('pendingOwnerType')
+        localStorage.removeItem('pendingInviteCode')
+        localStorage.removeItem('pendingLesPlaceId')
+        localStorage.removeItem('pendingOwnerId')
+      } else {
+        status.value = `Selamat datang kembali, ${existingUser.name || userName}!`
+      }
     } else {
-      // NEW USER: Use pendingRole and perform registration
+      // NEW USER - but check if this is a login attempt (not registration)
+      if (!isRegistrationAttempt) {
+        // User trying to LOGIN with Google but account doesn't exist
+        console.log('Login attempt with unregistered Google account')
+        error.value = 'Akun Google ini belum terdaftar. Silakan daftar terlebih dahulu.'
+        
+        // Sign out the user since they're not registered
+        await supabase.auth.signOut()
+        
+        // Clean up localStorage
+        localStorage.removeItem('pendingRole')
+        localStorage.removeItem('pendingOwnerType')
+        localStorage.removeItem('pendingInviteCode')
+        localStorage.removeItem('pendingLesPlaceId')
+        localStorage.removeItem('pendingOwnerId')
+        
+        // Redirect to register page after showing error
+        setTimeout(() => router.push('/register'), 3000)
+        return
+      }
+      
+      // This is a registration attempt - proceed with creating new user
       isNewUser = true
       console.log('New user detected, registering as:', pendingRole)
       

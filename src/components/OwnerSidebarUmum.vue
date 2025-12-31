@@ -16,7 +16,7 @@ async function handleLogout() {
 <template>
   <aside class="sidebar">
     <div class="logo">Mariles</div>
-    <span class="role-badge">Owner</span>
+    <span class="role-badge">Pemilik</span>
     <nav class="nav">
       <router-link to="/owner/dashboard" class="nav-item">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">

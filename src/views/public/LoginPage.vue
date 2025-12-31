@@ -40,7 +40,17 @@ async function handleLogin() {
 }
 
 async function handleGoogleLogin() {
-  try { await authStore.signInWithGoogle() }
+  try {
+    // Clear pendingRole to indicate this is a LOGIN attempt, not registration
+    // This way AuthCallback will know to reject unregistered accounts
+    localStorage.removeItem('pendingRole')
+    localStorage.removeItem('pendingOwnerType')
+    localStorage.removeItem('pendingInviteCode')
+    localStorage.removeItem('pendingLesPlaceId')
+    localStorage.removeItem('pendingOwnerId')
+    
+    await authStore.signInWithGoogle()
+  }
   catch (err) { error.value = err.message || 'Login dengan Google gagal' }
 }
 </script>

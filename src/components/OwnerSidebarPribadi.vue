@@ -16,7 +16,7 @@ async function handleLogout() {
 <template>
   <aside class="sidebar">
     <div class="logo">Mariles</div>
-    <span class="role-badge">Owner</span>
+    <span class="role-badge">Pemilik</span>
     <nav class="nav">
       <!-- Menu Utama -->
       <div class="nav-section">

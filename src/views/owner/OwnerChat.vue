@@ -45,7 +45,7 @@ const currentParticipant = computed(() => {
 function getRoleLabel(role) {
   switch(role) {
     case 'teacher': return 'Guru'
-    case 'owner': return 'Owner'
+    case 'owner': return 'Pemilik'
     case 'student': return 'Siswa'
     default: return role || 'Pengguna'
   }

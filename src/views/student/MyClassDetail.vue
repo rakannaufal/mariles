@@ -105,11 +105,11 @@ async function loadTabData() {
 
     await Promise.all([
       fetchMaterials(programId, studentId),
-      fetchTests(programId, studentId),
+      fetchTests(programId, studentId, authStore.user.id), // Pass both IDs for legacy data support
       fetchGrades(bookingId),
       fetchAttendance(bookingId),
-      fetchExercises(programId, studentId),
-      fetchReportCard(studentId, currentCourse.value.program)
+      fetchExercises(programId, studentId, authStore.user.id), // Pass both IDs for legacy data support
+      fetchReportCard(studentId, currentCourse.value.program, authStore.user.id) // Pass both IDs for legacy data support
     ])
   }
   
@@ -160,16 +160,17 @@ async function handleExerciseSubmit() {
       .from('submissions')
       .getPublicUrl(fileName)
     
-    // Submit to database
+    // Submit to database - use student table ID (not auth ID)
+    const studentId = currentCourse.value?.student_id || currentCourse.value?.students?.id
     await submitExercise(
       selectedExercise.value.id,
-      authStore.user.id,
+      studentId,
       urlData.publicUrl,
       uploadNotes.value
     )
     
-    // Refresh exercises
-    await fetchExercises(currentCourse.value.program.id, authStore.user.id)
+    // Refresh exercises with proper student ID (and auth ID for legacy support)
+    await fetchExercises(currentCourse.value.program.id, studentId, authStore.user.id)
     
     showUploadModal.value = false
     alert('Jawaban berhasil dikirim!')

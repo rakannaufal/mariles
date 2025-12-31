@@ -189,7 +189,9 @@ export function useMyClass() {
   }
 
   // Fetch quizzes for a program (from quizzes table - same as teacher uses)
-  async function fetchTests(programId, userId) {
+  // studentId: the students.id (table ID)
+  // authUserId: optional auth.users.id for fallback matching
+  async function fetchTests(programId, studentId, authUserId = null) {
     try {
       // First get les_place_id from program
       const { data: program } = await supabase
@@ -227,16 +229,26 @@ export function useMyClass() {
 
       if (err) throw err
 
-      // Fetch attempts for this student (using userId directly since quiz_attempts.student_id = users.id)
+      // Fetch attempts for this student - query with both IDs for legacy support
       let attemptsMap = {}
-      if (userId && data?.length) {
+      if ((studentId || authUserId) && data?.length) {
         const quizIds = data.map(q => q.id)
-        const { data: attempts } = await supabase
+        
+        // Build query with OR condition for both IDs
+        let query = supabase
           .from('quiz_attempts')
           .select('quiz_id, score, passed, completed_at')
-          .eq('student_id', userId)
           .in('quiz_id', quizIds)
           .not('completed_at', 'is', null)
+        
+        // Use OR condition if both IDs are provided and different
+        if (studentId && authUserId && studentId !== authUserId) {
+          query = query.or(`student_id.eq.${studentId},student_id.eq.${authUserId}`)
+        } else {
+          query = query.eq('student_id', studentId || authUserId)
+        }
+
+        const { data: attempts } = await query
 
         if (attempts) {
           attempts.forEach(a => {
@@ -477,7 +489,9 @@ export function useMyClass() {
   })
 
   // Fetch report card data (quiz scores, latihan scores, calculate final grade)
-  async function fetchReportCard(userId, program) {
+  // studentId: the students.id (table ID)
+  // authUserId: optional auth.users.id for fallback matching
+  async function fetchReportCard(studentId, program, authUserId = null) {
     if (!program?.les_place_id) return reportCard.value
 
     try {
@@ -508,13 +522,21 @@ export function useMyClass() {
       let quizScores = []
 
       if (quizIds.length > 0) {
-        const { data: attempts } = await supabase
+        // Build query with OR condition for both IDs
+        let quizQuery = supabase
           .from('quiz_attempts')
           .select('*')
-          .eq('student_id', userId)
           .in('quiz_id', quizIds)
           .not('completed_at', 'is', null)
           .order('completed_at', { ascending: false })
+        
+        if (studentId && authUserId && studentId !== authUserId) {
+          quizQuery = quizQuery.or(`student_id.eq.${studentId},student_id.eq.${authUserId}`)
+        } else {
+          quizQuery = quizQuery.eq('student_id', studentId || authUserId)
+        }
+
+        const { data: attempts } = await quizQuery
 
         // Get best score per quiz
         const quizBestScores = {}
@@ -533,8 +555,6 @@ export function useMyClass() {
         quizScores = Object.values(quizBestScores)
       }
 
-      // 3. Fetch latihan scores from grades table (type = exercise/latihan)
-      // For now, use quiz scores only since latihan scoring isn't implemented yet
       // 3. Fetch latihan scores from exercise_submissions
       const { data: exercises } = await supabase
         .from('course_materials')
@@ -547,12 +567,20 @@ export function useMyClass() {
       let latihanScores = []
 
       if (materialIds.length > 0) {
-        const { data: subData } = await supabase
+        // Build query with OR condition for both IDs
+        let latihanQuery = supabase
           .from('exercise_submissions')
           .select('*')
-          .eq('student_id', userId)
           .in('material_id', materialIds)
           .not('score', 'is', null)
+        
+        if (studentId && authUserId && studentId !== authUserId) {
+          latihanQuery = latihanQuery.or(`student_id.eq.${studentId},student_id.eq.${authUserId}`)
+        } else {
+          latihanQuery = latihanQuery.eq('student_id', studentId || authUserId)
+        }
+
+        const { data: subData } = await latihanQuery
 
         latihanScores = subData?.map(s => {
           const ex = exercises.find(e => e.id === s.material_id)
@@ -606,7 +634,9 @@ export function useMyClass() {
   const exercises = ref([])
 
   // Fetch exercises for a program
-  async function fetchExercises(programId, userId) {
+  // studentId: the students.id (table ID)
+  // authUserId: optional auth.users.id for fallback matching
+  async function fetchExercises(programId, studentId, authUserId = null) {
     if (!programId) return []
 
     try {
@@ -624,15 +654,25 @@ export function useMyClass() {
       if (exErr) throw exErr
 
       // Get student's submissions for these exercises
+      // Query with both studentId (table ID) and authUserId (auth ID) to handle legacy data
       const exerciseIds = exerciseData?.map(e => e.id) || []
       let submissionsMap = {}
 
-      if (exerciseIds.length > 0 && userId) {
-        const { data: submissions } = await supabase
+      if (exerciseIds.length > 0 && (studentId || authUserId)) {
+        // Build query to match either student table ID or auth user ID
+        let query = supabase
           .from('exercise_submissions')
           .select('*')
-          .eq('student_id', userId)
           .in('material_id', exerciseIds)
+        
+        // Use OR condition if both IDs are provided
+        if (studentId && authUserId && studentId !== authUserId) {
+          query = query.or(`student_id.eq.${studentId},student_id.eq.${authUserId}`)
+        } else {
+          query = query.eq('student_id', studentId || authUserId)
+        }
+
+        const { data: submissions } = await query
 
         submissions?.forEach(s => {
           submissionsMap[s.material_id] = s

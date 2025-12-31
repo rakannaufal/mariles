@@ -214,6 +214,9 @@ export const useAuthStore = defineStore('auth', () => {
       if (profileData.role === 'student') {
         await supabase.from('students').upsert({
           user_id: data.user.id,
+          nickname: profileData.nickname || null,
+          gender: profileData.gender || null,
+          date_of_birth: profileData.birth_date || null,
           education_level: profileData.education_level || null,
           grade: profileData.grade || null,
           school_name: profileData.school_name || null,

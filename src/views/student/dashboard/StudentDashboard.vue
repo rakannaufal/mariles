@@ -51,12 +51,12 @@ async function startChatWithTeacher(teacher) {
 const recentBookings = computed(() => bookings.value.slice(0, 3))
 
 function getStatusClass(status) {
-  const classes = { active: 'success', pending: 'warning', completed: 'info', cancelled: 'error' }
+  const classes = { active: 'success', confirmed: 'success', pending: 'warning', completed: 'info', cancelled: 'error' }
   return classes[status] || ''
 }
 
 function getStatusText(status) {
-  const texts = { active: 'Aktif', pending: 'Menunggu', completed: 'Selesai', cancelled: 'Dibatalkan' }
+  const texts = { active: 'Aktif', confirmed: 'Aktif', pending: 'Menunggu', completed: 'Selesai', cancelled: 'Dibatalkan' }
   return texts[status] || status
 }
 </script>

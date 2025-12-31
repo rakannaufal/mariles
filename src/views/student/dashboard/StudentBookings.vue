@@ -87,12 +87,16 @@ const cancelledBookings = computed(() => {
 
 const filteredBookings = computed(() => {
   if (activeTab.value === 'all') return activeBookings.value
+  // Treat 'confirmed' as 'active' for filtering
+  if (activeTab.value === 'active') {
+    return activeBookings.value.filter(b => b.status === 'active' || b.status === 'confirmed')
+  }
   return activeBookings.value.filter(b => b.status === activeTab.value)
 })
 
 const stats = computed(() => ({
   all: activeBookings.value.length,
-  active: activeBookings.value.filter(b => b.status === 'active').length,
+  active: activeBookings.value.filter(b => b.status === 'active' || b.status === 'confirmed').length,
   pending: activeBookings.value.filter(b => b.status === 'pending').length,
   completed: activeBookings.value.filter(b => b.status === 'completed').length
 }))
@@ -441,7 +445,7 @@ function isPaymentExpired(createdAt) {
               </div>
 
               <div class="booking-actions">
-                <button v-if="booking.status === 'active'" class="btn-primary" @click="goToClass(booking)">
+                <button v-if="booking.status === 'active' || booking.status === 'confirmed'" class="btn-primary" @click="goToClass(booking)">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
                   Masuk Kelas
                 </button>

@@ -59,7 +59,7 @@ const currentParticipant = computed(() => {
 function getRoleLabel(role) {
   switch(role) {
     case 'teacher': return 'Guru'
-    case 'owner': return 'Owner'
+    case 'owner': return 'Pemilik'
     case 'student': return 'Siswa'
     default: return role || 'Pengguna'
   }
@@ -227,7 +227,7 @@ onUnmounted(() => {
           </div>
           
           <div v-if="availablePartners.owners.length" class="partner-section">
-            <span class="section-label">Owner Tempat Les</span>
+            <span class="section-label">Pemilik Tempat Les</span>
             <div class="partner-grid">
               <button v-for="owner in availablePartners.owners" :key="owner.id" 
                       class="partner-card" @click="handleStartChat(owner, owner.lesPlaceId)">

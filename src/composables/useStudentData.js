@@ -174,7 +174,7 @@ export function useStudentData() {
     
     if (bookingsData) {
       stats.value = {
-        active_classes: bookingsData.filter(b => b.status === 'active').length,
+        active_classes: bookingsData.filter(b => b.status === 'active' || b.status === 'confirmed').length,
         pending_bookings: bookingsData.filter(b => b.status === 'pending').length,
         completed_classes: bookingsData.filter(b => b.status === 'completed').length,
         total_bookings: bookingsData.length,

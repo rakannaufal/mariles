@@ -20,6 +20,17 @@ const selectedClass = ref(null)
 const meetingLink = ref('')
 const savingLink = ref(false)
 
+// Notification state
+const notification = ref({ show: false, type: '', message: '' })
+
+function showNotification(type, message) {
+  notification.value = { show: true, type, message }
+  // Auto-hide after 3 seconds
+  setTimeout(() => {
+    notification.value.show = false
+  }, 3000)
+}
+
 async function openClassDetail(item) {
   selectedClass.value = item
   meetingLink.value = item.meeting_url || ''
@@ -52,10 +63,10 @@ async function updateMeetingLink() {
     })
     
     showModal.value = false
-    alert('Link meeting berhasil disimpan')
+    showNotification('success', 'Link meeting berhasil disimpan')
   } catch (err) {
     console.error('Error updating link:', err)
-    alert('Gagal menyimpan link')
+    showNotification('error', 'Gagal menyimpan link')
   } finally {
     savingLink.value = false
   }
@@ -238,6 +249,18 @@ onMounted(async () => {
         </div>
       </header>
 
+      <!-- Notification Banner -->
+      <div v-if="notification.show" :class="['notification-banner', notification.type]">
+        <svg v-if="notification.type === 'success'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>
+        </svg>
+        <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>
+        </svg>
+        <span>{{ notification.message }}</span>
+        <button class="close-notification" @click="notification.show = false">&times;</button>
+      </div>
+
       <!-- Stats Cards -->
       <section class="stats-row">
         <div class="stat-card blue">
@@ -365,6 +388,18 @@ onMounted(async () => {
                   </svg>
                   {{ item.students || item.capacity }} siswa
                 </div>
+                <!-- Google Meet Link -->
+                <a v-if="item.meeting_url" 
+                   :href="item.meeting_url" 
+                   target="_blank" 
+                   class="meet-link" 
+                   @click.stop>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M15.75 6.75a3 3 0 11-6 0 3 3 0 016 0zM4.501 20.118a7.5 7.5 0 0114.998 0" />
+                    <path d="M18 16.08V16a3 3 0 00-6 0v.08" />
+                  </svg>
+                  Meet
+                </a>
               </div>
             </template>
             <div v-else class="no-class">
@@ -549,6 +584,56 @@ onMounted(async () => {
 </template>
 
 <style scoped>
+/* Notification Banner */
+.notification-banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 18px;
+  border-radius: 12px;
+  margin-bottom: 20px;
+  font-size: 14px;
+  font-weight: 500;
+  animation: slideDown 0.3s ease-out;
+}
+
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.notification-banner svg { width: 20px; height: 20px; flex-shrink: 0; }
+.notification-banner.success { background: #dcfce7; color: #16a34a; border: 1px solid #bbf7d0; }
+.notification-banner.error { background: #fee2e2; color: #dc2626; border: 1px solid #fecaca; }
+.close-notification { 
+  margin-left: auto; 
+  background: none; 
+  border: none; 
+  font-size: 20px; 
+  cursor: pointer; 
+  opacity: 0.6;
+  color: inherit;
+}
+.close-notification:hover { opacity: 1; }
+
+/* Meet Link in Schedule Card */
+.meet-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  background: #16a34a;
+  color: white;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  text-decoration: none;
+  margin-top: 8px;
+  transition: all 0.2s;
+}
+.meet-link svg { width: 12px; height: 12px; }
+.meet-link:hover { background: #15803d; transform: translateY(-1px); }
+
 .modal-overlay {
   position: fixed;
   top: 0; left: 0; right: 0; bottom: 0;

@@ -124,7 +124,7 @@ function getRoleBadge(role) {
   const badges = {
     student: { label: 'Siswa', class: 'info' },
     teacher: { label: 'Guru', class: 'success' },
-    owner: { label: 'Owner', class: 'warning' },
+    owner: { label: 'Pemilik', class: 'warning' },
     admin: { label: 'Admin', class: 'error' }
   }
   return badges[role] || { label: role, class: 'info' }
