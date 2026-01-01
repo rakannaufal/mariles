@@ -7,7 +7,7 @@ const generateId = () => 'dummy-' + Math.random().toString(36).substr(2, 9)
 // Sumber: Unsplash (free to use)
 export const uniqueThumbnails = [
   // Kategori 1: Formal & Akademis (1-10) - Kelas, gedung sekolah, perpustakaan
-  'https://images.unsplash.com/photo-1523050854058-8df90110c9f1?w=800', // Graduation
+  'https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=800', // Graduation
   'https://images.unsplash.com/photo-1580582932707-520aed937b7b?w=800', // Classroom
   'https://images.unsplash.com/photo-1509062522246-3755977927d7?w=800', // Teacher classroom
   'https://images.unsplash.com/photo-1497633762265-9d179a990aa6?w=800', // Books stacked
