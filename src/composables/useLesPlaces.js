@@ -1,5 +1,6 @@
 import { ref } from 'vue'
 import { supabase } from '@/lib/supabase'
+import { USE_DUMMY_DATA, getDummyLesPlaces, getDummyLesPlaceById, searchDummyLesPlaces } from '@/dummy'
 
 export function useLesPlaces() {
   const lesPlaces = ref([])
@@ -13,6 +14,14 @@ export function useLesPlaces() {
     error.value = null
 
     try {
+      // Use dummy data if enabled
+      if (USE_DUMMY_DATA) {
+        const dummyData = searchDummyLesPlaces(filters)
+        lesPlaces.value = dummyData
+        loading.value = false
+        return
+      }
+
       let query = supabase
         .from('les_places')
         .select(`
@@ -97,6 +106,14 @@ export function useLesPlaces() {
     error.value = null
 
     try {
+      // Use dummy data if enabled
+      if (USE_DUMMY_DATA) {
+        const dummyData = getDummyLesPlaceById(id)
+        lesPlace.value = dummyData
+        loading.value = false
+        return
+      }
+
       const { data, error: err } = await supabase
         .from('les_places')
         .select(`
@@ -131,6 +148,10 @@ export function useLesPlaces() {
             reply,
             replied_at,
             created_at,
+            booking_id,
+            bookings (
+              programs (id, name)
+            ),
             students (
               users (name, avatar_url)
             )
@@ -141,6 +162,30 @@ export function useLesPlaces() {
 
       if (err) throw err
       lesPlace.value = data
+
+      // Fetch teachers separately to avoid RLS issues
+      try {
+        const { data: teachersData, error: teacherError } = await supabase
+          .from('teachers')
+          .select(`
+            id,
+            experience_years,
+            education,
+            specialization,
+            specializations,
+            bio,
+            users (name, avatar_url)
+          `)
+          .eq('les_place_id', id)
+          .eq('is_active', true) // Only show active teachers
+
+        if (teachersData && lesPlace.value) {
+          lesPlace.value.teachers = teachersData
+        }
+      } catch (teacherErr) {
+        console.error('Could not fetch teachers:', teacherErr)
+        // Continue without teachers data - not critical
+      }
     } catch (err) {
       error.value = err.message
       console.error('Error fetching les place:', err)

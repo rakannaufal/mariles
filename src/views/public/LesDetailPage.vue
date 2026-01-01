@@ -485,6 +485,15 @@ async function submitReport() {
   }
 }
 
+function getTeacherSpecializations(teacher) {
+  // Check both specialization and specializations fields
+  const specs = teacher.specialization || teacher.specializations || []
+  if (Array.isArray(specs) && specs.length > 0) {
+    return specs.join(', ')
+  }
+  return null
+}
+
 function toast(msg, type = 'success') {
   toastMessage.value = msg
   toastType.value = type
@@ -574,28 +583,12 @@ function toast(msg, type = 'success') {
                   </div>
                 </div>
               </div>
-
-              <!-- Teachers for Offline & Online type -->
-              <div v-if="(lesPlace.type === 'offline_online' || lesPlace.type === 'online') && lesPlace.teachers?.length" class="teachers-section">
-                <h3>Pengajar</h3>
-                <div class="teachers-grid">
-                  <div v-for="teacher in lesPlace.teachers" :key="teacher.id" class="teacher-card">
-                    <div class="teacher-avatar">
-                      <img v-if="teacher.avatar_url" :src="teacher.avatar_url" :alt="teacher.name">
-                      <span v-else>{{ teacher.name?.charAt(0) }}</span>
-                    </div>
-                    <div class="teacher-info">
-                      <h4>{{ teacher.name }}</h4>
-                      <p>{{ teacher.specialization?.join(', ') || 'Pengajar' }}</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
             </div>
 
             <!-- Tabs -->
             <div class="tabs">
               <button :class="{ active: activeTab === 'programs' }" @click="activeTab = 'programs'">Program</button>
+              <button :class="{ active: activeTab === 'teachers' }" @click="activeTab = 'teachers'">Guru</button>
               <button :class="{ active: activeTab === 'reviews' }" @click="activeTab = 'reviews'">Ulasan</button>
             </div>
 
@@ -661,6 +654,45 @@ function toast(msg, type = 'success') {
                 </div>
               </div>
 
+              <!-- Teachers Tab -->
+              <div v-if="activeTab === 'teachers'" class="teachers-tab">
+                <div v-if="!lesPlace.teachers?.length" class="empty-state">
+                  <p>Belum ada guru terdaftar</p>
+                </div>
+                <div class="teachers-grid">
+                  <div v-for="teacher in lesPlace.teachers" :key="teacher.id" class="teacher-card-full">
+                    <div class="teacher-avatar-lg">
+                      <img v-if="teacher.users?.avatar_url" :src="teacher.users.avatar_url" :alt="teacher.users?.name">
+                      <span v-else>{{ teacher.users?.name?.charAt(0) || 'G' }}</span>
+                    </div>
+                    <div class="teacher-info-full">
+                      <h4>{{ teacher.users?.name || 'Guru' }}</h4>
+                      <div class="teacher-details-list">
+                        <div v-if="teacher.education" class="detail-item">
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/>
+                          </svg>
+                          <span>{{ teacher.education }}</span>
+                        </div>
+                        <div v-if="teacher.experience_years" class="detail-item">
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v16"/>
+                          </svg>
+                          <span>{{ teacher.experience_years }} tahun pengalaman</span>
+                        </div>
+                        <div v-if="getTeacherSpecializations(teacher)" class="detail-item">
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/>
+                          </svg>
+                          <span>Mengajar: {{ getTeacherSpecializations(teacher) }}</span>
+                        </div>
+                      </div>
+                      <p v-if="teacher.bio" class="teacher-bio-text">{{ teacher.bio }}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
               <!-- Reviews Tab -->
               <div v-if="activeTab === 'reviews'" class="reviews">
                 <div v-if="!lesPlace.reviews?.length" class="empty-state">
@@ -668,7 +700,15 @@ function toast(msg, type = 'success') {
                 </div>
                 <div v-for="review in lesPlace.reviews" :key="review.id" class="review-card">
                   <div class="review-header">
-                    <span class="reviewer">{{ review.students?.users?.name || 'Anonim' }}</span>
+                    <div class="reviewer-info">
+                      <span class="reviewer">{{ review.students?.users?.name || 'Anonim' }}</span>
+                      <span v-if="review.bookings?.programs?.name" class="review-program">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                          <path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/>
+                        </svg>
+                        {{ review.bookings.programs.name }}
+                      </span>
+                    </div>
                     <span class="rating">★ {{ review.rating }}</span>
                   </div>
                   <p>{{ review.comment }}</p>
@@ -1018,21 +1058,29 @@ function toast(msg, type = 'success') {
 .facilities-grid{display:flex;flex-wrap:wrap;gap:var(--spacing-xs)}
 .facility-item{display:flex;align-items:center;gap:6px;padding:6px 12px;background:var(--background);border-radius:var(--radius-lg);font-size:var(--font-size-xs);color:var(--text-secondary)}
 .facility-item svg{width:14px;height:14px;color:var(--success)}
-/* Teachers */
-.teachers-section{padding-top:var(--spacing-lg);margin-top:var(--spacing-md);border-top:1px solid var(--border-light)}
-.teachers-section h3{font-size:var(--font-size-base);font-weight:600;margin-bottom:var(--spacing-sm)}
-.teachers-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:var(--spacing-sm)}
-.teacher-card{display:flex;align-items:center;gap:var(--spacing-sm);padding:var(--spacing-sm);background:var(--background);border-radius:var(--radius-lg)}
-.teacher-avatar{width:40px;height:40px;border-radius:50%;background:var(--primary);color:white;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:var(--font-size-sm);overflow:hidden;flex-shrink:0}
-.teacher-avatar img{width:100%;height:100%;object-fit:cover}
-.teacher-info h4{font-size:var(--font-size-xs);font-weight:600;margin-bottom:2px}
-.teacher-info p{font-size:10px;color:var(--text-muted)}
 /* Tabs */
 .tabs{display:flex;gap:var(--spacing-sm);background:white;padding:0 var(--spacing-md);border-radius:var(--radius-xl) var(--radius-xl) 0 0;border-bottom:1px solid var(--border-light)}
 .tabs button{padding:var(--spacing-md) var(--spacing-lg);background:transparent;font-weight:500;font-size:var(--font-size-sm);color:var(--text-muted);border-bottom:2px solid transparent;margin-bottom:-1px;transition:all var(--transition-fast)}
 .tabs button.active{color:var(--primary);border-bottom-color:var(--primary)}
 .tab-content{background:white;border-radius:0 0 var(--radius-xl) var(--radius-xl);padding:var(--spacing-lg);box-shadow:var(--shadow-sm)}
 .empty-state{text-align:center;padding:var(--spacing-xl);color:var(--text-muted)}
+/* Teachers Tab */
+.teachers-tab{padding:0}
+.teachers-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:var(--spacing-md)}
+.teacher-card-full{display:flex;gap:var(--spacing-md);padding:var(--spacing-md);background:var(--background);border-radius:var(--radius-xl);border:1px solid var(--border-light);transition:all var(--transition-fast)}
+.teacher-card-full:hover{border-color:var(--primary);box-shadow:var(--shadow-sm)}
+.teacher-avatar-lg{width:72px;height:72px;border-radius:var(--radius-lg);background:linear-gradient(135deg,var(--primary) 0%,var(--primary-dark) 100%);color:white;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:var(--font-size-xl);overflow:hidden;flex-shrink:0}
+.teacher-avatar-lg img{width:100%;height:100%;object-fit:cover}
+.teacher-info-full{flex:1;min-width:0}
+.teacher-info-full h4{font-size:var(--font-size-base);font-weight:600;margin-bottom:var(--spacing-xs);color:var(--text-primary)}
+.teacher-details-list{display:flex;flex-direction:column;gap:6px}
+.detail-item{display:flex;align-items:center;gap:8px;font-size:var(--font-size-sm);color:var(--text-secondary)}
+.detail-item svg{width:16px;height:16px;color:var(--primary);flex-shrink:0}
+.teacher-bio-text{font-size:var(--font-size-xs);color:var(--text-muted);margin-top:var(--spacing-xs);line-height:1.5}
+/* Review with Program */
+.reviewer-info{display:flex;flex-direction:column;gap:2px}
+.review-program{display:inline-flex;align-items:center;gap:4px;font-size:var(--font-size-xs);color:var(--primary);font-weight:500}
+.review-program svg{width:12px;height:12px}
 /* Program Card - Clean Design */
 .program-card{display:flex;justify-content:space-between;align-items:stretch;padding:var(--spacing-md);border:2px solid var(--border-light);border-radius:var(--radius-xl);cursor:pointer;transition:all var(--transition-fast);margin-bottom:var(--spacing-sm)}
 .program-card:hover:not(.sold-out){border-color:var(--primary);background:rgba(136,208,228,0.03)}

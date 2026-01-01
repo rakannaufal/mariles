@@ -61,13 +61,19 @@ export const useAuthStore = defineStore('auth', () => {
   async function createUserProfile() {
     if (!user.value) return
 
-    // Cek role dari localStorage (untuk Google OAuth signup)
+    // Cek role dan data terkait dari localStorage (untuk Google OAuth signup)
     const pendingRole = localStorage.getItem('pendingRole')
+    const pendingOwnerType = localStorage.getItem('pendingOwnerType')
+    const pendingInviteCode = localStorage.getItem('pendingInviteCode')
+    const pendingLesPlaceId = localStorage.getItem('pendingLesPlaceId')
+    const pendingOwnerId = localStorage.getItem('pendingOwnerId')
     
-    // Hapus pendingRole dari localStorage setelah digunakan
-    if (pendingRole) {
-      localStorage.removeItem('pendingRole')
-    }
+    // Hapus semua pending data dari localStorage setelah digunakan
+    if (pendingRole) localStorage.removeItem('pendingRole')
+    if (pendingOwnerType) localStorage.removeItem('pendingOwnerType')
+    if (pendingInviteCode) localStorage.removeItem('pendingInviteCode')
+    if (pendingLesPlaceId) localStorage.removeItem('pendingLesPlaceId')
+    if (pendingOwnerId) localStorage.removeItem('pendingOwnerId')
 
     // Check if user already exists and get current role
     const { data: existingUser } = await supabase
@@ -105,12 +111,24 @@ export const useAuthStore = defineStore('auth', () => {
       } else if (finalRole === 'owner') {
         await supabase.from('owners').upsert({
           user_id: user.value.id,
-          business_name: userName + "'s Business"
+          business_name: userName + "'s Business",
+          owner_type: pendingOwnerType || 'umum'
         }, { onConflict: 'user_id' })
       } else if (finalRole === 'teacher') {
-        await supabase.from('teachers').upsert({
-          user_id: user.value.id
-        }, { onConflict: 'user_id' })
+        // Create teacher record with owner_id and les_place_id from invite code
+        const { data: teacherData } = await supabase.from('teachers').upsert({
+          user_id: user.value.id,
+          owner_id: pendingOwnerId || null,
+          les_place_id: pendingLesPlaceId || null
+        }, { onConflict: 'user_id' }).select().single()
+
+        // Mark invite code as used if provided
+        if (pendingInviteCode && teacherData) {
+          await supabase.rpc('use_teacher_invite_code', {
+            p_code: pendingInviteCode,
+            p_teacher_id: teacherData.id
+          })
+        }
       }
       
       await fetchUserProfile()

@@ -214,8 +214,8 @@ async function handleSaveLatihanGrade() {
 }
 
 function openQuizDetail(student) {
-  // Placeholder or basic info
-  alert(`Detail kuis untuk ${student.name}`)
+  // Placeholder - could open a detail modal in the future
+  console.log(`Detail kuis untuk ${student.name}`, student)
 }
 
 async function handleSaveGrade() {

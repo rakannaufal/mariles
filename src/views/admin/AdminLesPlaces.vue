@@ -16,7 +16,9 @@ const stats = ref({
   total: 0,
   verified: 0,
   pending: 0,
-  rejected: 0
+  rejected: 0,
+  aktif: 0,
+  tidakAktif: 0
 })
 
 // Rejection modal
@@ -50,8 +52,10 @@ async function fetchStats() {
     const { count: verified } = await supabase.from('les_places').select('*', { count: 'exact', head: true }).eq('verification_status', 'verified')
     const { count: pending } = await supabase.from('les_places').select('*', { count: 'exact', head: true }).eq('verification_status', 'pending')
     const { count: rejected } = await supabase.from('les_places').select('*', { count: 'exact', head: true }).eq('verification_status', 'rejected')
+    const { count: aktif } = await supabase.from('les_places').select('*', { count: 'exact', head: true }).eq('is_active', true)
+    const { count: tidakAktif } = await supabase.from('les_places').select('*', { count: 'exact', head: true }).eq('is_active', false)
     
-    stats.value = { total: total || 0, verified: verified || 0, pending: pending || 0, rejected: rejected || 0 }
+    stats.value = { total: total || 0, verified: verified || 0, pending: pending || 0, rejected: rejected || 0, aktif: aktif || 0, tidakAktif: tidakAktif || 0 }
   } catch (err) {
     console.error('Error:', err)
   }
@@ -73,6 +77,10 @@ async function fetchLesPlaces() {
       query = query.eq('verification_status', 'pending')
     } else if (statusFilter.value === 'rejected') {
       query = query.eq('verification_status', 'rejected')
+    } else if (statusFilter.value === 'aktif') {
+      query = query.eq('is_active', true)
+    } else if (statusFilter.value === 'tidakAktif') {
+      query = query.eq('is_active', false)
     }
 
     if (searchQuery.value) {
@@ -254,6 +262,38 @@ async function deletePlace(place) {
   }
 }
 
+async function toggleHide(place) {
+  const newStatus = !place.is_active
+  const action = newStatus ? 'ditampilkan' : 'disembunyikan'
+  
+  try {
+    await supabase.from('les_places').update({ 
+      is_active: newStatus 
+    }).eq('id', place.id)
+    
+    // Send notification to owner
+    await sendNotification(place.id, newStatus ? 'place_unhidden' : 'place_hidden', 
+      newStatus ? 'Tempat Les Ditampilkan' : 'Tempat Les Disembunyikan', 
+      newStatus 
+        ? `Tempat les "${place.name}" sekarang ditampilkan kembali di pencarian publik.`
+        : `Tempat les "${place.name}" telah disembunyikan dari pencarian publik oleh admin.`
+    )
+    
+    await fetchStats()
+    await fetchLesPlaces()
+    
+    // Update modal if open
+    if (placeDetails.value && placeDetails.value.id === place.id) {
+      placeDetails.value = { ...placeDetails.value, is_active: newStatus }
+    }
+    
+    toast(`Tempat les berhasil ${action}`, 'success')
+  } catch (err) {
+    console.error('Error toggling hide status:', err)
+    toast('Gagal mengubah status: ' + err.message, 'error')
+  }
+}
+
 function toast(msg, type = 'success') {
   toastMessage.value = msg
   toastType.value = type
@@ -353,6 +393,30 @@ function getOwnerEmail(place) {
             <span class="stat-label">Ditolak</span>
           </div>
         </div>
+        <div class="stat-mini" @click="statusFilter = 'aktif'; currentPage = 1" :class="{ active: statusFilter === 'aktif' }">
+          <div class="stat-icon-box teal">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+              <circle cx="12" cy="12" r="3"/>
+            </svg>
+          </div>
+          <div class="stat-info">
+            <span class="stat-value">{{ stats.aktif }}</span>
+            <span class="stat-label">Aktif</span>
+          </div>
+        </div>
+        <div class="stat-mini" @click="statusFilter = 'tidakAktif'; currentPage = 1" :class="{ active: statusFilter === 'tidakAktif' }">
+          <div class="stat-icon-box gray">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
+              <line x1="1" y1="1" x2="23" y2="23"/>
+            </svg>
+          </div>
+          <div class="stat-info">
+            <span class="stat-value">{{ stats.tidakAktif }}</span>
+            <span class="stat-label">Disembunyikan</span>
+          </div>
+        </div>
       </section>
 
       <!-- Search -->
@@ -404,9 +468,18 @@ function getOwnerEmail(place) {
                     </span>
                   </td>
                   <td>
-                    <span class="status-badge" :class="getStatusInfo(place.verification_status).class">
-                      {{ getStatusInfo(place.verification_status).label }}
-                    </span>
+                    <div class="status-wrapper">
+                      <span class="status-badge" :class="getStatusInfo(place.verification_status).class">
+                        {{ getStatusInfo(place.verification_status).label }}
+                      </span>
+                      <span v-if="!place.is_active" class="hidden-badge" title="Tersembunyi dari pencarian publik">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                          <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
+                          <line x1="1" y1="1" x2="23" y2="23"/>
+                        </svg>
+                        Disembunyikan
+                      </span>
+                    </div>
                   </td>
                   <td>
                     <div class="action-buttons">
@@ -425,6 +498,16 @@ function getOwnerEmail(place) {
                       <button v-if="place.verification_status === 'pending'" class="btn-action reject" @click="openRejectModal(place)" title="Tolak">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                           <circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>
+                        </svg>
+                      </button>
+                      <button class="btn-action hide" @click="toggleHide(place)" :title="place.is_active ? 'Sembunyikan' : 'Tampilkan'">
+                        <svg v-if="place.is_active" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                          <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
+                          <line x1="1" y1="1" x2="23" y2="23"/>
+                        </svg>
+                        <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                          <circle cx="12" cy="12" r="3"/>
                         </svg>
                       </button>
                       <button class="btn-action delete" @click="deletePlace(place)" title="Hapus">
@@ -484,6 +567,13 @@ function getOwnerEmail(place) {
                   <span class="status-badge" :class="getStatusInfo(placeDetails.verification_status).class">
                     {{ getStatusInfo(placeDetails.verification_status).label }}
                   </span>
+                  <span v-if="!placeDetails.is_active" class="hidden-badge modal-badge">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
+                      <line x1="1" y1="1" x2="23" y2="23"/>
+                    </svg>
+                    Disembunyikan
+                  </span>
                   <span v-if="placeDetails.verification_status === 'rejected'" class="rejection-reason">
                     Alasan: {{ placeDetails.rejection_reason }}
                   </span>
@@ -533,6 +623,9 @@ function getOwnerEmail(place) {
               </button>
               <button v-if="placeDetails && placeDetails.verification_status !== 'rejected'" class="btn-warning" @click="openRejectModal(placeDetails)">
                 Tolak
+              </button>
+              <button class="btn-hide" @click="toggleHide(placeDetails)">
+                {{ placeDetails?.is_active ? 'Sembunyikan' : 'Tampilkan' }}
               </button>
               <button class="btn-danger" @click="deletePlace(placeDetails)">Hapus</button>
             </div>
@@ -703,6 +796,20 @@ function getOwnerEmail(place) {
 .form-textarea:focus { outline: none; border-color: #0A4568; }
 .modal.small { max-width: 480px; }
 .stat-icon-box.red { background: #FEE2E2; color: #DC2626; }
+.stat-icon-box.gray { background: #E2E8F0; color: #64748B; }
+.stat-icon-box.teal { background: #CCFBF1; color: #14B8A6; }
+
+/* Hide button styles */
+.btn-action.hide { background: #E2E8F0; color: #64748B; }
+.btn-action.hide:hover { background: #CBD5E1; }
+.btn-hide { padding: 10px 20px; background: #64748B; color: white; border: none; border-radius: 10px; font-weight: 600; cursor: pointer; transition: background 0.2s; }
+.btn-hide:hover { background: #475569; }
+
+/* Hidden badge */
+.status-wrapper { display: flex; flex-direction: column; gap: 4px; align-items: flex-start; }
+.hidden-badge { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; background: #E2E8F0; color: #64748B; border-radius: 12px; font-size: 11px; font-weight: 600; }
+.hidden-badge svg { width: 12px; height: 12px; }
+.hidden-badge.modal-badge { margin-left: 8px; }
 .status-badge.error { background: #FEE2E2; color: #DC2626; }
 
 @media (max-width: 1024px) {

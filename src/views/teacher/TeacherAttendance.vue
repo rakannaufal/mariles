@@ -15,7 +15,8 @@ const {
   programs,
   fetchTeacherSchedule,
   fetchTeacherStudents,
-  fetchTeacherProfile
+  fetchTeacherProfile,
+  saveAttendance
 } = useTeacherData()
 
 // Date navigation
@@ -38,6 +39,16 @@ const searchQuery = ref('')
 const showAttendanceModal = ref(false)
 const selectedSession = ref(null)
 const attendanceList = ref([])
+
+// Notification state
+const notification = ref({ show: false, type: '', message: '' })
+
+function showNotification(type, message) {
+  notification.value = { show: true, type, message }
+  setTimeout(() => {
+    notification.value.show = false
+  }, 4000)
+}
 
 // Week calculation
 function getWeekStart(date) {
@@ -153,6 +164,7 @@ function openAttendanceModal(session) {
     .filter(s => s.class === session.class || s.subject === session.subject)
     .map(s => ({
       id: s.id,
+      booking_id: s.booking_id, // Include booking_id for database save
       name: s.name,
       status: 'present',
       note: ''
@@ -162,6 +174,7 @@ function openAttendanceModal(session) {
     for (let i = 0; i < (session.students || session.capacity || 5); i++) {
       attendanceList.value.push({
         id: i + 1,
+        booking_id: null, // No booking for placeholder students
         name: `Siswa ${i + 1}`,
         status: 'present',
         note: ''
@@ -183,6 +196,26 @@ async function submitAttendance() {
   const late = attendanceList.value.filter(s => s.status === 'late').length
   const sick = attendanceList.value.filter(s => s.status === 'sick').length
   
+  // Get session date for this attendance
+  const dayOffset = selectedDayIndex.value - 1
+  const sessionDate = new Date(currentWeekStart.value)
+  sessionDate.setDate(sessionDate.getDate() + dayOffset)
+  const sessionDateStr = sessionDate.toISOString().split('T')[0]
+  
+  // Save each student's attendance to database
+  let savedCount = 0
+  for (const student of attendanceList.value) {
+    if (student.booking_id) {
+      const success = await saveAttendance(
+        student.booking_id,
+        sessionDateStr,
+        student.status,
+        student.note || null
+      )
+      if (success) savedCount++
+    }
+  }
+  
   if (selectedSession.value) {
     selectedSession.value.attendance_status = 'completed'
     selectedSession.value.present = present
@@ -190,7 +223,12 @@ async function submitAttendance() {
   }
   
   showAttendanceModal.value = false
-  alert(`Absensi berhasil disimpan!\nHadir: ${present}, Tidak Hadir: ${absent}, Terlambat: ${late}, Sakit/Izin: ${sick}`)
+  
+  if (savedCount > 0) {
+    showNotification('success', `Absensi berhasil disimpan ke database! Hadir: ${present}, Tidak Hadir: ${absent}, Terlambat: ${late}, Sakit/Izin: ${sick}`)
+  } else {
+    showNotification('success', `Absensi tersimpan (lokal)! Hadir: ${present}, Tidak Hadir: ${absent}, Terlambat: ${late}, Sakit/Izin: ${sick}`)
+  }
 }
 
 onMounted(async () => {
@@ -217,6 +255,18 @@ onMounted(async () => {
         </h1>
         <p class="subtitle">Catat kehadiran siswa berdasarkan jadwal mengajar</p>
       </header>
+
+      <!-- Notification Banner -->
+      <div v-if="notification.show" :class="['notification-banner', notification.type]">
+        <svg v-if="notification.type === 'success'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>
+        </svg>
+        <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>
+        </svg>
+        <span>{{ notification.message }}</span>
+        <button class="close-notification" @click="notification.show = false">&times;</button>
+      </div>
 
       <!-- Stats Cards -->
       <section class="stats-grid">
@@ -438,6 +488,38 @@ onMounted(async () => {
 </template>
 
 <style scoped>
+/* Notification Banner */
+.notification-banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 18px;
+  border-radius: 12px;
+  margin-bottom: 20px;
+  font-size: 14px;
+  font-weight: 500;
+  animation: slideDown 0.3s ease-out;
+}
+
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.notification-banner svg { width: 20px; height: 20px; flex-shrink: 0; }
+.notification-banner.success { background: #dcfce7; color: #16a34a; border: 1px solid #bbf7d0; }
+.notification-banner.error { background: #fee2e2; color: #dc2626; border: 1px solid #fecaca; }
+.close-notification { 
+  margin-left: auto; 
+  background: none; 
+  border: none; 
+  font-size: 20px; 
+  cursor: pointer; 
+  opacity: 0.6;
+  color: inherit;
+}
+.close-notification:hover { opacity: 1; }
+
 .dashboard {
   display: flex;
   min-height: 100vh;
