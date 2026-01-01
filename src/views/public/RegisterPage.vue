@@ -373,6 +373,11 @@ async function checkEmailExists(emailToCheck) {
   }
 }
 
+
+import { translateError } from '@/utils/errorTranslator'
+
+// ... (code omitted)
+
 async function handleRegister() {
   if (!isStep5Valid.value) return
   
@@ -444,7 +449,7 @@ async function handleRegister() {
     if (err.message?.includes('already registered') || err.message?.includes('already exists')) {
       error.value = 'Email sudah terdaftar! Silakan gunakan email lain atau login dengan akun yang sudah ada.'
     } else {
-      error.value = err.message || 'Pendaftaran gagal. Silakan coba lagi.'
+      error.value = translateError(err.message)
     }
   } finally {
     loading.value = false
@@ -457,7 +462,7 @@ async function handleGoogleSignUp() {
     await authStore.signInWithGoogle() 
   }
   catch (err) { 
-    error.value = err.message || 'Pendaftaran dengan Google gagal' 
+    error.value = translateError(err.message)
     loading.value = false
   }
 }

@@ -1,6 +1,7 @@
 import { ref } from 'vue'
 import { supabase } from '@/lib/supabase'
-import { USE_DUMMY_DATA, getDummyLesPlaces, getDummyLesPlaceById, searchDummyLesPlaces } from '@/dummy'
+import { getDummyLesPlaces, getDummyLesPlaceById, searchDummyLesPlaces } from '@/dummy'
+import { getUseDummyData } from '@/dummy/config'
 
 export function useLesPlaces() {
   const lesPlaces = ref([])
@@ -14,8 +15,8 @@ export function useLesPlaces() {
     error.value = null
 
     try {
-      // Use dummy data if enabled
-      if (USE_DUMMY_DATA) {
+      // Use dummy data if enabled (runtime check)
+      if (getUseDummyData()) {
         const dummyData = searchDummyLesPlaces(filters)
         lesPlaces.value = dummyData
         loading.value = false
@@ -54,6 +55,8 @@ export function useLesPlaces() {
         `)
         .eq('is_active', true)
         .eq('verification_status', 'verified')
+// ... (rest of query building omitted for brevity, ensure context is preserved)
+// Resume after query building
 
       // Apply filters
       if (filters.search) {
@@ -106,13 +109,14 @@ export function useLesPlaces() {
     error.value = null
 
     try {
-      // Use dummy data if enabled
-      if (USE_DUMMY_DATA) {
+      // Use dummy data if enabled (runtime check)
+      if (getUseDummyData()) {
         const dummyData = getDummyLesPlaceById(id)
         lesPlace.value = dummyData
         loading.value = false
         return
       }
+// ... (rest of function)
 
       const { data, error: err } = await supabase
         .from('les_places')

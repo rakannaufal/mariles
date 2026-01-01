@@ -1,37 +1,36 @@
 // Main Index file untuk Dummy Data
-// Menggabungkan 50 tempat les AKADEMIK
+// 20 Tempat Les Akademik dengan gambar dari folder public/Gambar
 
 import { USE_DUMMY_DATA } from './config'
-import { kategori1Formal, uniqueThumbnails, uniqueStudentCounts } from './dataDummy'
-import { bahasaInggris, bahasaAsia } from './dataKategori2_5'
-import { seniDesain, bimbelSD } from './dataKategori6_10'
+import { lesPlacesData } from './dataDummy'
 
 // Transform data agar sesuai dengan format yang diharapkan aplikasi
 const transformLesPlace = (lesPlace, index) => {
   const id = lesPlace.id || 'dummy-' + Math.random().toString(36).substr(2, 9)
   
-  // Gunakan thumbnail dan student_count unik berdasarkan index
-  const uniquePhoto = uniqueThumbnails[index] || uniqueThumbnails[0]
-  const uniqueStudentCount = uniqueStudentCounts[index] || (100 + index * 17)
+  // Variasi tipe kelas
+  const types = ['offline', 'hybrid', 'offline', 'hybrid', 'offline', 'offline', 'offline', 'hybrid', 'offline', 'offline',
+                 'offline', 'hybrid', 'offline', 'hybrid', 'offline', 'offline', 'online', 'offline', 'hybrid', 'offline']
+  const uniqueType = types[index] || lesPlace.type || 'offline'
   
   return {
     id,
     name: lesPlace.name,
     description: lesPlace.description,
-    type: lesPlace.type,
+    type: uniqueType,
     address: lesPlace.address,
     city: lesPlace.city,
     district: lesPlace.district,
-    photos: [uniquePhoto], // Gunakan thumbnail unik
+    photos: [lesPlace.thumbnail], // Gunakan thumbnail dari data
     facilities: lesPlace.facilities || [],
     highlights: lesPlace.highlights || [],
     rating: lesPlace.rating,
     review_count: lesPlace.review_count,
-    student_count: uniqueStudentCount, // Gunakan student_count unik
-    total_students: uniqueStudentCount,
-    is_active: lesPlace.is_active,
-    is_verified: lesPlace.is_verified,
-    verification_status: lesPlace.verification_status,
+    student_count: lesPlace.student_count,
+    total_students: lesPlace.student_count,
+    is_active: true,
+    is_verified: true,
+    verification_status: 'verified',
     created_at: new Date().toISOString(),
     // Nested relations
     programs: (lesPlace.programs || []).map((p, idx) => ({
@@ -85,25 +84,15 @@ const transformLesPlace = (lesPlace, index) => {
   }
 }
 
-// Gabungkan semua 50 tempat les
-// Kategori 1: Formal & Akademis (10)
-// Kategori 2: Modern & Inggris-Indonesia (10)
-// Kategori 3: Bersahabat & Homey (10)
-// Kategori 4: Singkat, Padat & Bimbel Banget (10)
-// Kategori 5: Optimis & Berorientasi Masa Depan (10)
-const allLesPlaces = [
-  ...kategori1Formal,   // 1-10: Formal
-  ...bahasaInggris,     // 11-20: Modern
-  ...bahasaAsia,        // 21-30: Bersahabat
-  ...seniDesain,        // 31-40: Singkat
-  ...bimbelSD           // 41-50: Optimis
-].map((lesPlace, index) => transformLesPlace(lesPlace, index))
+// Transform semua 20 tempat les
+const allLesPlaces = lesPlacesData.map((lesPlace, index) => transformLesPlace(lesPlace, index))
 
 // Export data dan config
 export { USE_DUMMY_DATA }
 
-// Backward compatibility exports
-export const matematikaSains = kategori1Formal
+// Backward compatibility
+export const matematikaSains = lesPlacesData
+export const kategori1Formal = lesPlacesData
 
 // Get all les places (untuk listing)
 export const getDummyLesPlaces = () => {

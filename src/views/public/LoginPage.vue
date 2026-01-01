@@ -13,6 +13,8 @@ const showPassword = ref(false)
 const error = ref('')
 const loading = ref(false)
 
+import { translateError } from '@/utils/errorTranslator'
+
 async function handleLogin() {
   if (!email.value || !password.value) { error.value = 'Email dan password wajib diisi'; return }
   loading.value = true
@@ -35,7 +37,7 @@ async function handleLogin() {
         router.push(`/${role}/dashboard`)
       }
     }
-  } catch (err) { error.value = err.message || 'Login gagal. Silakan coba lagi.' }
+  } catch (err) { error.value = translateError(err.message) }
   finally { loading.value = false }
 }
 
@@ -51,7 +53,7 @@ async function handleGoogleLogin() {
     
     await authStore.signInWithGoogle()
   }
-  catch (err) { error.value = err.message || 'Login dengan Google gagal' }
+  catch (err) { error.value = translateError(err.message) }
 }
 </script>
 

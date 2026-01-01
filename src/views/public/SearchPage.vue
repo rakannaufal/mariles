@@ -211,7 +211,7 @@ function clearFilters() {
               <option value="">Semua Tipe</option>
               <option value="offline">Offline</option>
               <option value="online">Online</option>
-              <option value="offline_online">Hybrid</option>
+              <option value="hybrid">Hybrid</option>
             </select>
           </div>
 
@@ -307,8 +307,13 @@ function clearFilters() {
 
 .filter-sidebar {
   width: 280px; flex-shrink: 0; background: white; border-radius: 16px; padding: 20px;
-  height: fit-content; position: sticky; top: 100px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+  position: sticky; top: 100px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+  max-height: calc(100vh - 120px); overflow-y: auto;
 }
+.filter-sidebar::-webkit-scrollbar { width: 6px; }
+.filter-sidebar::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 3px; }
+.filter-sidebar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+.filter-sidebar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
 .sidebar-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; padding-bottom: 16px; border-bottom: 1px solid #e2e8f0; }
 .sidebar-header h3 { font-size: 16px; font-weight: 700; margin: 0; }
 .clear-btn { padding: 6px 12px; background: #fef2f2; color: #dc2626; border: none; border-radius: 8px; font-size: 13px; cursor: pointer; }

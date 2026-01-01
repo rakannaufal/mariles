@@ -85,6 +85,8 @@ function getDisplayName() {
 function handleSearch() {
   if (searchQuery.value.trim()) {
     router.push({ path: '/search', query: { q: searchQuery.value } })
+  } else {
+    router.push('/search')
   }
 }
 
@@ -144,10 +146,13 @@ onMounted(() => {
           
           <!-- Search Bar -->
           <div class="nav-search">
-            <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <svg class="search-icon-left" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
             </svg>
             <input v-model="searchQuery" type="text" placeholder="Cari tempat les..." @keyup.enter="handleSearch">
+            <button class="search-btn" @click="handleSearch">
+              Cari
+            </button>
           </div>
         </div>
 
@@ -280,10 +285,13 @@ onMounted(() => {
           
           <!-- Search Bar -->
           <div class="nav-search">
-            <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <svg class="search-icon-left" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
             </svg>
             <input v-model="searchQuery" type="text" placeholder="Cari tempat les..." @keyup.enter="handleSearch">
+            <button class="search-btn" @click="handleSearch">
+              Cari
+            </button>
           </div>
         </div>
 
@@ -343,11 +351,13 @@ onMounted(() => {
 .cat-group-items{display:flex;flex-direction:column;gap:2px}
 .cat-item{padding:var(--spacing-xs) var(--spacing-sm);font-size:var(--font-size-xs);color:var(--text-secondary);border-radius:var(--radius-md);cursor:pointer;transition:all var(--transition-fast);white-space:nowrap}
 .cat-item:hover{background:var(--background);color:var(--primary)}
-.nav-search{flex:1;display:flex;align-items:center;gap:var(--spacing-sm);background:white;padding:var(--spacing-sm) var(--spacing-md);border-radius:var(--radius-full);border:none}
+.nav-search{flex:1;display:flex;align-items:center;gap:var(--spacing-sm);background:white;padding:var(--spacing-xs) var(--spacing-xs) var(--spacing-xs) var(--spacing-md);border-radius:var(--radius-full);border:none}
 .nav-search:focus-within{box-shadow:0 0 0 3px rgba(255,255,255,0.3)}
-.nav-search .search-icon{width:18px;height:18px;color:var(--text-muted)}
-.nav-search input{flex:1;border:none;background:transparent;font-size:var(--font-size-sm);outline:none;color:var(--text)}
+.nav-search .search-icon-left{width:18px;height:18px;color:var(--text-muted);flex-shrink:0}
+.nav-search input{flex:1;border:none;background:transparent;font-size:var(--font-size-sm);outline:none;color:var(--text);min-width:100px}
 .nav-search input::placeholder{color:var(--text-muted)}
+.search-btn{display:flex;align-items:center;justify-content:center;padding:8px 16px;background:var(--primary);border:none;border-radius:var(--radius-full);cursor:pointer;transition:all var(--transition-fast);flex-shrink:0;color:white;font-size:var(--font-size-sm);font-weight:600}
+.search-btn:hover{background:var(--secondary);transform:scale(1.02)}
 .nav-menu{display:flex;align-items:center;gap:var(--spacing-sm);margin-left:auto}
 .nav-divider{color:rgba(255,255,255,0.4);font-weight:300}
 .nav-item{display:flex;flex-direction:column;align-items:center;gap:2px;padding:var(--spacing-sm) var(--spacing-md);color:rgba(255,255,255,0.9);font-size:var(--font-size-xs);font-weight:700;border-radius:var(--radius-lg);transition:all var(--transition-fast);cursor:pointer}
