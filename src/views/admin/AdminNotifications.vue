@@ -91,20 +91,27 @@ async function sendNotification() {
       return
     }
 
-    // Create bulk notifications
-    const notifications = users.map(user => ({
-      user_id: user.id,
+    // Get user IDs array
+    const userIds = users.map(user => user.id)
+    
+    // Notification data
+    const notificationData = {
       type: notificationForm.value.type,
       title: notificationForm.value.title,
       message: notificationForm.value.message,
       data: { from: 'admin', broadcast: true }
-    }))
+    }
 
-    await createBulkNotifications(notifications)
+    // Create bulk notifications with correct parameters
+    const result = await createBulkNotifications(userIds, notificationData)
     
-    toast(`Notifikasi berhasil dikirim ke ${users.length} pengguna!`, 'success')
-    showModal.value = false
-    await fetchNotifications()
+    if (result.success) {
+      toast(`Notifikasi berhasil dikirim ke ${users.length} pengguna!`, 'success')
+      showModal.value = false
+      await fetchNotifications()
+    } else {
+      throw new Error(result.error)
+    }
   } catch (err) {
     console.error('Error:', err)
     toast('Gagal mengirim notifikasi', 'error')

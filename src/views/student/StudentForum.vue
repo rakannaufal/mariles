@@ -30,6 +30,12 @@ const newPost = ref({
 const newComment = ref('')
 const submitting = ref(false)
 
+// Edit states
+const editingComment = ref(null)
+const editCommentText = ref('')
+const editingPost = ref(false)
+const editPostData = ref({ title: '', content: '', category: '' })
+
 // Fetch all posts
 async function fetchPosts() {
   loading.value = true
@@ -185,6 +191,104 @@ async function deletePost(post) {
     await fetchPosts()
   } catch (err) {
     console.error('Error deleting post:', err)
+  }
+}
+
+// Edit comment functions
+function startEditComment(comment) {
+  editingComment.value = comment.id
+  editCommentText.value = comment.content
+}
+
+function cancelEditComment() {
+  editingComment.value = null
+  editCommentText.value = ''
+}
+
+async function saveEditComment(comment) {
+  if (!editCommentText.value.trim()) return
+  
+  try {
+    const { error } = await supabase
+      .from('forum_comments')
+      .update({ content: editCommentText.value, updated_at: new Date().toISOString() })
+      .eq('id', comment.id)
+
+    if (error) throw error
+    
+    comment.content = editCommentText.value
+    cancelEditComment()
+  } catch (err) {
+    console.error('Error editing comment:', err)
+    alert('Gagal mengedit komentar')
+  }
+}
+
+// Delete comment
+async function deleteComment(comment) {
+  if (!confirm('Hapus komentar ini?')) return
+  
+  try {
+    const { error } = await supabase
+      .from('forum_comments')
+      .delete()
+      .eq('id', comment.id)
+
+    if (error) throw error
+    
+    postComments.value = postComments.value.filter(c => c.id !== comment.id)
+  } catch (err) {
+    console.error('Error deleting comment:', err)
+    alert('Gagal menghapus komentar')
+  }
+}
+
+// Edit post functions
+function startEditPost() {
+  editingPost.value = true
+  editPostData.value = {
+    title: selectedPost.value.title,
+    content: selectedPost.value.content,
+    category: selectedPost.value.category
+  }
+}
+
+function cancelEditPost() {
+  editingPost.value = false
+  editPostData.value = { title: '', content: '', category: '' }
+}
+
+async function saveEditPost() {
+  if (!editPostData.value.title.trim() || !editPostData.value.content.trim()) {
+    alert('Judul dan konten harus diisi')
+    return
+  }
+  
+  submitting.value = true
+  try {
+    const { error } = await supabase
+      .from('forum_posts')
+      .update({
+        title: editPostData.value.title,
+        content: editPostData.value.content,
+        category: editPostData.value.category,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', selectedPost.value.id)
+
+    if (error) throw error
+    
+    selectedPost.value.title = editPostData.value.title
+    selectedPost.value.content = editPostData.value.content
+    selectedPost.value.category = editPostData.value.category
+    
+    cancelEditPost()
+    await fetchPosts()
+  } catch (err) {
+    console.error('Error editing post:', err)
+    alert('Gagal mengedit post')
+  } finally {
+    submitting.value = false
   }
 }
 
@@ -397,7 +501,29 @@ onMounted(fetchPosts)
             </div>
             <span class="author-name">{{ selectedPost.user?.name || 'Anonim' }}</span>
           </div>
-          <div class="detail-content">{{ selectedPost.content }}</div>
+          <!-- Post content - edit mode -->
+          <div v-if="editingPost" class="edit-post-form">
+            <div class="form-group">
+              <label>Judul</label>
+              <input v-model="editPostData.title" type="text">
+            </div>
+            <div class="form-group">
+              <label>Kategori</label>
+              <select v-model="editPostData.category">
+                <option v-for="cat in categories" :key="cat" :value="cat">{{ cat }}</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Konten</label>
+              <textarea v-model="editPostData.content" rows="5"></textarea>
+            </div>
+            <div class="edit-actions">
+              <button class="btn btn-secondary" @click="cancelEditPost">Batal</button>
+              <button class="btn btn-primary" @click="saveEditPost" :disabled="submitting">{{ submitting ? 'Menyimpan...' : 'Simpan' }}</button>
+            </div>
+          </div>
+          <!-- Post content - normal mode -->
+          <div v-else class="detail-content">{{ selectedPost.content }}</div>
           
           <div class="detail-actions">
             <button class="action-btn" @click="likePost(selectedPost)">
@@ -405,9 +531,16 @@ onMounted(fetchPosts)
               {{ selectedPost.likes || 0 }} Suka
             </button>
             <span class="views">{{ selectedPost.views || 0 }} dilihat</span>
-            <button v-if="selectedPost.user?.id === authStore.user?.id" class="action-btn delete" @click="deletePost(selectedPost)">
-              Hapus
-            </button>
+            <!-- Edit/Delete for post owner -->
+            <template v-if="selectedPost.user?.id === authStore.user?.id && !editingPost">
+              <button class="action-btn edit" @click="startEditPost">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                Edit
+              </button>
+              <button class="action-btn delete" @click="deletePost(selectedPost)">
+                Hapus
+              </button>
+            </template>
           </div>
 
           <!-- Comments Section -->
@@ -439,8 +572,22 @@ onMounted(fetchPosts)
                   <div class="comment-header">
                     <span class="name">{{ comment.user?.name || 'Anonim' }}</span>
                     <span class="time">{{ formatDate(comment.created_at) }}</span>
+                    <!-- Actions for comment owner -->
+                    <div v-if="comment.user?.id === authStore.user?.id" class="comment-actions">
+                      <button v-if="editingComment !== comment.id" class="action-link" @click.stop="startEditComment(comment)">Edit</button>
+                      <button class="action-link delete" @click.stop="deleteComment(comment)">Hapus</button>
+                    </div>
                   </div>
-                  <p>{{ comment.content }}</p>
+                  <!-- Edit mode -->
+                  <div v-if="editingComment === comment.id" class="edit-comment-form">
+                    <textarea v-model="editCommentText" rows="2"></textarea>
+                    <div class="edit-actions">
+                      <button class="btn btn-sm btn-secondary" @click="cancelEditComment">Batal</button>
+                      <button class="btn btn-sm btn-primary" @click="saveEditComment(comment)">Simpan</button>
+                    </div>
+                  </div>
+                  <!-- Normal display -->
+                  <p v-else>{{ comment.content }}</p>
                 </div>
               </div>
             </div>
@@ -476,7 +623,7 @@ onMounted(fetchPosts)
 .category-list button:hover, .category-list button.active { background: #0d5782; color: white; }
 .sort-select { width: 100%; padding: 10px 14px; border: 2px solid #e2e8f0; border-radius: 10px; font-size: 14px; }
 
-.posts-container { }
+.posts-container { flex: 1; }
 .search-bar { display: flex; align-items: center; gap: 12px; background: white; padding: 14px 18px; border-radius: 14px; margin-bottom: 20px; }
 .search-bar svg { width: 20px; height: 20px; color: #94a3b8; }
 .search-bar input { flex: 1; border: none; outline: none; font-size: 15px; }
@@ -545,15 +692,36 @@ onMounted(fetchPosts)
 .comment-avatar { width: 36px; height: 36px; border-radius: 10px; overflow: hidden; background: #64748b; display: flex; align-items: center; justify-content: center; color: white; font-size: 12px; flex-shrink: 0; }
 .comment-avatar img { width: 100%; height: 100%; object-fit: cover; }
 .comment-content { flex: 1; background: #f8fafc; padding: 12px 16px; border-radius: 12px; }
-.comment-header { display: flex; justify-content: space-between; margin-bottom: 6px; }
+.comment-header { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 6px; }
 .comment-header .name { font-weight: 600; font-size: 14px; }
 .comment-header .time { font-size: 12px; color: #94a3b8; }
 .comment-content p { margin: 0; font-size: 14px; line-height: 1.5; }
+
+/* Comment & Post Actions */
+.comment-actions { display: flex; gap: 8px; margin-left: auto; }
+.action-link { background: none; border: none; font-size: 12px; color: #64748b; cursor: pointer; padding: 2px 6px; border-radius: 4px; }
+.action-link:hover { background: #e2e8f0; color: #0d5782; }
+.action-link.delete { color: #dc2626; }
+.action-link.delete:hover { background: #fee2e2; }
+
+.action-btn.edit { color: #0d5782; }
+.action-btn.edit:hover { background: #e0f2fe; }
+
+/* Edit Forms */
+.edit-comment-form { margin-top: 8px; }
+.edit-comment-form textarea { width: 100%; padding: 10px; border: 2px solid #e2e8f0; border-radius: 8px; font-size: 14px; resize: none; margin-bottom: 8px; }
+.edit-comment-form textarea:focus { outline: none; border-color: #0d5782; }
+.edit-actions { display: flex; gap: 8px; justify-content: flex-end; }
+
+.edit-post-form { background: #f8fafc; padding: 20px; border-radius: 12px; margin-bottom: 20px; }
+.edit-post-form .form-group { margin-bottom: 16px; }
+.edit-post-form .form-group:last-of-type { margin-bottom: 0; }
 
 @media (max-width: 768px) {
   .forum-layout { grid-template-columns: 1fr; }
   .forum-sidebar { position: static; }
   .post-card { flex-direction: column; gap: 12px; }
   .post-avatar { width: 40px; height: 40px; }
+  .comment-actions { margin-left: 0; width: 100%; justify-content: flex-end; margin-top: 4px; }
 }
 </style>

@@ -3,6 +3,7 @@ import { ref, onMounted, computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useCategories } from '@/composables/useCategories'
+import { supabase } from '@/lib/supabase'
 import FloatingChatWidget from '@/components/FloatingChatWidget.vue'
 
 const router = useRouter()
@@ -19,8 +20,67 @@ const showCategories = ref(false)
 const isMenuOpen = ref(false)
 const searchQuery = ref('')
 
-// Mock notifications - will be replaced with real data
+// Real notifications from database
 const notifications = ref([])
+const unreadCount = computed(() => notifications.value.filter(n => !n.is_read).length)
+
+// Fetch notifications from database
+async function fetchNotifications() {
+  if (!authStore.user?.id) return
+  
+  try {
+    const { data, error } = await supabase
+      .from('notifications')
+      .select('*')
+      .eq('user_id', authStore.user.id)
+      .order('created_at', { ascending: false })
+      .limit(5)
+
+    if (!error && data) {
+      notifications.value = data
+    }
+  } catch (err) {
+    console.error('Error fetching notifications:', err)
+  }
+}
+
+// Format relative date
+function formatRelativeDate(date) {
+  const now = new Date()
+  const d = new Date(date)
+  const diff = now - d
+  const mins = Math.floor(diff / 60000)
+  const hours = Math.floor(diff / 3600000)
+  const days = Math.floor(diff / 86400000)
+
+  if (mins < 1) return 'Baru saja'
+  if (mins < 60) return `${mins} menit lalu`
+  if (hours < 24) return `${hours} jam lalu`
+  if (days < 7) return `${days} hari lalu`
+  return d.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })
+}
+
+// Mark notification as read
+async function markAsRead(notif) {
+  if (notif.is_read) return
+  
+  try {
+    await supabase
+      .from('notifications')
+      .update({ is_read: true })
+      .eq('id', notif.id)
+    
+    notif.is_read = true
+  } catch (err) {
+    console.error('Error marking as read:', err)
+  }
+}
+
+// Go to notification page
+function goToNotifications() {
+  showNotifications.value = false
+  router.push(`/${authStore.userRole}/notifications`)
+}
 
 // Group categories by type
 const groupedCategories = computed(() => {
@@ -101,8 +161,10 @@ function goToGroupCategory(groupName) {
 }
 
 onMounted(() => {
-  // Always fetch categories for both guest and logged in users
   fetchCategories()
+  if (authStore.isAuthenticated) {
+    fetchNotifications()
+  }
 })
 </script>
 
@@ -182,16 +244,19 @@ onMounted(() => {
           <div class="nav-item-wrapper" 
                @mouseenter="showNotifications = true" 
                @mouseleave="showNotifications = false">
-            <div class="nav-item notification-trigger">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+            <div class="nav-item notification-trigger" @click="goToNotifications">
+              <span class="notif-icon-wrap">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+                <span v-if="unreadCount > 0" class="notification-badge">{{ unreadCount > 9 ? '9+' : unreadCount }}</span>
+              </span>
               <span>Notifikasi</span>
-              <span v-if="notifications.length" class="notification-badge">{{ notifications.length }}</span>
             </div>
             
             <!-- Dropdown -->
             <div v-show="showNotifications" class="notification-dropdown">
               <div class="dropdown-header">
                 <span>Notifikasi</span>
+                <router-link :to="`/${authStore.userRole}/notifications`" class="see-all">Lihat Semua</router-link>
               </div>
               <div class="dropdown-content">
                 <div v-if="notifications.length === 0" class="empty-notifications">
@@ -202,9 +267,19 @@ onMounted(() => {
                   <p>Belum ada notifikasi</p>
                 </div>
                 <div v-else class="notification-list">
-                  <div v-for="notif in notifications" :key="notif.id" class="notification-item">
-                    <p>{{ notif.message }}</p>
-                    <span>{{ notif.time }}</span>
+                  <div 
+                    v-for="notif in notifications" 
+                    :key="notif.id" 
+                    class="notification-item"
+                    :class="{ unread: !notif.is_read }"
+                    @click="markAsRead(notif)"
+                  >
+                    <div class="notif-dot" v-if="!notif.is_read"></div>
+                    <div class="notif-body">
+                      <p class="notif-title">{{ notif.title }}</p>
+                      <p class="notif-message">{{ notif.message }}</p>
+                      <span class="notif-time">{{ formatRelativeDate(notif.created_at) }}</span>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -382,20 +457,26 @@ onMounted(() => {
 /* Notification Wrapper & Dropdown */
 .nav-item-wrapper{position:relative}
 .notification-trigger{position:relative}
-.notification-badge{position:absolute;top:-4px;right:-4px;min-width:18px;height:18px;background:var(--accent);color:white;font-size:10px;font-weight:700;border-radius:var(--radius-full);display:flex;align-items:center;justify-content:center;padding:0 4px}
-.notification-dropdown{position:absolute;top:100%;right:-50%;width:280px;background:var(--surface);border-radius:var(--radius-xl);box-shadow:var(--shadow-xl);overflow:hidden;z-index:100;margin-top:8px;animation:dropdownIn 0.2s ease}
+.notif-icon-wrap{position:relative;display:inline-flex}
+.notification-badge{position:absolute;top:-6px;right:-6px;min-width:16px;height:16px;background:#EF4444;color:white;font-size:9px;font-weight:700;border-radius:50%;display:flex;align-items:center;justify-content:center;padding:0 3px;border:2px solid var(--primary)}
+.notification-dropdown{position:absolute;top:100%;right:-50%;width:340px;background:white;border-radius:var(--radius-xl);box-shadow:var(--shadow-xl);overflow:hidden;z-index:100;margin-top:8px;animation:dropdownIn 0.2s ease}
 @keyframes dropdownIn{from{opacity:0;transform:translateY(-10px)}to{opacity:1;transform:translateY(0)}}
 .notification-dropdown::before{content:'';position:absolute;top:-8px;left:0;right:0;height:8px;background:transparent}
-.dropdown-header{padding:var(--spacing-md) var(--spacing-lg);border-bottom:1px solid var(--border-light);font-weight:600;color:var(--text);font-size:var(--font-size-sm)}
-.dropdown-content{max-height:300px;overflow-y:auto}
+.dropdown-header{display:flex;justify-content:space-between;align-items:center;padding:var(--spacing-md) var(--spacing-lg);border-bottom:1px solid var(--border-light);font-weight:600;color:var(--text);font-size:var(--font-size-sm)}
+.dropdown-header .see-all{font-size:12px;color:var(--primary);font-weight:500}
+.dropdown-content{max-height:320px;overflow-y:auto}
 .empty-notifications{padding:var(--spacing-xl);text-align:center;color:var(--text-muted)}
 .empty-notifications svg{width:48px;height:48px;margin-bottom:var(--spacing-md);opacity:0.5}
 .empty-notifications p{font-size:var(--font-size-sm)}
-.notification-list{padding:var(--spacing-sm)}
-.notification-item{padding:var(--spacing-md);border-radius:var(--radius-lg);transition:background var(--transition-fast);cursor:pointer}
-.notification-item:hover{background:var(--background)}
-.notification-item p{font-size:var(--font-size-sm);color:var(--text);margin-bottom:4px}
-.notification-item span{font-size:var(--font-size-xs);color:var(--text-muted)}
+.notification-list{padding:8px}
+.notification-item{display:flex;align-items:flex-start;gap:10px;padding:12px;border-radius:10px;transition:background var(--transition-fast);cursor:pointer}
+.notification-item:hover{background:#F1F5F9}
+.notification-item.unread{background:#F0F9FF}
+.notif-dot{width:8px;height:8px;background:#3B82F6;border-radius:50%;margin-top:6px;flex-shrink:0}
+.notif-body{flex:1;min-width:0}
+.notif-title{font-size:13px;font-weight:600;color:#1E293B;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.notif-message{font-size:12px;color:#64748B;line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.notif-time{font-size:11px;color:#94A3B8;margin-top:4px;display:block}
 
 /* Floating Chat Button */
 .floating-chat-btn{position:fixed;bottom:24px;right:24px;width:60px;height:60px;border-radius:var(--radius-full);background:linear-gradient(135deg,var(--primary),var(--secondary));color:white;border:none;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 8px 25px rgba(13,87,130,0.35);transition:all var(--transition-base);z-index:1000;overflow:hidden}

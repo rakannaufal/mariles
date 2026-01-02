@@ -1,13 +1,61 @@
 <script setup>
-import { RouterView } from 'vue-router'
+import { RouterView, useRoute } from 'vue-router'
 import { useAuthStore } from './stores/auth'
+import { usePlatformSettings } from './composables/usePlatformSettings'
+import { computed, watch, ref, onMounted } from 'vue'
+import MaintenancePage from './views/MaintenancePage.vue'
 
 const authStore = useAuthStore()
+const route = useRoute()
+const { isMaintenanceModeAsync } = usePlatformSettings()
+
+// Maintenance status from Supabase
+const maintenanceEnabled = ref(false)
+const maintenanceLoaded = ref(false)
+
+// Load maintenance mode from Supabase on mount
+onMounted(async () => {
+  try {
+    maintenanceEnabled.value = await isMaintenanceModeAsync()
+  } catch (err) {
+    console.error('Error checking maintenance mode:', err)
+    maintenanceEnabled.value = false
+  }
+  maintenanceLoaded.value = true
+})
+
+// Re-check maintenance mode when route changes
+watch(() => route.path, async () => {
+  try {
+    maintenanceEnabled.value = await isMaintenanceModeAsync()
+  } catch (err) {
+    maintenanceEnabled.value = false
+  }
+})
+
+// Show maintenance page if enabled and user is not admin
+const showMaintenancePage = computed(() => {
+  if (!maintenanceLoaded.value) return false
+  if (!maintenanceEnabled.value) return false
+  
+  // Allow admin users to access the site
+  if (authStore.userProfile?.role === 'admin') return false
+  
+  // Allow access to login/register routes
+  const allowedRoutes = ['/admin', '/login', '/register']
+  if (allowedRoutes.some(r => route.path.startsWith(r))) return false
+  
+  return true
+})
 </script>
 
 <template>
   <div id="app-container">
-    <RouterView v-if="!authStore.loading" />
+    <!-- Maintenance Mode -->
+    <MaintenancePage v-if="showMaintenancePage && !authStore.loading" />
+    
+    <!-- Normal App -->
+    <RouterView v-else-if="!authStore.loading" />
     
     <!-- Loading Screen -->
     <div v-else class="loading-screen">

@@ -177,6 +177,12 @@ const routes = [
     component: () => import('@/views/student/StudentForum.vue'), 
     meta: { role: 'student' } 
   },
+  { 
+    path: '/student/notifications', 
+    name: 'student-notifications', 
+    component: () => import('@/views/student/StudentNotifications.vue'), 
+    meta: { role: 'student' } 
+  },
 
   // Owner Routes
   { 

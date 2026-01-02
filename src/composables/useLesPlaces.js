@@ -1,7 +1,7 @@
 import { ref } from 'vue'
 import { supabase } from '@/lib/supabase'
 import { getDummyLesPlaces, getDummyLesPlaceById, searchDummyLesPlaces } from '@/dummy'
-import { getUseDummyData } from '@/dummy/config'
+import { loadDummyDataSetting, getUseDummyData } from '@/dummy/config'
 
 export function useLesPlaces() {
   const lesPlaces = ref([])
@@ -15,8 +15,10 @@ export function useLesPlaces() {
     error.value = null
 
     try {
-      // Use dummy data if enabled (runtime check)
-      if (getUseDummyData()) {
+      // Load dummy data setting from Supabase (async)
+      const useDummy = await loadDummyDataSetting()
+      
+      if (useDummy) {
         const dummyData = searchDummyLesPlaces(filters)
         lesPlaces.value = dummyData
         loading.value = false
@@ -109,8 +111,10 @@ export function useLesPlaces() {
     error.value = null
 
     try {
-      // Use dummy data if enabled (runtime check)
-      if (getUseDummyData()) {
+      // Load dummy data setting from Supabase (async)
+      const useDummy = await loadDummyDataSetting()
+      
+      if (useDummy) {
         const dummyData = getDummyLesPlaceById(id)
         lesPlace.value = dummyData
         loading.value = false

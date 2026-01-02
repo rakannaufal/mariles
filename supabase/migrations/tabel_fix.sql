@@ -597,7 +597,7 @@ CREATE TABLE schedules (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- 36. ACTIVITY_LOGS (NEW - for audit trail)
+-- 36. ACTIVITY_LOGS (for audit trail)
 CREATE TABLE activity_logs (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID REFERENCES users(id) ON DELETE SET NULL,
@@ -610,4 +610,14 @@ CREATE TABLE activity_logs (
     user_agent TEXT,
     metadata JSONB,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- 37. PLATFORM_SETTINGS (no id - uses key as primary key, no relations)
+CREATE TABLE platform_settings (
+    key VARCHAR(100) PRIMARY KEY,
+    value JSONB NOT NULL,
+    description TEXT,
+    updated_by UUID REFERENCES users(id) ON DELETE SET NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
