@@ -489,55 +489,61 @@ function getStatusText(status) {
 
 .stat-card {
   background: white;
-  padding: 24px;
+  padding: 20px 24px;
   border-radius: 16px;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
   display: flex;
   align-items: center;
   gap: 16px;
-  border: 1px solid #E2E8F0;
-  transition: transform 0.2s, box-shadow 0.2s;
+  border: 2px solid transparent;
+  transition: all 0.25s ease;
 }
 
 .stat-card:hover {
   transform: translateY(-2px);
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 6px 20px rgba(0,0,0,0.08);
 }
 
 .icon-wrapper {
-  width: 48px;
-  height: 48px;
-  border-radius: 12px;
+  width: 56px;
+  height: 56px;
+  border-radius: 14px;
   display: flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
 }
-.icon-wrapper.blue { background: #E0F2FE; color: #0284C7; }
-.icon-wrapper.green { background: #DCFCE7; color: #16A34A; }
-.icon-wrapper.purple { background: #F3E8FF; color: #9333EA; }
-.icon-wrapper.orange { background: #FFEDD5; color: #EA580C; }
+.icon-wrapper svg { width: 26px; height: 26px; }
+.icon-wrapper.blue { background: #F1F5F9; color: #0D5782; }
+.icon-wrapper.green { background: #F1F5F9; color: #0D5782; }
+.icon-wrapper.purple { background: #F1F5F9; color: #0D5782; }
+.icon-wrapper.orange { background: #F1F5F9; color: #0D5782; }
 
 .stat-content {
   flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
 
 .stat-content .label {
   display: block;
   font-size: 13px;
   color: #64748B;
-  margin-bottom: 4px;
+  font-weight: 500;
 }
 
 .stat-content .value {
-  font-size: 20px;
-  font-weight: 700;
+  font-size: 28px;
+  font-weight: 800;
   color: #0F172A;
-  margin-bottom: 4px;
+  line-height: 1;
 }
 
 .stat-content .trend {
   font-size: 12px;
   font-weight: 500;
+  margin-top: 4px;
 }
 .trend.up { color: #16A34A; }
 .trend.down { color: #DC2626; }

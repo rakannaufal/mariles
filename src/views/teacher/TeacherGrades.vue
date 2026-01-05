@@ -1158,10 +1158,10 @@ async function deleteAllLatihanForStudent(student) {
 
 .stat-icon svg { width: 22px; height: 22px; }
 
-.stat-card.primary .stat-icon { background: #dbeafe; color: #2563eb; }
-.stat-card.green .stat-icon { background: #dcfce7; color: #16a34a; }
-.stat-card.red .stat-icon { background: #fee2e2; color: #dc2626; }
-.stat-card.purple .stat-icon { background: #f3e8ff; color: #9333ea; }
+.stat-card.primary .stat-icon { background: #F1F5F9; color: #0D5782; }
+.stat-card.green .stat-icon { background: #F1F5F9; color: #0D5782; }
+.stat-card.red .stat-icon { background: #F1F5F9; color: #0D5782; }
+.stat-card.purple .stat-icon { background: #F1F5F9; color: #0D5782; }
 
 .stat-info { display: flex; flex-direction: column; }
 .stat-value { font-size: 28px; font-weight: 700; color: #1e293b; }

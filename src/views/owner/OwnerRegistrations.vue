@@ -27,6 +27,7 @@ onMounted(async () => {
 async function fetchRegistrations() {
   loading.value = true
   try {
+    // Step 1: Get owner ID
     const { data: owner } = await supabase
       .from('owners')
       .select('id')
@@ -35,14 +36,40 @@ async function fetchRegistrations() {
     
     if (!owner) return
 
+    // Step 2: Get les_place for this owner
+    const { data: lesPlace } = await supabase
+      .from('les_places')
+      .select('id')
+      .eq('owner_id', owner.id)
+      .single()
+    
+    if (!lesPlace) {
+      registrations.value = []
+      return
+    }
+
+    // Step 3: Get all programs for this les_place
+    const { data: programsData } = await supabase
+      .from('programs')
+      .select('id')
+      .eq('les_place_id', lesPlace.id)
+    
+    if (!programsData || programsData.length === 0) {
+      registrations.value = []
+      return
+    }
+
+    const programIds = programsData.map(p => p.id)
+
+    // Step 4: Get bookings for these programs only
     const { data } = await supabase
       .from('bookings')
       .select(`
         id, status, payment_status, created_at, start_date, notes,
         students(id, users(id, name, email, phone, avatar_url)),
-        programs(id, name, price, les_places!inner(id, name, owner_id))
+        programs(id, name, price, les_places(id, name))
       `)
-      .eq('programs.les_places.owner_id', owner.id)
+      .in('program_id', programIds)
       .order('created_at', { ascending: false })
 
     registrations.value = data || []
@@ -395,21 +422,48 @@ function getPaymentConfig(status) {
 .page-header p { font-size: 14px; color: #64748B; }
 
 /* Stats */
-.stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; margin-bottom: 28px; }
+.stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 28px; }
 
-.stat-card { display: flex; align-items: center; gap: 16px; padding: 20px; background: white; border-radius: 14px; cursor: pointer; transition: all 0.2s; border: 2px solid transparent; }
-.stat-card:hover { border-color: #CBD5E1; }
-.stat-card.active { border-color: #0A4568; box-shadow: 0 4px 12px rgba(10,69,104,0.15); }
+.stat-card { 
+  display: flex; 
+  align-items: center; 
+  gap: 16px; 
+  padding: 20px 24px; 
+  background: white; 
+  border-radius: 16px; 
+  cursor: pointer; 
+  transition: all 0.25s ease; 
+  border: 2px solid transparent; 
+  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+}
+.stat-card:hover { 
+  transform: translateY(-2px); 
+  box-shadow: 0 6px 20px rgba(0,0,0,0.08); 
+}
+.stat-card.active { 
+  border-color: #0A4568; 
+  box-shadow: 0 6px 20px rgba(10,69,104,0.15); 
+  background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+}
 
-.stat-icon { width: 50px; height: 50px; border-radius: 12px; display: flex; align-items: center; justify-content: center; }
-.stat-icon svg { width: 24px; height: 24px; }
-.stat-icon.blue { background: #DBEAFE; color: #3B82F6; }
-.stat-icon.yellow { background: #FEF3C7; color: #D97706; }
-.stat-icon.green { background: #D1FAE5; color: #059669; }
-.stat-icon.red { background: #FEE2E2; color: #DC2626; }
+.stat-icon { 
+  width: 56px; 
+  height: 56px; 
+  border-radius: 14px; 
+  display: flex; 
+  align-items: center; 
+  justify-content: center;
+  flex-shrink: 0;
+}
+.stat-icon svg { width: 26px; height: 26px; }
+.stat-icon.blue { background: #F1F5F9; color: #0D5782; }
+.stat-icon.yellow { background: #F1F5F9; color: #0D5782; }
+.stat-icon.green { background: #F1F5F9; color: #0D5782; }
+.stat-icon.red { background: #F1F5F9; color: #0D5782; }
 
-.stat-value { font-size: 28px; font-weight: 700; color: #1E293B; }
-.stat-label { font-size: 13px; color: #64748B; }
+.stat-info { display: flex; flex-direction: column; gap: 2px; }
+.stat-value { font-size: 32px; font-weight: 800; color: #0F172A; line-height: 1; }
+.stat-label { font-size: 13px; color: #64748B; font-weight: 500; }
 
 /* Content Card */
 .content-card { background: white; border-radius: 16px; overflow: hidden; }

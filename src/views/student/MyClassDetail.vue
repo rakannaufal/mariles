@@ -37,14 +37,39 @@ const reportCardLoaded = ref(false)
 const activeTab = ref('jadwal')
 const tabsLoading = ref(false)
 
-const tabs = [
-  { id: 'jadwal', label: 'Jadwal', icon: 'calendar' },
-  { id: 'modul', label: 'Modul', icon: 'book' },
-  { id: 'video', label: 'Video', icon: 'play' },
-  { id: 'nilai', label: 'Nilai', icon: 'star' },
-  { id: 'quiz', label: 'Quiz', icon: 'question' },
-  { id: 'latihan', label: 'Latihan', icon: 'edit' }
-]
+// Check if class is Online (has materials) vs Offline (jadwal + nilai only)
+// Priority: program.class_type (new) → les_place.type (fallback)
+const isOnlineClass = computed(() => {
+  const p = currentCourse.value?.program
+  
+  // Use program.class_type if available (new system)
+  if (p?.class_type) {
+    return p.class_type === 'online'
+  }
+  
+  // Fallback to les_place.type for older programs
+  const type = p?.les_place?.type || p?.type
+  return type && ['Online', 'online', 'Hybrid', 'hybrid'].includes(type)
+})
+
+// Dynamic tabs based on class type
+const tabs = computed(() => {
+  const allTabs = [
+    { id: 'jadwal', label: 'Jadwal', icon: 'calendar' },
+    { id: 'modul', label: 'Modul', icon: 'book' },
+    { id: 'video', label: 'Video', icon: 'play' },
+    { id: 'nilai', label: 'Nilai', icon: 'star' },
+    { id: 'quiz', label: 'Quiz', icon: 'question' },
+    { id: 'latihan', label: 'Latihan', icon: 'edit' }
+  ]
+  
+  // For Offline classes, only show Jadwal and Nilai
+  if (!isOnlineClass.value) {
+    return allTabs.filter(t => ['jadwal', 'nilai'].includes(t.id))
+  }
+  
+  return allTabs
+})
 
 // Include all document types (module, PDF, document, etc.)
 const modules = computed(() => materials.value.filter(m => 

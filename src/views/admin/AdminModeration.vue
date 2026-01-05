@@ -484,10 +484,10 @@ const filteredReports = computed(() => {
 .stat-card { background: white; border-radius: 16px; padding: 24px; display: flex; align-items: flex-start; gap: 16px; border: 1px solid #E2E8F0; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); }
 .stat-icon-box { width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .stat-icon-box svg { width: 24px; height: 24px; }
-.stat-icon-box.blue { background: #EFF6FF; color: #3B82F6; }
-.stat-icon-box.red { background: #FEF2F2; color: #EF4444; }
-.stat-icon-box.orange { background: #FFF7ED; color: #F97316; }
-.stat-icon-box.green { background: #ECFDF5; color: #10B981; }
+.stat-icon-box.blue { background: #F1F5F9; color: #0D5782; }
+.stat-icon-box.red { background: #F1F5F9; color: #0D5782; }
+.stat-icon-box.orange { background: #F1F5F9; color: #0D5782; }
+.stat-icon-box.green { background: #F1F5F9; color: #0D5782; }
 
 .stat-info { display: flex; flex-direction: column; }
 .stat-label { font-size: 13px; font-weight: 600; color: #64748B; margin-bottom: 4px; text-transform: uppercase; }

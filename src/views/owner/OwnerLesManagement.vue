@@ -25,7 +25,7 @@ const form = ref({
   photos: [],
   facilities: [],
   highlights: [],
-  max_students: 50,
+  highlights: [],
   is_active: true
 })
 
@@ -207,7 +207,6 @@ async function fetchOwnerAndLesPlace() {
         photos: lesData.photos || [],
         facilities: lesData.facilities || [],
         highlights: lesData.highlights || [],
-        max_students: lesData.max_students || 50,
         is_active: lesData.is_active !== false
       }
       
@@ -280,6 +279,14 @@ async function handlePhotoUpload(event) {
   if (!file) return
   
   uploadError.value = ''
+  
+  // Validate max photos (5)
+  const MAX_PHOTOS = 5
+  if (form.value.photos.length >= MAX_PHOTOS) {
+    uploadError.value = `Maksimal ${MAX_PHOTOS} foto. Hapus foto yang ada untuk menambahkan yang baru.`
+    if (photoInput.value) photoInput.value.value = ''
+    return
+  }
   
   // Validate file type
   if (!ALLOWED_TYPES.includes(file.type)) {
@@ -482,10 +489,6 @@ const activePrograms = computed(() => lesPlace.value?.programs?.filter(p => p.is
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
             Keunggulan
           </button>
-          <button :class="{ active: activeTab === 'settings' }" @click="activeTab = 'settings'">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-            Pengaturan
-          </button>
         </div>
 
         <!-- Tab Content -->
@@ -606,18 +609,34 @@ const activePrograms = computed(() => lesPlace.value?.programs?.filter(p => p.is
               </div>
 
               <!-- Upload Section -->
-              <div class="upload-section">
+              <div class="upload-section" :class="{ disabled: form.photos.length >= 5 }">
+                <div class="photo-counter">
+                  <span :class="{ 'max-reached': form.photos.length >= 5 }">{{ form.photos.length }}/5 foto</span>
+                </div>
                 <input 
                   ref="photoInput"
                   type="file" 
                   accept="image/jpeg,image/png,image/webp"
                   class="file-input-hidden"
                   @change="handlePhotoUpload"
+                  :disabled="form.photos.length >= 5"
                 >
-                <div class="upload-box" @click="triggerPhotoUpload" :class="{ uploading: uploadingPhoto }">
+                <div 
+                  class="upload-box" 
+                  @click="form.photos.length < 5 && triggerPhotoUpload()" 
+                  :class="{ uploading: uploadingPhoto, disabled: form.photos.length >= 5 }"
+                >
                   <div v-if="uploadingPhoto" class="upload-progress">
                     <div class="loading-spinner"></div>
                     <span>Mengupload foto...</span>
+                  </div>
+                  <div v-else-if="form.photos.length >= 5" class="upload-placeholder max-reached">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                      <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                      <polyline points="22 4 12 14.01 9 11.01"/>
+                    </svg>
+                    <span class="upload-text">Maksimal 5 foto tercapai</span>
+                    <span class="upload-hint">Hapus foto yang ada untuk menambahkan yang baru</span>
                   </div>
                   <div v-else class="upload-placeholder">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
@@ -717,48 +736,6 @@ const activePrograms = computed(() => lesPlace.value?.programs?.filter(p => p.is
                   </button>
                 </div>
               </div>
-            </div>
-          </div>
-
-          <!-- Settings Tab -->
-          <div v-if="activeTab === 'settings'" class="tab-pane">
-            <div class="section-card">
-              <h3 class="section-title">Pengaturan Kapasitas</h3>
-              
-              <div class="form-group">
-                <label class="form-label">Maksimal Siswa yang Diterima</label>
-                <input v-model.number="form.max_students" type="number" class="form-input" min="1" max="1000" style="max-width: 200px;">
-                <span class="form-hint">Jumlah maksimal siswa yang dapat diterima oleh tempat les Anda</span>
-              </div>
-            </div>
-
-            <div class="section-card">
-              <h3 class="section-title">Status Tempat Les</h3>
-              
-              <div class="toggle-setting">
-                <div class="toggle-info">
-                  <strong>Tempat Les Aktif</strong>
-                  <p>Jika dinonaktifkan, tempat les tidak akan muncul di pencarian dan tidak dapat menerima pendaftaran baru.</p>
-                </div>
-                <label class="toggle-switch">
-                  <input type="checkbox" v-model="form.is_active">
-                  <span class="toggle-slider"></span>
-                </label>
-              </div>
-            </div>
-
-            <div class="section-card danger-zone">
-              <h3 class="section-title">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="danger-icon"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-                Zona Berbahaya
-              </h3>
-              <p class="section-desc">Tindakan di bawah ini bersifat permanen dan tidak dapat dibatalkan.</p>
-              
-              <button class="btn btn-danger" disabled>
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="btn-icon"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
-                Hapus Tempat Les
-              </button>
-              <span class="form-hint">Hubungi admin untuk menghapus tempat les Anda.</span>
             </div>
           </div>
         </div>
@@ -923,6 +900,15 @@ const activePrograms = computed(() => lesPlace.value?.programs?.filter(p => p.is
 .danger-zone .section-title{color:#dc2626}
 .btn-danger{background:#dc2626;color:white;border:none;padding:var(--spacing-sm) var(--spacing-lg);border-radius:var(--radius-lg);cursor:pointer}
 .btn-danger:disabled{opacity:0.5;cursor:not-allowed}
+
+/* Photo Counter */
+.photo-counter{margin-bottom:var(--spacing-sm);text-align:right}
+.photo-counter span{font-size:var(--font-size-sm);color:var(--text-secondary);font-weight:500}
+.photo-counter span.max-reached{color:#dc2626;font-weight:600}
+.upload-box.disabled{opacity:0.6;cursor:not-allowed;border-color:var(--border)}
+.upload-box.disabled:hover{border-color:var(--border);background:var(--background)}
+.upload-placeholder.max-reached{color:#059669}
+.upload-placeholder.max-reached svg{color:#059669}
 
 /* Responsive */
 @media(max-width:1024px){

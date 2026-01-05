@@ -127,6 +127,13 @@ async function viewDetails(place) {
 }
 
 async function verifyPlace(place) {
+  // Check if profile is 100% complete using helper
+  const completion = getProfileCompletion(place)
+  if (completion < 100) {
+    toast(`Profil pemilik belum lengkap (${completion}%). Harus 100% untuk verifikasi.`, 'error')
+    return
+  }
+  
   try {
     await supabase.from('les_places').update({ 
       verification_status: 'verified',
@@ -321,6 +328,73 @@ function getOwnerEmail(place) {
   // View menggunakan struktur flat: owner_email langsung
   return place?.owner_email || '-'
 }
+
+// Helper to translate old abbreviated business type to full label
+function getBusinessTypeLabel(value) {
+  if (!value) return '❌ Belum diisi'
+  
+  // Map old abbreviated values to full labels
+  const legacyMap = {
+    'bimbel': 'Bimbingan Belajar',
+    'kursus': 'Kursus/Lembaga Pelatihan',
+    'privat': 'Les Privat',
+    'online': 'Kursus Online',
+    'lainnya': 'Lainnya'
+  }
+  
+  // Return mapped value if exists, otherwise return original value
+  return legacyMap[value.toLowerCase()] || value
+}
+
+// Calculate profile completion for owner - matches OwnerProfile.vue
+function getProfileCompletion(place) {
+  // All required fields from Owner Profile (4 tabs: Identitas, Bisnis, Alamat, Keuangan)
+  // Uses owner fields from updated view, fallback to les_places fields where applicable
+  let filled = 0
+  const total = 9 // Total required fields
+  
+  // Identitas (3 fields)
+  if (place?.owner_name) filled++
+  if (place?.owner_phone) filled++
+  if (place?.nik) filled++
+  
+  // Bisnis (2 fields)
+  if (place?.business_name) filled++
+  if (place?.business_type) filled++
+  
+  // Alamat (3 fields) - use owner fields OR fallback to les_places
+  if (place?.owner_province_name || place?.province) filled++
+  if (place?.owner_city_name || place?.city) filled++
+  if (place?.address) filled++
+  
+  // Keuangan (1 field) - bank OR ewallet
+  const hasBank = place?.bank_name && place?.bank_account
+  const hasEwallet = place?.ewallet_type && place?.ewallet_number
+  if (hasBank || hasEwallet) filled++
+  
+  return Math.round((filled / total) * 100)
+}
+
+// Get missing fields for display
+function getMissingFields(place) {
+  const result = [
+    // Identitas
+    { key: 'owner_name', label: 'Nama', category: 'Identitas', filled: !!place?.owner_name },
+    { key: 'owner_phone', label: 'Telepon', category: 'Identitas', filled: !!place?.owner_phone },
+    { key: 'nik', label: 'NIK', category: 'Identitas', filled: !!place?.nik },
+    // Bisnis
+    { key: 'business_name', label: 'Nama Usaha', category: 'Bisnis', filled: !!place?.business_name },
+    { key: 'business_type', label: 'Jenis Usaha', category: 'Bisnis', filled: !!place?.business_type },
+    // Alamat - check owner fields OR les_places fallback
+    { key: 'province', label: 'Provinsi', category: 'Alamat', filled: !!(place?.owner_province_name || place?.province) },
+    { key: 'city', label: 'Kota', category: 'Alamat', filled: !!(place?.owner_city_name || place?.city) },
+    { key: 'address', label: 'Alamat', category: 'Alamat', filled: !!place?.address },
+    // Keuangan
+    { key: 'payment', label: 'Pembayaran', category: 'Keuangan', filled: !!(place?.bank_name && place?.bank_account) || !!(place?.ewallet_type && place?.ewallet_number) }
+  ]
+  
+  return result
+}
 </script>
 
 <template>
@@ -485,7 +559,9 @@ function getOwnerEmail(place) {
                     <div class="action-buttons">
                       <button class="btn-action view" @click="viewDetails(place)" title="Lihat Detail">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
+                          <circle cx="12" cy="12" r="10"/>
+                          <line x1="12" y1="16" x2="12" y2="12"/>
+                          <line x1="12" y1="8" x2="12.01" y2="8"/>
                         </svg>
                       </button>
                       <!-- Only show verify if pending or rejected -->
@@ -591,34 +667,133 @@ function getOwnerEmail(place) {
                   <span class="value">{{ placeDetails.is_private ? 'Pribadi' : 'Umum' }} - {{ placeDetails.type || '-' }}</span>
                 </div>
                 <div class="detail-item">
+                  <span class="label">Jenis Usaha</span>
+                  <span class="value highlight">{{ getBusinessTypeLabel(placeDetails.business_type) }}</span>
+                </div>
+                <div class="detail-item">
                   <span class="label">Terdaftar</span>
                   <span class="value">{{ formatDate(placeDetails.created_at) }}</span>
                 </div>
               </div>
 
-              <div class="section-title">Informasi Pemilik</div>
+              <div class="section-title">Informasi Pemilik - Identitas</div>
               <div class="detail-grid">
                 <div class="detail-item">
-                  <span class="label">Nama Pemilik</span>
+                  <span class="label">Nama Lengkap</span>
                   <span class="value highlight">{{ placeDetails.owner_name || '-' }}</span>
                 </div>
                 <div class="detail-item">
-                  <span class="label">Email Pemilik</span>
+                  <span class="label">Email</span>
                   <span class="value highlight">{{ placeDetails.owner_email || '-' }}</span>
                 </div>
                 <div class="detail-item">
-                  <span class="label">Telepon Pemilik</span>
-                  <span class="value">{{ placeDetails.owner_phone || '-' }}</span>
+                  <span class="label">Telepon</span>
+                  <span class="value" :class="{ 'missing': !placeDetails.owner_phone }">{{ placeDetails.owner_phone || '❌ Belum diisi' }}</span>
                 </div>
                 <div class="detail-item">
-                  <span class="label">Nama Bisnis</span>
-                  <span class="value">{{ placeDetails.business_name || '-' }}</span>
+                  <span class="label">NIK</span>
+                  <span class="value" :class="{ 'missing': !placeDetails.nik }">{{ placeDetails.nik || '❌ Belum diisi' }}</span>
                 </div>
+              </div>
+
+              <div class="section-title">Informasi Pemilik - Bisnis</div>
+              <div class="detail-grid">
+                <div class="detail-item">
+                  <span class="label">Nama Usaha</span>
+                  <span class="value" :class="{ 'missing': !placeDetails.business_name }">{{ placeDetails.business_name || '❌ Belum diisi' }}</span>
+                </div>
+                <div class="detail-item">
+                  <span class="label">Jenis Usaha</span>
+                  <span class="value" :class="{ 'missing': !placeDetails.business_type }">{{ getBusinessTypeLabel(placeDetails.business_type) }}</span>
+                </div>
+                <div class="detail-item">
+                  <span class="label">NPWP</span>
+                  <span class="value">{{ placeDetails.npwp || '-' }} <small>(Opsional)</small></span>
+                </div>
+              </div>
+
+              <div class="section-title">Informasi Pemilik - Alamat</div>
+              <div class="detail-grid">
+                <div class="detail-item">
+                  <span class="label">Provinsi</span>
+                  <span class="value" :class="{ 'missing': !placeDetails.owner_province_name && !placeDetails.province }">{{ placeDetails.owner_province_name || placeDetails.province || '❌ Belum diisi' }}</span>
+                </div>
+                <div class="detail-item">
+                  <span class="label">Kota</span>
+                  <span class="value" :class="{ 'missing': !placeDetails.owner_city_name && !placeDetails.city }">{{ placeDetails.owner_city_name || placeDetails.city || '❌ Belum diisi' }}</span>
+                </div>
+                <div class="detail-item full-width">
+                  <span class="label">Alamat Lengkap</span>
+                  <span class="value" :class="{ 'missing': !placeDetails.address }">{{ placeDetails.address || '❌ Belum diisi' }}</span>
+                </div>
+              </div>
+
+              <div class="section-title">Informasi Pemilik - Keuangan</div>
+              <div class="detail-grid">
+                <div class="detail-item">
+                  <span class="label">Metode Pembayaran</span>
+                  <span class="value">{{ placeDetails.payment_type === 'ewallet' ? 'E-Wallet' : 'Transfer Bank' }}</span>
+                </div>
+                <template v-if="placeDetails.payment_type === 'bank' || !placeDetails.payment_type">
+                  <div class="detail-item">
+                    <span class="label">Nama Bank</span>
+                    <span class="value" :class="{ 'missing': !placeDetails.bank_name }">{{ placeDetails.bank_name || '❌ Belum diisi' }}</span>
+                  </div>
+                  <div class="detail-item">
+                    <span class="label">Nomor Rekening</span>
+                    <span class="value" :class="{ 'missing': !placeDetails.bank_account }">{{ placeDetails.bank_account || '❌ Belum diisi' }}</span>
+                  </div>
+                  <div class="detail-item">
+                    <span class="label">Nama Pemilik Rekening</span>
+                    <span class="value">{{ placeDetails.bank_holder || '-' }}</span>
+                  </div>
+                </template>
+                <template v-else>
+                  <div class="detail-item">
+                    <span class="label">Jenis E-Wallet</span>
+                    <span class="value" :class="{ 'missing': !placeDetails.ewallet_type }">{{ placeDetails.ewallet_type || '❌ Belum diisi' }}</span>
+                  </div>
+                  <div class="detail-item">
+                    <span class="label">Nomor E-Wallet</span>
+                    <span class="value" :class="{ 'missing': !placeDetails.ewallet_number }">{{ placeDetails.ewallet_number || '❌ Belum diisi' }}</span>
+                  </div>
+                </template>
+              </div>
+              
+              <!-- Profile Completion Section -->
+              <div class="section-title">Kelengkapan Profil</div>
+              <div class="completion-section">
+                <div class="completion-bar">
+                  <div class="completion-fill" :style="{ width: getProfileCompletion(placeDetails) + '%' }"></div>
+                  <span class="completion-text">{{ getProfileCompletion(placeDetails) }}%</span>
+                </div>
+                <div class="completion-items">
+                  <div 
+                    v-for="field in getMissingFields(placeDetails)" 
+                    :key="field.key" 
+                    class="comp-item" 
+                    :class="{ filled: field.filled }"
+                    :title="field.category"
+                  >
+                    <svg v-if="field.filled" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+                    <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                    {{ field.label }}
+                  </div>
+                </div>
+                <p v-if="getProfileCompletion(placeDetails) < 100" class="completion-warning">
+                  ⚠️ Profil harus lengkap 100% sebelum dapat diverifikasi
+                </p>
               </div>
             </div>
             <div class="modal-footer">
               <button class="btn-secondary" @click="showModal = false">Tutup</button>
-              <button v-if="placeDetails && placeDetails.verification_status !== 'verified'" class="btn-success" @click="verifyPlace(placeDetails)">
+              <button 
+                v-if="placeDetails && placeDetails.verification_status !== 'verified'" 
+                class="btn-success" 
+                :disabled="getProfileCompletion(placeDetails) < 100"
+                :title="getProfileCompletion(placeDetails) < 100 ? 'Profil harus 100% lengkap' : 'Verifikasi tempat les'"
+                @click="verifyPlace(placeDetails)"
+              >
                 Verifikasi
               </button>
               <button v-if="placeDetails && placeDetails.verification_status !== 'rejected'" class="btn-warning" @click="openRejectModal(placeDetails)">
@@ -673,10 +848,10 @@ function getOwnerEmail(place) {
 .stat-mini.active { border-color: #0A4568; background: #F0F9FF; }
 .stat-icon-box { width: 44px; height: 44px; border-radius: 12px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .stat-icon-box svg { width: 22px; height: 22px; }
-.stat-icon-box.blue { background: #DBEAFE; color: #3B82F6; }
-.stat-icon-box.green { background: #D1FAE5; color: #10B981; }
-.stat-icon-box.orange { background: #FEF3C7; color: #F59E0B; }
-.stat-icon-box.purple { background: #EDE9FE; color: #8B5CF6; }
+.stat-icon-box.blue { background: #F1F5F9; color: #0D5782; }
+.stat-icon-box.green { background: #F1F5F9; color: #0D5782; }
+.stat-icon-box.orange { background: #F1F5F9; color: #0D5782; }
+.stat-icon-box.purple { background: #F1F5F9; color: #0D5782; }
 .stat-info { display: flex; flex-direction: column; }
 .stat-value { font-size: 22px; font-weight: 700; color: #1E293B; }
 .stat-label { font-size: 13px; color: #64748B; }
@@ -725,6 +900,8 @@ function getOwnerEmail(place) {
 .btn-action.view:hover { background: #BFDBFE; }
 .btn-action.verify { background: #D1FAE5; color: #059669; }
 .btn-action.verify:hover { background: #A7F3D0; }
+.btn-action.hide { background: #FEF3C7; color: #D97706; }
+.btn-action.hide:hover { background: #FDE68A; }
 .btn-action.delete { background: #FEE2E2; color: #DC2626; }
 .btn-action.delete:hover { background: #FECACA; }
 
@@ -764,6 +941,8 @@ function getOwnerEmail(place) {
 .detail-item .label { font-size: 12px; color: #94A3B8; }
 .detail-item .value { font-size: 14px; font-weight: 500; color: #1E293B; }
 .detail-item .value.highlight { color: #0A4568; font-weight: 600; }
+.detail-item .value.missing { color: #DC2626; font-weight: 500; }
+.detail-item.full-width { grid-column: 1 / -1; }
 
 .programs-section { margin-top: 24px; }
 .programs-list { display: flex; flex-direction: column; gap: 8px; }
@@ -773,11 +952,23 @@ function getOwnerEmail(place) {
 .btn-secondary { padding: 10px 20px; background: #F1F5F9; color: #475569; border: none; border-radius: 10px; font-weight: 600; cursor: pointer; transition: background 0.2s; }
 .btn-secondary:hover { background: #E2E8F0; }
 .btn-success { padding: 10px 20px; background: #10B981; color: white; border: none; border-radius: 10px; font-weight: 600; cursor: pointer; }
-.btn-success:hover { background: #059669; }
+.btn-success:hover:not(:disabled) { background: #059669; }
+.btn-success:disabled { background: #9CA3AF; cursor: not-allowed; opacity: 0.7; }
 .btn-warning { padding: 10px 20px; background: #F59E0B; color: white; border: none; border-radius: 10px; font-weight: 600; cursor: pointer; }
 .btn-warning:hover { background: #D97706; }
 .btn-danger { padding: 10px 20px; background: #DC2626; color: white; border: none; border-radius: 10px; font-weight: 600; cursor: pointer; }
 .btn-danger:hover { background: #B91C1C; }
+
+/* Completion Section */
+.completion-section { margin-bottom: 20px; }
+.completion-bar { position: relative; height: 24px; background: #E2E8F0; border-radius: 12px; overflow: hidden; margin-bottom: 16px; }
+.completion-fill { height: 100%; background: linear-gradient(90deg, #10B981, #059669); border-radius: 12px; transition: width 0.3s ease; }
+.completion-text { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); font-size: 12px; font-weight: 700; color: #ffffff; }
+.completion-items { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.comp-item { display: flex; align-items: center; gap: 6px; padding: 8px 12px; border-radius: 8px; font-size: 12px; font-weight: 500; background: #FEE2E2; color: #DC2626; }
+.comp-item.filled { background: #D1FAE5; color: #059669; }
+.comp-item svg { width: 14px; height: 14px; flex-shrink: 0; }
+.completion-warning { margin-top: 12px; padding: 10px 14px; background: #FEF3C7; border-radius: 8px; font-size: 13px; color: #92400E; border: 1px solid #FDE68A; }
 
 /* Toast */
 .toast { position: fixed; top: 20px; right: 20px; padding: 14px 24px; border-radius: 10px; font-weight: 500; z-index: 200; box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
@@ -795,9 +986,9 @@ function getOwnerEmail(place) {
 .form-textarea { width: 100%; padding: 12px; border: 2px solid #E2E8F0; border-radius: 10px; font-size: 14px; resize: vertical; font-family: inherit; }
 .form-textarea:focus { outline: none; border-color: #0A4568; }
 .modal.small { max-width: 480px; }
-.stat-icon-box.red { background: #FEE2E2; color: #DC2626; }
-.stat-icon-box.gray { background: #E2E8F0; color: #64748B; }
-.stat-icon-box.teal { background: #CCFBF1; color: #14B8A6; }
+.stat-icon-box.red { background: #F1F5F9; color: #0D5782; }
+.stat-icon-box.gray { background: #F1F5F9; color: #0D5782; }
+.stat-icon-box.teal { background: #F1F5F9; color: #0D5782; }
 
 /* Hide button styles */
 .btn-action.hide { background: #E2E8F0; color: #64748B; }

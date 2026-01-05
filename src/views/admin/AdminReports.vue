@@ -471,10 +471,10 @@ const filteredWithdrawals = computed(() => {
 
 .stat-icon-box { width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .stat-icon-box svg { width: 24px; height: 24px; }
-.stat-icon-box.green { background: #ECFDF5; color: #10B981; }
-.stat-icon-box.blue { background: #EFF6FF; color: #3B82F6; }
-.stat-icon-box.orange { background: #FFF7ED; color: #F97316; }
-.stat-icon-box.purple { background: #F5F3FF; color: #8B5CF6; }
+.stat-icon-box.green { background: #F1F5F9; color: #0D5782; }
+.stat-icon-box.blue { background: #F1F5F9; color: #0D5782; }
+.stat-icon-box.orange { background: #F1F5F9; color: #0D5782; }
+.stat-icon-box.purple { background: #F1F5F9; color: #0D5782; }
 
 .stat-info { display: flex; flex-direction: column; }
 .stat-label { font-size: 13px; font-weight: 600; color: #64748B; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px; }

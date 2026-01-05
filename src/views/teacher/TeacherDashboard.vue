@@ -639,12 +639,13 @@ const currentDate = computed(() => {
   display: flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
 }
 
-.stat-card.primary .stat-icon { background: #e0f2fe; color: #0d5782; }
-.stat-card.success .stat-icon { background: #dcfce7; color: #22c55e; }
-.stat-card.warning .stat-icon { background: #fef3c7; color: #f59e0b; }
-.stat-card.info .stat-icon { background: #ede9fe; color: #8b5cf6; }
+.stat-card.primary .stat-icon { background: #F1F5F9; color: #0D5782; }
+.stat-card.success .stat-icon { background: #F1F5F9; color: #0D5782; }
+.stat-card.warning .stat-icon { background: #F1F5F9; color: #0D5782; }
+.stat-card.info .stat-icon { background: #F1F5F9; color: #0D5782; }
 
 .stat-icon svg { width: 28px; height: 28px; }
 

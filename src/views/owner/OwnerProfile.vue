@@ -47,12 +47,18 @@ const loadingLesPlaces = ref(false)
 const generatingCode = ref(null)
 const togglingActive = ref(false)
 
-// Computed: Completion Percentage
+// Computed: Completion Percentage - must match AdminLesPlaces.vue
 const completionPercent = computed(() => {
+  // 9 fields matching Admin: nama, phone, nik, nama usaha, jenis usaha, provinsi, kota, alamat, pembayaran
   const baseFields = [
-    profile.value.name, profile.value.phone, profile.value.nik,
-    profile.value.company_name, profile.value.business_type,
-    profile.value.address, profile.value.province_id
+    profile.value.name, 
+    profile.value.phone, 
+    profile.value.nik,
+    profile.value.company_name, 
+    profile.value.business_type,
+    profile.value.province_id,
+    profile.value.city_id,
+    profile.value.address
   ]
   
   // Check payment method based on selected type
@@ -74,14 +80,15 @@ const genderOptions = [
 
 const businessTypeOptions = [
   { value: '', label: 'Pilih jenis usaha' },
-  { value: 'bimbel', label: 'Bimbingan Belajar' },
-  { value: 'kursus', label: 'Kursus/Lembaga Pelatihan' },
-  { value: 'privat', label: 'Les Privat' },
-  { value: 'online', label: 'Kursus Online' },
-  { value: 'lainnya', label: 'Lainnya' }
+  { value: 'Bimbingan Belajar', label: 'Bimbingan Belajar' },
+  { value: 'Kursus/Lembaga Pelatihan', label: 'Kursus/Lembaga Pelatihan' },
+  { value: 'Les Privat', label: 'Les Privat' },
+  { value: 'Kursus Online', label: 'Kursus Online' },
+  { value: 'Lainnya', label: 'Lainnya' }
 ]
 
 const bankOptions = [
+  { value: '', label: 'Pilih Bank' },
   { value: 'BCA', label: 'BCA' }, { value: 'BNI', label: 'BNI' }, { value: 'BRI', label: 'BRI' },
   { value: 'Mandiri', label: 'Mandiri' }, { value: 'CIMB', label: 'CIMB Niaga' },
   { value: 'BSI', label: 'Bank Syariah Indonesia' }, { value: 'Permata', label: 'Permata' },
@@ -89,6 +96,7 @@ const bankOptions = [
 ]
 
 const ewalletOptions = [
+  { value: '', label: 'Pilih E-Wallet' },
   { value: 'OVO', label: 'OVO' }, { value: 'GoPay', label: 'GoPay' },
   { value: 'DANA', label: 'DANA' }, { value: 'ShopeePay', label: 'ShopeePay' }, { value: 'LinkAja', label: 'LinkAja' }
 ]
@@ -122,6 +130,14 @@ async function fetchProfile() {
   try {
     const { data: userData } = await supabase.from('users').select('*').eq('id', authStore.user.id).single()
     const { data: ownerData } = await supabase.from('owners').select('*').eq('user_id', authStore.user.id).single()
+    
+    // Also fetch first les_place for address fallback
+    const { data: lesPlaceData } = await supabase
+      .from('les_places_with_owner')
+      .select('address, city, province')
+      .eq('owner_email', authStore.user.email)
+      .limit(1)
+      .single()
     
     if (userData) {
       Object.assign(profile.value, {
@@ -168,6 +184,41 @@ async function fetchProfile() {
       }
       
       if (ownerData.province_id) await fetchCities(ownerData.province_id)
+    }
+    
+    // PRE-FILL from les_places registration if owner profile is empty
+    if (lesPlaceData) {
+      // Alamat dari les_places jika owner belum diisi
+      if (!profile.value.address && lesPlaceData.address) {
+        profile.value.address = lesPlaceData.address
+      }
+      
+      // Auto-select province from les_places by matching name
+      if (!profile.value.province_id && lesPlaceData.province) {
+        // Find matching province ID from loaded provinces list
+        const matchedProvince = provinces.value.find(p => 
+          p.name.toUpperCase().includes(lesPlaceData.province.toUpperCase()) ||
+          lesPlaceData.province.toUpperCase().includes(p.name.toUpperCase())
+        )
+        if (matchedProvince) {
+          profile.value.province_id = matchedProvince.id
+          profile.value.province_name = matchedProvince.name
+          // Fetch cities for this province
+          await fetchCities(matchedProvince.id)
+          
+          // Auto-select city from les_places by matching name
+          if (!profile.value.city_id && lesPlaceData.city) {
+            const matchedCity = cities.value.find(c => 
+              c.name.toUpperCase().includes(lesPlaceData.city.toUpperCase()) ||
+              lesPlaceData.city.toUpperCase().includes(c.name.toUpperCase())
+            )
+            if (matchedCity) {
+              profile.value.city_id = matchedCity.id
+              profile.value.city_name = matchedCity.name
+            }
+          }
+        }
+      }
     }
   } catch (err) { console.error('Error profile:', err) }
   finally { loading.value = false }
@@ -695,6 +746,13 @@ async function handleSave() {
 .input-field { padding: 12px 14px; border: 1px solid #cbd5e1; border-radius: 10px; font-size: 14px; transition: border-color 0.2s; background: #fff; }
 .input-field:focus { outline: none; border-color: #0284c7; box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.1); }
 .input-field:disabled { background: #f1f5f9; color: #94a3b8; cursor: not-allowed; }
+
+/* Info Box & Hints */
+.info-box { display: flex; align-items: flex-start; gap: 12px; padding: 14px 16px; background: #DBEAFE; border: 1px solid #93C5FD; border-radius: 10px; margin-bottom: 16px; }
+.info-box svg { width: 20px; height: 20px; color: #2563EB; flex-shrink: 0; margin-top: 2px; }
+.info-box strong { color: #1E40AF; }
+.info-box small { color: #3B82F6; }
+.field-hint { color: #0D5782; font-size: 12px; margin-top: 4px; font-style: italic; }
 
 /* Finance Cards */
 .finance-grid { display: grid; grid-template-columns: 1fr 1px 1fr; gap: 32px; }

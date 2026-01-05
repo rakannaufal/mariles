@@ -586,10 +586,10 @@ onMounted(async () => {
 
 .stat-icon svg { width: 22px; height: 22px; }
 
-.stat-icon.blue { background: #dbeafe; color: #2563eb; }
-.stat-icon.green { background: #dcfce7; color: #16a34a; }
-.stat-icon.orange { background: #fed7aa; color: #ea580c; }
-.stat-icon.purple { background: #f3e8ff; color: #9333ea; }
+.stat-icon.blue { background: #F1F5F9; color: #0D5782; }
+.stat-icon.green { background: #F1F5F9; color: #0D5782; }
+.stat-icon.orange { background: #F1F5F9; color: #0D5782; }
+.stat-icon.purple { background: #F1F5F9; color: #0D5782; }
 
 .stat-info { display: flex; flex-direction: column; }
 .stat-value { font-size: 28px; font-weight: 700; color: #1e293b; }

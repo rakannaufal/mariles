@@ -54,18 +54,39 @@ onMounted(async () => {
 // Fetch programs for dropdown
 async function fetchPrograms() {
   try {
-    // Get teacher's les_place_id first
-    const { data: teacher } = await supabase
-      .from('teachers')
-      .select('les_place_id')
-      .eq('user_id', authStore.user.id)
-      .single()
+    let lesPlaceId = null
+    
+    if (isOwner.value) {
+      // Owner: get les_place_id from owners table
+      const { data: owner } = await supabase
+        .from('owners')
+        .select('id')
+        .eq('user_id', authStore.user.id)
+        .single()
+      
+      if (owner) {
+        const { data: lesPlace } = await supabase
+          .from('les_places')
+          .select('id')
+          .eq('owner_id', owner.id)
+          .single()
+        lesPlaceId = lesPlace?.id
+      }
+    } else {
+      // Teacher: get les_place_id from teachers table
+      const { data: teacher } = await supabase
+        .from('teachers')
+        .select('les_place_id')
+        .eq('user_id', authStore.user.id)
+        .single()
+      lesPlaceId = teacher?.les_place_id
+    }
 
-    if (teacher?.les_place_id) {
+    if (lesPlaceId) {
       const { data, error } = await supabase
         .from('programs')
         .select('id, name')
-        .eq('les_place_id', teacher.les_place_id)
+        .eq('les_place_id', lesPlaceId)
         .eq('is_active', true)
         .order('name')
 
@@ -162,15 +183,37 @@ async function handleSaveQuiz() {
       })
       showSuccess('Quiz berhasil diperbarui')
     } else {
-      // Get les_place_id from teacher
-      const { data: teacher } = await supabase
-        .from('teachers')
-        .select('les_place_id')
-        .eq('user_id', authStore.user.id)
-        .single()
+      // Get les_place_id based on role
+      let lesPlaceId = null
+      
+      if (isOwner.value) {
+        // Owner: get les_place_id from owners table
+        const { data: owner } = await supabase
+          .from('owners')
+          .select('id')
+          .eq('user_id', authStore.user.id)
+          .single()
+        
+        if (owner) {
+          const { data: lesPlace } = await supabase
+            .from('les_places')
+            .select('id')
+            .eq('owner_id', owner.id)
+            .single()
+          lesPlaceId = lesPlace?.id
+        }
+      } else {
+        // Teacher: get les_place_id from teachers table
+        const { data: teacher } = await supabase
+          .from('teachers')
+          .select('les_place_id')
+          .eq('user_id', authStore.user.id)
+          .single()
+        lesPlaceId = teacher?.les_place_id
+      }
 
       await createQuiz({
-        lesPlaceId: teacher?.les_place_id,
+        lesPlaceId: lesPlaceId,
         programId: quizForm.value.programId || null,
         teacherId: authStore.user.id,
         title: quizForm.value.title,

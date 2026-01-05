@@ -121,6 +121,7 @@ const form = ref({
   level: '',
   category_id: '',
   category_name: '', // untuk custom category
+  class_type: '', // online or offline - auto-set for non-Hybrid, choosable for Hybrid
   duration_months: 0,
   sessions_per_week: 0,
   session_duration_minutes: 0,
@@ -132,6 +133,21 @@ const form = ref({
   price_type: 'package',
   schedule: {},
   is_active: true
+})
+
+// Check if les place is Hybrid (owner needs to choose class_type per program)
+const isHybridLesPlace = computed(() => {
+  const type = lesPlace.value?.type
+  return type && ['Hybrid', 'hybrid'].includes(type)
+})
+
+// Get auto class_type for non-Hybrid les places
+const autoClassType = computed(() => {
+  const type = lesPlace.value?.type
+  if (!type) return 'offline'
+  if (['Online', 'online'].includes(type)) return 'online'
+  if (['Offline', 'offline'].includes(type)) return 'offline'
+  return 'offline' // fallback
 })
 
 // Schedule form
@@ -294,6 +310,7 @@ function openEditModal(program) {
     level: program.level || '',
     category_id: program.category_id || '',
     category_name: catName,
+    class_type: program.class_type || (isHybridLesPlace.value ? '' : autoClassType.value),
     duration_months: program.duration_months || 3,
     sessions_per_week: program.sessions_per_week || 4,
     session_duration_minutes: program.session_duration_minutes || 120,
@@ -328,12 +345,16 @@ function openEditModal(program) {
 }
 
 function resetForm() {
+  // Auto-determine class_type based on les place type
+  const classType = isHybridLesPlace.value ? '' : autoClassType.value
+  
   form.value = {
     name: '',
     description: '',
     level: '',
     category_id: '',
     category_name: '',
+    class_type: classType,
     duration_months: 0,
     sessions_per_week: 0,
     session_duration_minutes: 0,
@@ -418,7 +439,8 @@ async function saveProgram() {
       price: form.value.price,
       price_type: form.value.price_type,
       schedule: buildSchedule(),
-      is_active: form.value.is_active
+      is_active: form.value.is_active,
+      class_type: isHybridLesPlace.value ? form.value.class_type : autoClassType.value
     }
     
     let error
@@ -669,6 +691,25 @@ function getScheduleDays(schedule) {
                 </div>
               </div>
             </div>
+
+            <!-- Class Type for Hybrid Les Places -->
+            <div v-if="isHybridLesPlace" class="form-group">
+              <label class="form-label">Tipe Kelas <span class="required">*</span></label>
+              <select v-model="form.class_type" class="form-input" required>
+                <option value="">Pilih Tipe Kelas</option>
+                <option value="online">Online (Materi, Video, Quiz, Latihan)</option>
+                <option value="offline">Offline (Hanya Jadwal & Nilai)</option>
+              </select>
+              <small class="form-hint">Pilih tipe kelas karena tempat les Anda berjenis Hybrid</small>
+            </div>
+            
+            <!-- Info for non-Hybrid -->
+            <div v-else class="class-type-info">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/>
+              </svg>
+              <span>Tipe kelas: <strong>{{ autoClassType === 'online' ? 'Online' : 'Offline' }}</strong> (sesuai tipe tempat les)</span>
+            </div>
           </div>
 
           <!-- Program Details -->
@@ -898,6 +939,12 @@ function getScheduleDays(schedule) {
 .category-option.custom-option{background:#f0fdf4;color:var(--secondary);font-weight:500;border-top:1px solid var(--border)}
 .category-option.custom-option:hover{background:#dcfce7}
 .custom-icon{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;background:var(--secondary);color:white;border-radius:50%;font-size:12px;margin-right:var(--spacing-xs)}
+
+/* Class Type Info */
+.class-type-info{display:flex;align-items:center;gap:var(--spacing-sm);padding:var(--spacing-sm) var(--spacing-md);background:#e0f2fe;border-radius:var(--radius-md);color:#0369a1;font-size:var(--font-size-sm);margin-bottom:var(--spacing-md)}
+.class-type-info svg{width:18px;height:18px;flex-shrink:0}
+.class-type-info strong{color:#0c4a6e}
+.form-hint{display:block;margin-top:4px;font-size:var(--font-size-xs);color:var(--text-muted)}
 
 /* Responsive */
 @media(max-width:768px){

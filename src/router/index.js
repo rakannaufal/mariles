@@ -300,6 +300,12 @@ const routes = [
     component: () => import('@/views/teacher/TeacherPerformance.vue'), 
     meta: { role: 'owner' } 
   },
+  { 
+    path: '/owner/quiz', 
+    name: 'owner-quiz', 
+    component: () => import('@/views/teacher/TeacherQuiz.vue'), 
+    meta: { role: 'owner' } 
+  },
 
   // Teacher Routes
   { 

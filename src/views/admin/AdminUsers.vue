@@ -441,11 +441,11 @@ function getRoleInfo(role) {
 .stat-mini.active { border-color: #0A4568; background: #F0F9FF; }
 .stat-icon-box { width: 44px; height: 44px; border-radius: 12px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .stat-icon-box svg { width: 22px; height: 22px; }
-.stat-icon-box.blue { background: #DBEAFE; color: #3B82F6; }
-.stat-icon-box.cyan { background: #CFFAFE; color: #0891B2; }
-.stat-icon-box.green { background: #D1FAE5; color: #10B981; }
-.stat-icon-box.orange { background: #FEF3C7; color: #F59E0B; }
-.stat-icon-box.red { background: #FEE2E2; color: #EF4444; }
+.stat-icon-box.blue { background: #F1F5F9; color: #0D5782; }
+.stat-icon-box.cyan { background: #F1F5F9; color: #0D5782; }
+.stat-icon-box.green { background: #F1F5F9; color: #0D5782; }
+.stat-icon-box.orange { background: #F1F5F9; color: #0D5782; }
+.stat-icon-box.red { background: #F1F5F9; color: #0D5782; }
 .stat-info { display: flex; flex-direction: column; }
 .stat-value { font-size: 20px; font-weight: 700; color: #1E293B; }
 .stat-label { font-size: 12px; color: #64748B; }

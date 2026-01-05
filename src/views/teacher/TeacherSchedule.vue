@@ -806,10 +806,10 @@ onMounted(async () => {
 
 .stat-icon svg { width: 24px; height: 24px; }
 
-.stat-card.blue .stat-icon { background: #e0f2fe; color: #0284c7; }
-.stat-card.green .stat-icon { background: #dcfce7; color: #16a34a; }
-.stat-card.purple .stat-icon { background: #f3e8ff; color: #9333ea; }
-.stat-card.orange .stat-icon { background: #ffedd5; color: #ea580c; }
+.stat-card.blue .stat-icon { background: #F1F5F9; color: #0D5782; }
+.stat-card.green .stat-icon { background: #F1F5F9; color: #0D5782; }
+.stat-card.purple .stat-icon { background: #F1F5F9; color: #0D5782; }
+.stat-card.orange .stat-icon { background: #F1F5F9; color: #0D5782; }
 
 .stat-info { display: flex; flex-direction: column; }
 

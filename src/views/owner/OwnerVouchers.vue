@@ -588,47 +588,55 @@ function getVoucherStatus(voucher) {
 
 .stat-card {
   background: white;
-  padding: 24px;
-  border-radius: 12px;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+  padding: 20px 24px;
+  border-radius: 16px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
   display: flex;
   align-items: center;
-  gap: 20px;
+  gap: 16px;
+  border: 2px solid transparent;
+  transition: all 0.25s ease;
+}
+
+.stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0,0,0,0.08);
 }
 
 .stat-icon {
   width: 56px;
   height: 56px;
-  border-radius: 12px;
+  border-radius: 14px;
   display: flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
 }
 
 .stat-icon svg {
-  width: 28px;
-  height: 28px;
+  width: 26px;
+  height: 26px;
 }
 
-.stat-icon.purple { background: #f3e8ff; color: #9333ea; }
-.stat-icon.green { background: #dcfce7; color: #16a34a; }
-.stat-icon.blue { background: #dbeafe; color: #2563eb; }
+.stat-icon.purple { background: #F1F5F9; color: #0D5782; }
+.stat-icon.green { background: #F1F5F9; color: #0D5782; }
+.stat-icon.blue { background: #F1F5F9; color: #0D5782; }
 
 .stat-info {
   display: flex;
   flex-direction: column;
+  gap: 2px;
 }
 
 .stat-label {
-  font-size: 14px;
+  font-size: 13px;
   color: var(--text-secondary);
   font-weight: 500;
-  margin-bottom: 4px;
 }
 
 .stat-value {
-  font-size: 28px;
-  font-weight: 700;
+  font-size: 32px;
+  font-weight: 800;
   color: var(--text);
   line-height: 1;
 }

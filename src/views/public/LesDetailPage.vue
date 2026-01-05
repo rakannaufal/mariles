@@ -540,6 +540,7 @@ function toast(msg, type = 'success') {
                 </div>
                 <div class="badges">
                   <span class="badge method">{{ getLesTypeLabel(lesPlace.type) }}</span>
+                  <span v-if="lesPlace.business_type" class="badge business-type">{{ lesPlace.business_type }}</span>
                   <span v-if="lesPlace.is_verified" class="badge verified">Terverifikasi</span>
                   <button class="report-btn" @click="openReportModal" title="Laporkan tempat les ini">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -1041,6 +1042,7 @@ function toast(msg, type = 'success') {
 .badges{display:flex;gap:var(--spacing-xs)}
 .badge{padding:4px 10px;border-radius:var(--radius-full);font-size:var(--font-size-xs);font-weight:600}
 .badge.method{background:var(--info-bg);color:var(--info);text-transform:capitalize}
+.badge.business-type{background:#EDE9FE;color:#7C3AED;text-transform:capitalize}
 .badge.verified{background:var(--success-bg);color:var(--success)}
 .stats{display:flex;gap:var(--spacing-xl);padding:var(--spacing-md) 0;border-top:1px solid var(--border-light);border-bottom:1px solid var(--border-light);margin-bottom:var(--spacing-md)}
 .stat .value{font-size:var(--font-size-base);font-weight:600;display:block}

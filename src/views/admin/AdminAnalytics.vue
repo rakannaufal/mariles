@@ -374,12 +374,12 @@ onMounted(fetchAnalytics)
 .stat-card { background: white; border-radius: 16px; padding: 20px; display: flex; align-items: center; gap: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
 .stat-icon { width: 52px; height: 52px; border-radius: 14px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .stat-icon svg { width: 26px; height: 26px; }
-.stat-icon.users { background: #dbeafe; color: #2563eb; }
-.stat-icon.places { background: #dcfce7; color: #16a34a; }
-.stat-icon.bookings { background: #fef3c7; color: #d97706; }
-.stat-icon.revenue { background: #f3e8ff; color: #9333ea; }
-.stat-icon.pending { background: #fee2e2; color: #dc2626; }
-.stat-icon.students { background: #e0f2fe; color: #0284c7; }
+.stat-icon.users { background: #F1F5F9; color: #0D5782; }
+.stat-icon.places { background: #F1F5F9; color: #0D5782; }
+.stat-icon.bookings { background: #F1F5F9; color: #0D5782; }
+.stat-icon.revenue { background: #F1F5F9; color: #0D5782; }
+.stat-icon.pending { background: #F1F5F9; color: #0D5782; }
+.stat-icon.students { background: #F1F5F9; color: #0D5782; }
 .stat-info { display: flex; flex-direction: column; }
 .stat-value { font-size: 22px; font-weight: 700; color: #1e293b; }
 .stat-label { font-size: 13px; color: #64748b; }
