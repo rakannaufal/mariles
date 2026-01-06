@@ -10,11 +10,11 @@ const route = useRoute()
 const isOwner = computed(() => route.path.startsWith('/owner'))
 const authStore = useAuthStore()
 
-// Tabs
+// Tabs - guru can withdraw their earnings
 const activeTab = ref('overview')
 const tabs = [
   { id: 'overview', label: 'Ringkasan', icon: 'chart' },
-  { id: 'history', label: 'Riwayat', icon: 'list' },
+  { id: 'history', label: 'Riwayat Gaji', icon: 'list' },
   { id: 'withdraw', label: 'Pencairan', icon: 'wallet' }
 ]
 
@@ -88,43 +88,41 @@ onMounted(async () => {
 async function fetchData() {
   loading.value = true
   try {
-    if (USE_DUMMY) {
-      payments.value = DUMMY_TEACHER_PAYMENTS
-      lesPlace.value = DUMMY_TEACHER_LES_PLACE
-      withdrawals.value = DUMMY_TEACHER_WITHDRAWALS
-      summary.value = DUMMY_TEACHER_FINANCE_SUMMARY
-    } else {
-      const { data: tp } = await supabase
-        .from('teacher_payments')
-        .select('*, les_places(name)')
-        .eq('teacher_id', authStore.user.id)
-        .order('created_at', { ascending: false })
-      
-      payments.value = tp || []
-      
-      if (tp?.length) {
-        lesPlace.value = { name: tp[0].les_places?.name }
-      }
+    console.log('Fetching teacher payments for user_id:', authStore.user.id)
+    
+    const { data: tp, error: tpErr } = await supabase
+      .from('teacher_payments')
+      .select('*, les_places(name)')
+      .eq('teacher_id', authStore.user.id)
+      .order('created_at', { ascending: false })
+    
+    console.log('Teacher payments result:', tp, 'Error:', tpErr)
+    
+    payments.value = tp || []
+    
+    if (tp?.length) {
+      lesPlace.value = { name: tp[0].les_places?.name }
+    }
 
-      const completed = tp?.filter(p => p.payment_status === 'completed') || []
-      const pending = tp?.filter(p => p.payment_status === 'pending') || []
-      const bonuses = tp?.filter(p => p.payment_type === 'bonus') || []
-      
-      const now = new Date()
-      const thisMonth = tp?.filter(p => {
-        const paidDate = new Date(p.paid_date)
-        return paidDate.getMonth() === now.getMonth() && paidDate.getFullYear() === now.getFullYear()
-      }) || []
-      
-      summary.value = {
-        totalEarnings: completed.reduce((sum, p) => sum + p.amount, 0),
-        monthlyEarnings: thisMonth.reduce((sum, p) => sum + p.amount, 0),
-        pendingPayments: pending.reduce((sum, p) => sum + p.amount, 0),
-        withdrawableBalance: pending.reduce((sum, p) => sum + p.amount, 0) * 0.8,
-        lastPayment: completed.length ? completed[0].paid_date : null,
-        totalSessions: completed.length,
-        bonusCount: bonuses.length
-      }
+    const completed = tp?.filter(p => p.payment_status === 'completed') || []
+    const pending = tp?.filter(p => p.payment_status === 'pending') || []
+    const bonuses = tp?.filter(p => p.payment_type === 'bonus') || []
+    
+    const now = new Date()
+    const thisMonth = tp?.filter(p => {
+      const paidDate = new Date(p.paid_date)
+      return paidDate.getMonth() === now.getMonth() && paidDate.getFullYear() === now.getFullYear()
+    }) || []
+    
+    summary.value = {
+      totalEarnings: completed.reduce((sum, p) => sum + p.amount, 0),
+      monthlyEarnings: thisMonth.reduce((sum, p) => sum + p.amount, 0),
+      pendingPayments: pending.reduce((sum, p) => sum + p.amount, 0),
+      // Saldo dapat dicairkan = total diterima (completed payments)
+      withdrawableBalance: completed.reduce((sum, p) => sum + p.amount, 0),
+      lastPayment: completed.length ? completed[0].paid_date : null,
+      totalSessions: completed.length,
+      bonusCount: bonuses.length
     }
     
     // Fetch teacher bank info from profile
@@ -149,10 +147,32 @@ async function fetchData() {
         withdrawMethod.value = 'ewallet'
       }
     }
+    
+    // Fetch teacher's withdrawal history
+    await fetchWithdrawals()
   } catch (err) {
     console.error('Error fetching data:', err)
   } finally {
     loading.value = false
+  }
+}
+
+async function fetchWithdrawals() {
+  try {
+    const { data, error } = await supabase
+      .from('withdrawals')
+      .select('*')
+      .eq('user_id', authStore.user.id)
+      .order('requested_at', { ascending: false })
+    
+    if (error) {
+      console.error('Error fetching withdrawals:', error)
+      return
+    }
+    
+    withdrawals.value = data || []
+  } catch (err) {
+    console.error('Error fetching withdrawals:', err)
   }
 }
 
@@ -172,10 +192,14 @@ function formatDate(date) {
 }
 
 function formatPeriod(period) {
-  if (!period) return '-'
-  const [year, month] = period.split('-')
+  if (!period || period === 'undefined' || period === 'null') return '-'
+  const parts = period.split('-')
+  if (parts.length < 2) return period // Return as-is if not YYYY-MM format
+  const [year, month] = parts
+  const monthNum = parseInt(month)
+  if (isNaN(monthNum) || monthNum < 1 || monthNum > 12) return period
   const months = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember']
-  return `${months[parseInt(month) - 1]} ${year}`
+  return `${months[monthNum - 1]} ${year}`
 }
 
 function formatPeriodShort(period) {
@@ -230,23 +254,22 @@ async function handleWithdraw() {
   withdrawSuccess.value = false
   const amount = parseInt(withdrawAmount.value)
   
+  // Get fee based on method
+  const fee = withdrawMethod.value === 'ewallet' ? 2500 : 5000
+  
   if (!amount || amount < 10000) {
     withdrawError.value = 'Minimal pencairan Rp 10.000'
     return
   }
   
-  if (!withdrawBank.value) {
-    withdrawError.value = 'Pilih bank tujuan'
+  // Check if payment method is set up
+  if (withdrawMethod.value === 'bank' && !teacherBankInfo.value.bank_name) {
+    withdrawError.value = 'Anda belum mengatur rekening bank. Atur di Profil.'
     return
   }
   
-  if (!withdrawAccountNumber.value || withdrawAccountNumber.value.length < 5) {
-    withdrawError.value = 'Masukkan nomor rekening yang valid'
-    return
-  }
-  
-  if (!withdrawAccountHolder.value) {
-    withdrawError.value = 'Masukkan nama pemilik rekening'
+  if (withdrawMethod.value === 'ewallet' && !teacherBankInfo.value.ewallet_type) {
+    withdrawError.value = 'Anda belum mengatur e-wallet. Atur di Profil.'
     return
   }
   
@@ -258,25 +281,70 @@ async function handleWithdraw() {
   withdrawing.value = true
   
   try {
-    await new Promise(resolve => setTimeout(resolve, 1500))
-    summary.value.withdrawableBalance -= amount
-    withdrawals.value.unshift({
-      id: Date.now().toString(),
-      amount,
-      fee: 5000,
-      net_amount: amount - 5000,
-      status: 'processing',
-      requested_date: new Date().toISOString(),
-      completed_date: null,
-      bank_name: withdrawBank.value.toUpperCase(),
-      bank_account: '***' + withdrawAccountNumber.value.slice(-4)
-    })
+    // Get teacher's les_place_id
+    const { data: teacherData } = await supabase
+      .from('teachers')
+      .select('les_place_id')
+      .eq('user_id', authStore.user.id)
+      .single()
     
+    // Auto-detect payment method: prefer bank, fallback to e-wallet
+    let bankName, bankAccount, bankHolder
+    const useBank = teacherBankInfo.value.bank_name
+    const useEwallet = teacherBankInfo.value.ewallet_type
+    
+    if (!useBank && !useEwallet) {
+      withdrawError.value = 'Anda belum mengatur metode pembayaran. Atur di Profil.'
+      withdrawing.value = false
+      return
+    }
+    
+    if (useBank) {
+      bankName = teacherBankInfo.value.bank_name
+      bankAccount = teacherBankInfo.value.bank_account
+      bankHolder = teacherBankInfo.value.bank_holder
+    } else {
+      bankName = teacherBankInfo.value.ewallet_type
+      bankAccount = teacherBankInfo.value.ewallet_number
+      bankHolder = teacherBankInfo.value.bank_holder || ''
+    }
+    
+    // Insert to withdrawals table
+    const { data: newWithdrawal, error } = await supabase
+      .from('withdrawals')
+      .insert({
+        user_id: authStore.user.id,
+        les_place_id: teacherData?.les_place_id || null,
+        amount: amount,
+        fee: fee,
+        net_amount: amount - fee,
+        bank_name: bankName,
+        bank_account: bankAccount,
+        bank_holder: bankHolder,
+        status: 'completed',
+        requester_type: 'teacher',
+        requested_at: new Date().toISOString(),
+        completed_at: new Date().toISOString()
+      })
+      .select()
+      .single()
+    
+    if (error) {
+      console.error('Withdraw error:', error)
+      withdrawError.value = 'Gagal mengajukan pencairan: ' + error.message
+      return
+    }
+    
+    // Update local state
+    withdrawals.value.unshift(newWithdrawal)
+    summary.value.withdrawableBalance -= amount
+    
+    // Reset form
     withdrawAmount.value = ''
-    withdrawBank.value = ''
-    withdrawAccountNumber.value = ''
-    withdrawAccountHolder.value = ''
     withdrawSuccess.value = true
+    
+    // Reload withdrawals data
+    await fetchWithdrawals()
     
     setTimeout(() => withdrawSuccess.value = false, 5000)
   } catch (err) {
@@ -324,14 +392,14 @@ async function handleWithdraw() {
 
       <div v-else>
         <!-- Stats Cards -->
-        <section class="stats-grid">
+        <section class="stats-grid simplified">
           <div class="stat-card primary">
             <div class="stat-icon">
               <span class="rp-icon">Rp</span>
             </div>
             <div class="stat-info">
               <span class="stat-value">{{ formatCurrency(summary.totalEarnings) }}</span>
-              <span class="stat-label">Total Pendapatan</span>
+              <span class="stat-label">Total Diterima</span>
             </div>
           </div>
           
@@ -348,30 +416,15 @@ async function handleWithdraw() {
             </div>
           </div>
           
-          <div class="stat-card orange">
-            <div class="stat-icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <circle cx="12" cy="12" r="10"/>
-                <polyline points="12 6 12 12 16 14"/>
-              </svg>
-            </div>
-            <div class="stat-info">
-              <span class="stat-value">{{ formatCurrency(summary.pendingPayments) }}</span>
-              <span class="stat-label">Akan Diterima</span>
-            </div>
-          </div>
-          
           <div class="stat-card purple">
             <div class="stat-icon">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"/>
-                <path d="M3 5v14a2 2 0 0 0 2 2h16v-5"/>
-                <path d="M18 12a2 2 0 0 0 0 4h4v-4z"/>
+                <polyline points="20 6 9 17 4 12"/>
               </svg>
             </div>
             <div class="stat-info">
-              <span class="stat-value">{{ formatCurrency(summary.withdrawableBalance) }}</span>
-              <span class="stat-label">Saldo Tersedia</span>
+              <span class="stat-value">{{ payments.filter(p => p.payment_status === 'completed').length }}x</span>
+              <span class="stat-label">Pembayaran Selesai</span>
             </div>
           </div>
         </section>
@@ -390,72 +443,31 @@ async function handleWithdraw() {
         <!-- Overview Tab -->
         <section v-if="activeTab === 'overview'" class="tab-content">
           <div class="overview-grid">
-            <!-- Monthly Chart -->
-            <div class="panel-card chart-card">
-              <h3>Grafik Pendapatan</h3>
-              <div class="chart-container">
-                <div class="chart-bars">
-                  <div v-for="(data, index) in monthlyData" :key="index" class="chart-bar-wrapper">
-                    <div class="chart-bar" :style="{ height: (data[1] / maxMonthly * 100) + '%' }">
-                      <span class="bar-value">{{ formatShortCurrency(data[1]) }}</span>
-                    </div>
-                    <span class="bar-label">{{ formatPeriodShort(data[0]) }}</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <!-- Quick Stats -->
+            <!-- Payment Summary Card -->
             <div class="panel-card">
-              <h3>Statistik Cepat</h3>
-              <div class="quick-stats">
-                <div class="qs-item">
-                  <div class="qs-icon blue">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                      <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
-                      <circle cx="9" cy="7" r="4"/>
-                    </svg>
-                  </div>
-                  <div class="qs-info">
-                    <span class="qs-value">{{ summary.totalSessions }}</span>
-                    <span class="qs-label">Sesi Mengajar</span>
-                  </div>
-                </div>
-                <div class="qs-item">
-                  <div class="qs-icon green">
+              <h3>Ringkasan Pembayaran</h3>
+              <div class="payment-summary">
+                <div class="summary-item">
+                  <div class="summary-icon green">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                       <polyline points="20 6 9 17 4 12"/>
                     </svg>
                   </div>
-                  <div class="qs-info">
-                    <span class="qs-value">{{ payments.filter(p => p.payment_status === 'completed').length }}</span>
-                    <span class="qs-label">Pembayaran Selesai</span>
+                  <div class="summary-info">
+                    <span class="summary-label">Terakhir Diterima</span>
+                    <span class="summary-value">{{ summary.lastPayment ? formatDate(summary.lastPayment) : 'Belum ada' }}</span>
                   </div>
                 </div>
-                <div class="qs-item">
-                  <div class="qs-icon orange">
+                <div class="summary-item">
+                  <div class="summary-icon purple">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                      <path d="M20 12v6a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-6"/>
-                      <polyline points="12 3 12 15"/>
-                      <polyline points="8 11 12 15 16 11"/>
+                      <rect x="2" y="5" width="20" height="14" rx="2"/>
+                      <line x1="2" y1="10" x2="22" y2="10"/>
                     </svg>
                   </div>
-                  <div class="qs-info">
-                    <span class="qs-value">{{ summary.bonusCount }}</span>
-                    <span class="qs-label">Bonus Diterima</span>
-                  </div>
-                </div>
-                <div class="qs-item">
-                  <div class="qs-icon purple">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                      <rect x="3" y="4" width="18" height="18" rx="2"/>
-                      <line x1="16" y1="2" x2="16" y2="6"/>
-                      <line x1="8" y1="2" x2="8" y2="6"/>
-                    </svg>
-                  </div>
-                  <div class="qs-info">
-                    <span class="qs-value">{{ formatDate(summary.lastPayment) }}</span>
-                    <span class="qs-label">Terakhir Diterima</span>
+                  <div class="summary-info">
+                    <span class="summary-label">Tempat Les</span>
+                    <span class="summary-value">{{ lesPlace?.name || 'Belum ada' }}</span>
                   </div>
                 </div>
               </div>
@@ -564,7 +576,7 @@ async function handleWithdraw() {
 
         <!-- Withdraw Tab -->
         <section v-else-if="activeTab === 'withdraw'" class="tab-content">
-          <div class="withdraw-grid">
+          <div class="withdraw-layout">
             <!-- Balance Card -->
             <div class="panel-card balance-card">
               <div class="balance-header">
@@ -575,126 +587,135 @@ async function handleWithdraw() {
                 </div>
               </div>
               <div class="balance-note">
-                Dana akan ditransfer dalam 1-3 hari kerja setelah permintaan diproses
+                Dana langsung ditransfer ke rekening Anda
               </div>
             </div>
             
             <!-- Withdraw Form -->
             <div class="panel-card">
-              <h3>Form Pencairan</h3>
+              <h3>Cairkan Dana</h3>
               
               <div v-if="withdrawSuccess" class="alert success">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
                   <polyline points="22 4 12 14.01 9 11.01"/>
                 </svg>
-                Permintaan pencairan berhasil diajukan!
+                <div>
+                  <strong>Pencairan Berhasil!</strong>
+                  <p>Dana akan ditransfer ke rekening Anda</p>
+                </div>
               </div>
               
-              <!-- Payment Method Selector -->
-              <div class="payment-method-selector">
-                <label>Metode Pencairan</label>
-                <div class="method-tabs">
-                  <button :class="['method-tab', { active: withdrawMethod === 'bank' }]" 
-                          :disabled="!teacherBankInfo.bank_name"
-                          @click="withdrawMethod = 'bank'">
+              <div class="withdraw-form">
+                <!-- Payment Method Display -->
+                <div class="bank-info-display">
+                  <label>Rekening Tujuan</label>
+                  
+                  <!-- Show Bank if set -->
+                  <div v-if="teacherBankInfo.bank_name" class="bank-card">
+                    <div class="bank-logo">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="2" y="5" width="20" height="14" rx="2"/>
+                        <line x1="2" y1="10" x2="22" y2="10"/>
+                      </svg>
+                    </div>
+                    <div class="bank-details">
+                      <span class="bank-type">Transfer Bank</span>
+                      <span class="bank-name">{{ teacherBankInfo.bank_name }}</span>
+                      <span class="bank-account">{{ teacherBankInfo.bank_account }}</span>
+                      <span class="bank-holder">a.n {{ teacherBankInfo.bank_holder }}</span>
+                    </div>
+                    <button class="btn-change" @click="$router.push('/teacher/profile')">Ubah</button>
+                  </div>
+                  
+                  <!-- Show E-Wallet if set and no bank -->
+                  <div v-else-if="teacherBankInfo.ewallet_type" class="bank-card ewallet">
+                    <div class="bank-logo ewallet">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="2" y="4" width="20" height="16" rx="2"/>
+                        <path d="M6 8h4M6 12h8M6 16h6"/>
+                      </svg>
+                    </div>
+                    <div class="bank-details">
+                      <span class="bank-type">E-Wallet</span>
+                      <span class="bank-name">{{ teacherBankInfo.ewallet_type }}</span>
+                      <span class="bank-account">{{ teacherBankInfo.ewallet_number }}</span>
+                    </div>
+                    <button class="btn-change" @click="$router.push('/teacher/profile')">Ubah</button>
+                  </div>
+                  
+                  <!-- No payment method set -->
+                  <div v-else class="no-bank-info">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                      <rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/>
+                      <path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
                     </svg>
-                    Bank Transfer
-                  </button>
-                  <button :class="['method-tab', { active: withdrawMethod === 'ewallet' }]" 
-                          :disabled="!teacherBankInfo.ewallet_type"
-                          @click="withdrawMethod = 'ewallet'">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                      <path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"/>
-                      <path d="M3 5v14a2 2 0 0 0 2 2h16v-5"/>
-                      <path d="M18 12a2 2 0 0 0 0 4h4v-4Z"/>
-                    </svg>
-                    E-Wallet
-                  </button>
+                    <p>Anda belum mengatur metode pembayaran</p>
+                    <span class="hint">Atur rekening bank atau e-wallet di halaman profil</span>
+                    <button class="btn-primary-sm" @click="$router.push('/teacher/profile')">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                      </svg>
+                      Atur di Profil
+                    </button>
+                  </div>
                 </div>
+                
+                <!-- Amount Input -->
+                <div class="form-group amount-input-group">
+                  <label>Jumlah Pencairan</label>
+                  <div class="amount-input-wrapper">
+                    <span class="currency-prefix">Rp</span>
+                    <input 
+                      type="text" 
+                      v-model="withdrawAmount" 
+                      placeholder="Masukkan jumlah"
+                      @input="withdrawAmount = withdrawAmount.replace(/[^0-9]/g, '')"
+                    >
+                  </div>
+                  <div class="input-hints">
+                    <span class="min-hint">Min. Rp 10.000</span>
+                    <span class="max-hint">Maks. {{ formatCurrency(maxWithdraw) }}</span>
+                  </div>
+                  <div class="amount-hints">
+                    <button 
+                      v-for="pct in [25, 50, 75, 100]" 
+                      :key="pct"
+                      :class="{ active: withdrawAmount == Math.floor(maxWithdraw * pct / 100) }"
+                      @click="withdrawAmount = Math.floor(maxWithdraw * pct / 100)"
+                    >
+                      {{ pct }}%
+                    </button>
+                  </div>
+                </div>
+                
+                <!-- Summary -->
+                <div class="withdraw-summary">
+                  <div class="summary-row">
+                    <span>Jumlah Pencairan</span>
+                    <span>{{ formatCurrency(parseInt(withdrawAmount) || 0) }}</span>
+                  </div>
+                  <div class="summary-row">
+                    <span>Biaya Admin</span>
+                    <span class="fee">- {{ formatCurrency(5000) }}</span>
+                  </div>
+                  <div class="summary-row total">
+                    <span>Total Diterima</span>
+                    <span>{{ formatCurrency(Math.max(0, (parseInt(withdrawAmount) || 0) - 5000)) }}</span>
+                  </div>
+                </div>
+                
+                <p v-if="withdrawError" class="error-text">{{ withdrawError }}</p>
+                
+                <button 
+                  class="btn-withdraw"
+                  :disabled="withdrawing || !withdrawAmount || parseInt(withdrawAmount) < 10000 || !teacherBankInfo.bank_name"
+                  @click="handleWithdraw"
+                >
+                  <span v-if="withdrawing" class="loading-spinner-sm"></span>
+                  {{ withdrawing ? 'Memproses...' : 'Cairkan Sekarang' }}
+                </button>
               </div>
-              
-              <!-- Selected Payment Info -->
-              <div v-if="withdrawMethod === 'bank' && teacherBankInfo.bank_name" class="selected-payment-card bank">
-                <div class="payment-icon">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/>
-                  </svg>
-                </div>
-                <div class="payment-details">
-                  <span class="payment-type">{{ teacherBankInfo.bank_name }}</span>
-                  <span class="payment-number">{{ teacherBankInfo.bank_account }}</span>
-                  <span class="payment-holder">a.n {{ teacherBankInfo.bank_holder }}</span>
-                </div>
-                <router-link to="/teacher/profile" class="edit-link">Ubah</router-link>
-              </div>
-              
-              <div v-else-if="withdrawMethod === 'ewallet' && teacherBankInfo.ewallet_type" class="selected-payment-card ewallet">
-                <div class="payment-icon ewallet">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"/>
-                    <path d="M3 5v14a2 2 0 0 0 2 2h16v-5"/>
-                    <path d="M18 12a2 2 0 0 0 0 4h4v-4Z"/>
-                  </svg>
-                </div>
-                <div class="payment-details">
-                  <span class="payment-type">{{ teacherBankInfo.ewallet_type }}</span>
-                  <span class="payment-number">{{ teacherBankInfo.ewallet_number }}</span>
-                </div>
-                <router-link to="/teacher/profile" class="edit-link">Ubah</router-link>
-              </div>
-              
-              <div v-else class="no-payment-method">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                  <circle cx="12" cy="12" r="10"/>
-                  <line x1="12" y1="8" x2="12" y2="12"/>
-                  <line x1="12" y1="16" x2="12.01" y2="16"/>
-                </svg>
-                <p>Anda belum mengatur metode pembayaran</p>
-                <router-link to="/teacher/profile" class="btn-setup">Atur di Profil</router-link>
-              </div>
-              
-              <div class="form-group">
-                <label>Jumlah Pencairan</label>
-                <div class="input-with-prefix">
-                  <span class="input-prefix">Rp</span>
-                  <input v-model="withdrawAmount" type="number" placeholder="0" :max="maxWithdraw">
-                </div>
-                <span class="form-hint" v-if="maxWithdraw > 0">Maksimal: {{ formatCurrency(maxWithdraw) }}</span>
-              </div>
-              
-              <div v-if="withdrawError" class="alert error">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <circle cx="12" cy="12" r="10"/>
-                  <line x1="15" y1="9" x2="9" y2="15"/>
-                  <line x1="9" y1="9" x2="15" y2="15"/>
-                </svg>
-                {{ withdrawError }}
-              </div>
-              
-              <div class="fee-summary">
-                <div class="fee-row">
-                  <span>Jumlah Pencairan</span>
-                  <span>{{ formatCurrency(parseInt(withdrawAmount) || 0) }}</span>
-                </div>
-                <div class="fee-row">
-                  <span>Biaya Admin</span>
-                  <span>- {{ withdrawMethod === 'ewallet' ? 'Rp 2.500' : 'Rp 5.000' }}</span>
-                </div>
-                <div class="fee-row total">
-                  <span>Total Diterima</span>
-                  <span>{{ formatCurrency(Math.max(0, (parseInt(withdrawAmount) || 0) - (withdrawMethod === 'ewallet' ? 2500 : 5000))) }}</span>
-                </div>
-              </div>
-              
-              <button class="btn-submit" 
-                      :disabled="withdrawing || !withdrawAmount || (!teacherBankInfo.bank_name && !teacherBankInfo.ewallet_type) || maxWithdraw <= 0"
-                      @click="handleWithdraw">
-                <span v-if="withdrawing" class="spinner-sm"></span>
-                {{ withdrawing ? 'Memproses...' : 'Cairkan Sekarang' }}
-              </button>
             </div>
           </div>
           
@@ -709,16 +730,14 @@ async function handleWithdraw() {
                     <th>Jumlah</th>
                     <th>Bank</th>
                     <th>Status</th>
-                    <th>Selesai</th>
                   </tr>
                 </thead>
                 <tbody>
                   <tr v-for="wd in withdrawals" :key="wd.id">
-                    <td>{{ formatDate(wd.requested_date) }}</td>
+                    <td>{{ formatDate(wd.requested_at || wd.created_at) }}</td>
                     <td class="amount-value positive">{{ formatCurrency(wd.net_amount || wd.amount) }}</td>
-                    <td>{{ wd.bank_name }} {{ wd.bank_account }}</td>
+                    <td>{{ wd.bank_name }} ***{{ wd.bank_account?.slice(-4) || '' }}</td>
                     <td><span class="status-badge" :class="getStatusClass(wd.status)">{{ getStatusLabel(wd.status) }}</span></td>
-                    <td>{{ formatDate(wd.completed_date) }}</td>
                   </tr>
                 </tbody>
               </table>
@@ -805,9 +824,13 @@ async function handleWithdraw() {
 /* Stats Grid */
 .stats-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   gap: 16px;
   margin-bottom: 24px;
+}
+
+.stats-grid.simplified {
+  grid-template-columns: repeat(3, 1fr);
 }
 
 .stat-card {
@@ -876,10 +899,21 @@ async function handleWithdraw() {
 /* Overview Grid */
 .overview-grid {
   display: grid;
-  grid-template-columns: 2fr 1fr;
+  grid-template-columns: 1fr;
   gap: 24px;
   margin-bottom: 24px;
 }
+
+/* Payment Summary */
+.payment-summary { display: flex; flex-direction: column; gap: 16px; }
+.summary-item { display: flex; align-items: center; gap: 16px; padding: 16px; background: #f8fafc; border-radius: 12px; }
+.summary-icon { width: 44px; height: 44px; border-radius: 12px; display: flex; align-items: center; justify-content: center; }
+.summary-icon svg { width: 22px; height: 22px; }
+.summary-icon.green { background: #dcfce7; color: #16a34a; }
+.summary-icon.purple { background: #f3e8ff; color: #9333ea; }
+.summary-info { display: flex; flex-direction: column; }
+.summary-label { font-size: 13px; color: #64748b; }
+.summary-value { font-size: 16px; font-weight: 600; color: #1e293b; }
 
 /* Panel Card */
 .panel-card {
@@ -1121,7 +1155,7 @@ async function handleWithdraw() {
 }
 
 /* Withdraw Tab */
-.withdraw-grid {
+.withdraw-grid, .withdraw-layout {
   display: grid;
   grid-template-columns: 1fr 2fr;
   gap: 24px;
@@ -1201,6 +1235,77 @@ async function handleWithdraw() {
   grid-template-columns: 1fr 1fr;
   gap: 16px;
 }
+
+/* Amount Input Group - Premium Design */
+.amount-input-group {
+  margin-bottom: 20px;
+}
+.amount-input-group > label {
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
+  color: #334155;
+  margin-bottom: 12px;
+}
+
+.amount-input-wrapper {
+  display: flex;
+  align-items: stretch;
+  border: 2px solid #e2e8f0;
+  border-radius: 14px;
+  background: #f8fafc;
+  overflow: hidden;
+  transition: all 0.2s;
+}
+.amount-input-wrapper:focus-within {
+  border-color: #0d5782;
+  background: white;
+  box-shadow: 0 0 0 4px rgba(13, 87, 130, 0.08);
+}
+
+.currency-prefix {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 20px;
+  background: linear-gradient(135deg, #0d5782, #1e40af);
+  color: white;
+  font-size: 16px;
+  font-weight: 700;
+  min-width: 60px;
+}
+
+.amount-input-wrapper input {
+  flex: 1;
+  border: none;
+  padding: 18px 16px;
+  font-size: 24px;
+  font-weight: 700;
+  color: #1e293b;
+  background: transparent;
+  min-width: 0;
+}
+.amount-input-wrapper input::placeholder {
+  color: #94a3b8;
+  font-weight: 400;
+  font-size: 15px;
+}
+.amount-input-wrapper input:focus { outline: none; }
+/* Hide number input spinners */
+.amount-input-wrapper input::-webkit-outer-spin-button,
+.amount-input-wrapper input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.amount-input-wrapper input[type=number] { -moz-appearance: textfield; }
+
+.input-hints {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 10px;
+  padding: 0 4px;
+  font-size: 13px;
+}
+.min-hint { color: #64748b; }
+.max-hint { color: #0d5782; font-weight: 600; }
 
 .input-with-prefix {
   display: flex;
@@ -1345,4 +1450,191 @@ async function handleWithdraw() {
 .no-payment-method p { font-size: 14px; color: #92400e; margin-bottom: 12px; }
 .btn-setup { display: inline-block; padding: 8px 16px; background: #d97706; color: white; border-radius: 8px; font-size: 13px; font-weight: 600; text-decoration: none; }
 .btn-setup:hover { background: #b45309; }
+
+/* Bank Info Display */
+.bank-info-display {
+  margin-bottom: 24px;
+}
+.bank-info-display label {
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
+  color: #475569;
+  margin-bottom: 12px;
+}
+.bank-card {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 18px;
+  background: linear-gradient(135deg, #0d5782, #1e40af);
+  border-radius: 14px;
+  color: white;
+}
+.bank-logo {
+  width: 50px;
+  height: 50px;
+  background: rgba(255,255,255,0.2);
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.bank-logo svg { width: 24px; height: 24px; }
+.bank-details { flex: 1; display: flex; flex-direction: column; gap: 2px; }
+.bank-details .bank-type { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; opacity: 0.7; }
+.bank-details .bank-name { font-size: 16px; font-weight: 600; }
+.bank-details .bank-account { font-size: 20px; font-weight: 700; letter-spacing: 1px; }
+.bank-details .bank-holder { font-size: 12px; opacity: 0.7; }
+
+/* E-Wallet Card Variant */
+.bank-card.ewallet { background: linear-gradient(135deg, #059669, #047857); }
+.bank-logo.ewallet { background: rgba(255,255,255,0.25); }
+.btn-change {
+  padding: 8px 14px;
+  background: rgba(255,255,255,0.2);
+  border: none;
+  border-radius: 8px;
+  color: white;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.btn-change:hover { background: rgba(255,255,255,0.3); }
+
+.no-bank-info {
+  text-align: center;
+  padding: 32px 24px;
+  background: #fef3c7;
+  border: 2px dashed #fbbf24;
+  border-radius: 14px;
+}
+.no-bank-info svg {
+  width: 40px;
+  height: 40px;
+  color: #d97706;
+  margin-bottom: 12px;
+}
+.no-bank-info p {
+  font-size: 16px;
+  font-weight: 600;
+  color: #92400e;
+  margin-bottom: 8px;
+}
+.no-bank-info .hint {
+  display: block;
+  font-size: 13px;
+  color: #b45309;
+  margin-bottom: 16px;
+}
+.btn-primary-sm {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 20px;
+  background: linear-gradient(135deg, #0d5782, #1e40af);
+  color: white;
+  border: none;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.btn-primary-sm:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(13, 87, 130, 0.3); }
+.btn-primary-sm svg { width: 16px; height: 16px; }
+
+/* Amount Hints */
+.amount-hints {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+.amount-hints button {
+  flex: 1;
+  padding: 8px;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #64748b;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.amount-hints button:hover {
+  background: #e2e8f0;
+  border-color: #cbd5e1;
+  color: #0d5782;
+}
+.amount-hints button.active {
+  background: linear-gradient(135deg, #0d5782, #1e40af);
+  border-color: #0d5782;
+  color: white;
+}
+
+/* Withdraw Summary */
+.withdraw-summary {
+  background: #f8fafc;
+  border-radius: 12px;
+  padding: 18px;
+  margin: 20px 0;
+}
+.summary-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 14px;
+  color: #64748b;
+  padding: 8px 0;
+}
+.summary-row .fee { color: #dc2626; }
+.summary-row.total {
+  font-size: 16px;
+  font-weight: 700;
+  color: #0d5782;
+  border-top: 1px solid #e2e8f0;
+  margin-top: 8px;
+  padding-top: 14px;
+}
+
+/* Withdraw Button */
+.btn-withdraw {
+  width: 100%;
+  padding: 16px;
+  background: linear-gradient(135deg, #0d5782, #1e40af);
+  color: white;
+  border: none;
+  border-radius: 12px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  transition: all 0.2s;
+}
+.btn-withdraw:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(13, 87, 130, 0.3); }
+.btn-withdraw:disabled { background: #94a3b8; cursor: not-allowed; transform: none; box-shadow: none; }
+
+/* Error and Success Text */
+.error-text { font-size: 14px; color: #dc2626; margin-bottom: 12px; }
+.success-text { font-size: 14px; color: #16a34a; margin-bottom: 12px; }
+
+/* Rp Icon Large */
+.rp-icon.lg {
+  width: 56px;
+  height: 56px;
+  font-size: 22px;
+  background: rgba(255,255,255,0.2);
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+}
+
+/* Withdraw Form Spacing */
+.withdraw-form { display: flex; flex-direction: column; }
+.withdraw-form .form-group { margin-bottom: 20px; }
 </style>

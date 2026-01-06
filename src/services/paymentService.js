@@ -6,12 +6,44 @@
  * - Creating payments (Student → Owner)
  * - Processing withdrawals (Owner/Teacher → Bank)
  * - Payment status updates
+ * - Platform revenue tracking
  * 
  * Uses Midtrans for payment gateway integration.
  */
 
 import { supabase } from '@/lib/supabase'
 import MIDTRANS_CONFIG, { generateOrderId, openSnapPayment } from '@/lib/midtrans'
+import { usePlatformSettings } from '@/composables/usePlatformSettings'
+
+// ============================================================
+// PLATFORM SETTINGS HELPER
+// ============================================================
+
+const { getSetting } = usePlatformSettings()
+
+/**
+ * Load platform fee settings
+ * @returns {Promise<Object>} Platform fee settings
+ */
+async function loadPlatformFees() {
+  try {
+    const fees = await getSetting('platform_fees')
+    return fees || {
+      platform_fee_percent: 10,
+      withdrawal_fee: 5000,
+      min_withdrawal: 50000,
+      max_withdrawal: 10000000
+    }
+  } catch (error) {
+    console.error('Error loading platform fees:', error)
+    return {
+      platform_fee_percent: 10,
+      withdrawal_fee: 5000,
+      min_withdrawal: 50000,
+      max_withdrawal: 10000000
+    }
+  }
+}
 
 // ============================================================
 // PAYMENT CREATION (Student pays for class/program)
@@ -71,7 +103,10 @@ export async function createPayment({
       }
     }
 
-    const platformFee = Math.round(amount * 0.05) // 5% platform fee
+    // Load dynamic platform fee from settings
+    const feeSettings = await loadPlatformFees()
+    const feePercent = feeSettings.platform_fee_percent / 100
+    const platformFee = Math.round(amount * feePercent)
     const netAmount = amount - platformFee
 
     // ============================================================
@@ -209,16 +244,59 @@ export async function updatePaymentStatus(orderId, status, midtransResult = {}) 
 
     if (error) throw error
 
-    // If completed, update owner's balance and increment program students
+    // If completed, update owner's balance, increment students, and record revenue
     if (status === 'completed') {
       await updateOwnerBalance(orderId)
       await incrementProgramStudents(orderId)
+      await recordPlatformRevenue(orderId) // Record platform fee as revenue
     }
 
     return { success: true }
   } catch (error) {
     console.error('Update payment status error:', error)
     return { success: false, error: error.message }
+  }
+}
+
+/**
+ * Record platform fee as revenue
+ * @param {string} orderId - Midtrans order ID
+ */
+async function recordPlatformRevenue(orderId) {
+  try {
+    // Get transaction details
+    const { data: txn } = await supabase
+      .from('transactions')
+      .select('id, platform_fee, description, les_place_id')
+      .eq('midtrans_order_id', orderId)
+      .single()
+
+    if (!txn || txn.platform_fee <= 0) return
+
+    // Check if already recorded
+    const { data: existing } = await supabase
+      .from('platform_revenue')
+      .select('id')
+      .eq('transaction_id', txn.id)
+      .single()
+
+    if (existing) return // Already recorded
+
+    // Insert platform revenue record
+    await supabase
+      .from('platform_revenue')
+      .insert({
+        transaction_id: txn.id,
+        amount: txn.platform_fee,
+        source: 'platform_fee',
+        description: `Komisi dari: ${txn.description || 'Pembayaran'}`,
+        les_place_id: txn.les_place_id
+      })
+
+    console.log(`Platform revenue recorded: Rp ${txn.platform_fee} for order ${orderId}`)
+  } catch (error) {
+    console.error('Record platform revenue error:', error)
+    // Don't throw - this shouldn't block the main flow
   }
 }
 
@@ -348,6 +426,24 @@ export async function requestWithdrawal({
   bankHolder
 }) {
   try {
+    // Load platform fee settings for validation
+    const feeSettings = await loadPlatformFees()
+    const { min_withdrawal, max_withdrawal, withdrawal_fee } = feeSettings
+
+    // Validate min/max withdrawal
+    if (amount < min_withdrawal) {
+      return { 
+        success: false, 
+        error: `Minimal pencairan Rp ${min_withdrawal.toLocaleString('id-ID')}` 
+      }
+    }
+    if (amount > max_withdrawal) {
+      return { 
+        success: false, 
+        error: `Maksimal pencairan Rp ${max_withdrawal.toLocaleString('id-ID')}` 
+      }
+    }
+
     // Validate balance
     const { data: balance } = await supabase
       .from('balances')
@@ -359,8 +455,8 @@ export async function requestWithdrawal({
       return { success: false, error: 'Saldo tidak mencukupi' }
     }
 
-    // Calculate fee (assume 0.5% fee, min 1000)
-    const fee = Math.max(1000, Math.round(amount * 0.005))
+    // Use flat withdrawal fee from settings
+    const fee = withdrawal_fee
     const netAmount = amount - fee
 
     // Create withdrawal record
@@ -881,3 +977,217 @@ export async function getPendingRefunds() {
   }
 }
 
+// ============================================================
+// ADMIN REVENUE FUNCTIONS
+// ============================================================
+
+/**
+ * Get platform revenue statistics for admin dashboard
+ * @returns {Promise<Object>} Revenue statistics
+ */
+export async function getAdminRevenueStats() {
+  try {
+    // Get total revenue
+    const { data: totalData } = await supabase
+      .from('platform_revenue')
+      .select('amount')
+    
+    const totalRevenue = totalData?.reduce((sum, r) => sum + Number(r.amount), 0) || 0
+
+    // Get this month's revenue
+    const startOfMonth = new Date()
+    startOfMonth.setDate(1)
+    startOfMonth.setHours(0, 0, 0, 0)
+    
+    const { data: monthData } = await supabase
+      .from('platform_revenue')
+      .select('amount')
+      .gte('created_at', startOfMonth.toISOString())
+    
+    const monthRevenue = monthData?.reduce((sum, r) => sum + Number(r.amount), 0) || 0
+
+    // Get today's revenue
+    const startOfDay = new Date()
+    startOfDay.setHours(0, 0, 0, 0)
+    
+    const { data: todayData } = await supabase
+      .from('platform_revenue')
+      .select('amount')
+      .gte('created_at', startOfDay.toISOString())
+    
+    const todayRevenue = todayData?.reduce((sum, r) => sum + Number(r.amount), 0) || 0
+
+    // Get breakdown by source
+    const { data: breakdownData } = await supabase
+      .from('platform_revenue')
+      .select('source, amount')
+    
+    const breakdown = {}
+    breakdownData?.forEach(r => {
+      breakdown[r.source] = (breakdown[r.source] || 0) + Number(r.amount)
+    })
+
+    // Get total transactions count
+    const { count: txnCount } = await supabase
+      .from('transactions')
+      .select('*', { count: 'exact', head: true })
+      .eq('payment_status', 'completed')
+
+    // Get pending withdrawals count
+    const { count: pendingWithdrawals } = await supabase
+      .from('withdrawals')
+      .select('*', { count: 'exact', head: true })
+      .eq('status', 'pending')
+
+    // Get pending refunds count
+    const { count: pendingRefunds } = await supabase
+      .from('refunds')
+      .select('*', { count: 'exact', head: true })
+      .eq('status', 'pending')
+
+    return {
+      success: true,
+      stats: {
+        totalRevenue,
+        monthRevenue,
+        todayRevenue,
+        breakdown,
+        completedTransactions: txnCount || 0,
+        pendingWithdrawals: pendingWithdrawals || 0,
+        pendingRefunds: pendingRefunds || 0
+      }
+    }
+  } catch (error) {
+    console.error('Get admin revenue stats error:', error)
+    return { success: false, error: error.message }
+  }
+}
+
+/**
+ * Get monthly revenue chart data for admin dashboard
+ * @param {number} monthsCount - Number of months to retrieve
+ * @returns {Promise<Object>} Chart data
+ */
+export async function getMonthlyRevenueChart(monthsCount = 6) {
+  try {
+    const months = []
+    const now = new Date()
+    
+    for (let i = monthsCount - 1; i >= 0; i--) {
+      const date = new Date(now.getFullYear(), now.getMonth() - i, 1)
+      const endDate = new Date(now.getFullYear(), now.getMonth() - i + 1, 0, 23, 59, 59)
+      
+      const { data } = await supabase
+        .from('platform_revenue')
+        .select('source, amount')
+        .gte('created_at', date.toISOString())
+        .lte('created_at', endDate.toISOString())
+      
+      const platformFee = data?.filter(r => r.source === 'platform_fee')
+        .reduce((sum, r) => sum + Number(r.amount), 0) || 0
+      const withdrawalFee = data?.filter(r => r.source === 'withdrawal_fee')
+        .reduce((sum, r) => sum + Number(r.amount), 0) || 0
+      
+      months.push({
+        month: date.toLocaleString('id-ID', { month: 'short', year: 'numeric' }),
+        platformFee,
+        withdrawalFee,
+        total: platformFee + withdrawalFee
+      })
+    }
+
+    return { success: true, data: months }
+  } catch (error) {
+    console.error('Get monthly revenue chart error:', error)
+    return { success: false, error: error.message }
+  }
+}
+
+/**
+ * Record withdrawal fee as platform revenue
+ * @param {string} withdrawalId - Withdrawal ID
+ * @param {number} fee - Fee amount
+ * @param {string} lesPlaceId - Les place ID
+ */
+export async function recordWithdrawalFeeRevenue(withdrawalId, fee, lesPlaceId) {
+  try {
+    if (fee <= 0) return
+
+    // Check if already recorded
+    const { data: existing } = await supabase
+      .from('platform_revenue')
+      .select('id')
+      .eq('withdrawal_id', withdrawalId)
+      .single()
+
+    if (existing) return
+
+    await supabase
+      .from('platform_revenue')
+      .insert({
+        withdrawal_id: withdrawalId,
+        amount: fee,
+        source: 'withdrawal_fee',
+        description: 'Biaya pencairan',
+        les_place_id: lesPlaceId
+      })
+
+    console.log(`Withdrawal fee revenue recorded: Rp ${fee}`)
+  } catch (error) {
+    console.error('Record withdrawal fee revenue error:', error)
+  }
+}
+
+/**
+ * Get recent platform revenue transactions for admin
+ * @param {number} limit - Number of records to retrieve
+ */
+export async function getRecentPlatformRevenue(limit = 20) {
+  try {
+    const { data, error } = await supabase
+      .from('platform_revenue')
+      .select(`
+        *,
+        transactions(midtrans_order_id, description),
+        les_places(name)
+      `)
+      .order('created_at', { ascending: false })
+      .limit(limit)
+
+    if (error) throw error
+
+    return { success: true, revenue: data || [] }
+  } catch (error) {
+    console.error('Get recent platform revenue error:', error)
+    return { success: false, error: error.message }
+  }
+}
+
+/**
+ * Get teacher payment schedules that are due
+ */
+export async function getUpcomingTeacherPayments() {
+  try {
+    const today = new Date().toISOString().split('T')[0]
+    const nextWeek = new Date()
+    nextWeek.setDate(nextWeek.getDate() + 7)
+    
+    const { data, error } = await supabase
+      .from('payment_schedules')
+      .select(`
+        *,
+        teachers:teacher_id(users(name, email)),
+        les_places(name)
+      `)
+      .eq('is_active', true)
+      .lte('next_payment_date', nextWeek.toISOString().split('T')[0])
+      .order('next_payment_date', { ascending: true })
+
+    if (error) throw error
+
+    return { success: true, schedules: data || [] }
+  } catch (error) {
+    console.error('Get upcoming teacher payments error:', error)
+    return { success: false, error: error.message }
+  }
+}

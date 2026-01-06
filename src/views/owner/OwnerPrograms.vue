@@ -763,6 +763,7 @@ function getScheduleDays(schedule) {
               <div class="form-group">
                 <label class="form-label">Harga (Rp)</label>
                 <input v-model.number="form.price" type="number" min="0" step="50000" class="form-input">
+                <small class="form-hint">Biaya platform 10% akan dipotong dari setiap pembayaran siswa</small>
               </div>
               <div class="form-group">
                 <label class="form-label">Tipe Harga</label>

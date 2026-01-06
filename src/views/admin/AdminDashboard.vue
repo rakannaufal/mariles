@@ -48,20 +48,25 @@ async function fetchDashboardData() {
     // Pending verifications
     const { count: pendingCount } = await supabase.from('les_places').select('*', { count: 'exact', head: true }).eq('verification_status', 'pending')
     
-    // Transactions
-    const { count: txnCount } = await supabase.from('transactions').select('*', { count: 'exact', head: true })
-    const { data: txnSum } = await supabase.from('transactions').select('amount').eq('payment_status', 'completed')
-    const totalRevenue = txnSum?.reduce((sum, t) => sum + (t.amount || 0), 0) || 0
+    // Revenue from bookings (consistent with AdminFinance)
+    const successStatuses = ['paid', 'settlement', 'capture']
+    const { data: allBookings } = await supabase
+      .from('bookings')
+      .select('payment_status, programs(price)')
+    
+    const completedBookings = (allBookings || []).filter(b => successStatuses.includes(b.payment_status))
+    const totalRevenue = completedBookings.reduce((sum, b) => sum + Math.round((b.programs?.price || 0) * 0.1), 0)
+    const totalTransactions = completedBookings.length
 
     stats.value = {
-      totalUsers: { value: totalUserCount || 0, trend: '+12%', trendUp: true },
-      totalLesPlaces: { value: lesCount || 0, trend: '+5%', trendUp: true },
+      totalUsers: { value: totalUserCount || 0, trend: '+12% bulan ini', trendUp: true },
+      totalLesPlaces: { value: lesCount || 0, trend: '+5% bulan ini', trendUp: true },
       pendingVerifications: { value: pendingCount || 0, trend: pendingCount > 0 ? 'Perlu ditinjau' : 'Semua terverifikasi', trendUp: pendingCount === 0 },
-      totalRevenue: { value: totalRevenue, trend: '+18%', trendUp: true },
+      totalRevenue: { value: totalRevenue, trend: '+18% bulan ini', trendUp: true },
       activeStudents: { value: studentCount || 0, trend: '+8%', trendUp: true },
       activeTeachers: { value: teacherCount || 0, trend: '+3%', trendUp: true },
       activeOwners: { value: ownerCount || 0, trend: '+2%', trendUp: true },
-      todayTransactions: { value: txnCount || 0, trend: '', trendUp: true }
+      todayTransactions: { value: totalTransactions, trend: `${totalTransactions} berhasil`, trendUp: true }
     }
 
     // Recent Users (exclude admin)
@@ -90,13 +95,32 @@ async function fetchDashboardData() {
       .limit(5)
     pendingVerifications.value = pending || []
 
-    // Recent Transactions
-    const { data: transactions } = await supabase
-      .from('transactions')
-      .select('id, amount, payment_status, created_at, les_places(name)')
+    // Recent Transactions (from bookings for consistency)
+    const { data: recentBookings } = await supabase
+      .from('bookings')
+      .select('id, payment_status, created_at, programs(price, les_places(name))')
       .order('created_at', { ascending: false })
       .limit(5)
-    recentTransactions.value = transactions || []
+    
+    recentTransactions.value = (recentBookings || []).map(b => {
+      // Normalize status for display
+      let normalizedStatus = b.payment_status
+      if (successStatuses.includes(b.payment_status)) {
+        normalizedStatus = 'completed'
+      } else if (b.payment_status === 'unpaid' || b.payment_status === 'pending') {
+        normalizedStatus = 'pending'
+      } else if (['failed', 'cancelled', 'expire'].includes(b.payment_status)) {
+        normalizedStatus = 'failed'
+      }
+      
+      return {
+        id: b.id,
+        amount: b.programs?.price || 0,
+        payment_status: normalizedStatus,
+        created_at: b.created_at,
+        les_places: b.programs?.les_places
+      }
+    })
 
   } catch (err) {
     console.error('Error fetching admin dashboard:', err)
@@ -132,11 +156,19 @@ function getRoleBadge(role) {
 
 function getStatusBadge(status) {
   const badges = {
-    pending: { label: 'Pending', class: 'warning' },
+    // Normalized statuses
+    pending: { label: 'Menunggu', class: 'warning' },
+    completed: { label: 'Selesai', class: 'success' },
+    failed: { label: 'Gagal', class: 'error' },
+    // Original statuses (fallback)
     verified: { label: 'Terverifikasi', class: 'success' },
     rejected: { label: 'Ditolak', class: 'error' },
-    completed: { label: 'Selesai', class: 'success' },
-    failed: { label: 'Gagal', class: 'error' }
+    paid: { label: 'Selesai', class: 'success' },
+    settlement: { label: 'Selesai', class: 'success' },
+    capture: { label: 'Selesai', class: 'success' },
+    unpaid: { label: 'Menunggu', class: 'warning' },
+    cancelled: { label: 'Dibatalkan', class: 'error' },
+    expire: { label: 'Kadaluarsa', class: 'error' }
   }
   return badges[status] || { label: status, class: 'info' }
 }

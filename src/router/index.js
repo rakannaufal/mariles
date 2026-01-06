@@ -443,6 +443,12 @@ const routes = [
     meta: { role: 'admin' } 
   },
   { 
+    path: '/admin/finance', 
+    name: 'admin-finance', 
+    component: () => import('@/views/admin/AdminFinance.vue'), 
+    meta: { role: 'admin' } 
+  },
+  { 
     path: '/admin/notifications', 
     name: 'admin-notifications', 
     component: () => import('@/views/admin/AdminNotifications.vue'), 

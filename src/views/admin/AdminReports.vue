@@ -34,42 +34,75 @@ watch([dateFilter, statusFilter], () => {
 async function fetchData() {
   loading.value = true
   try {
-    // 1. Fetch Transactions
-    let txnQuery = supabase
-      .from('transactions')
+    // SUCCESS STATUSES (consistent across all finance pages)
+    const successStatuses = ['paid', 'settlement', 'capture']
+    
+    // 1. Fetch Bookings as primary source (consistent with OwnerRegistrations)
+    let bookingsQuery = supabase
+      .from('bookings')
       .select(`
-        id, amount, payment_status, payment_method, created_at,
-        les_places (id, name, city),
-        students (
-          id, 
-          users (id, name, email, phone)
-        )
+        id, status, payment_status, created_at,
+        students(id, users(id, name, email, phone)),
+        programs(id, name, price, les_places(id, name, city))
       `)
       .order('created_at', { ascending: false })
       .limit(100)
 
-    if (statusFilter.value !== 'all' && activeTab.value === 'transactions') {
-      txnQuery = txnQuery.eq('payment_status', statusFilter.value)
-    }
-
     if (dateFilter.value === 'today') {
       const today = new Date().toISOString().split('T')[0]
-      txnQuery = txnQuery.gte('created_at', today)
+      bookingsQuery = bookingsQuery.gte('created_at', today)
     } else if (dateFilter.value === 'week') {
       const weekAgo = new Date()
       weekAgo.setDate(weekAgo.getDate() - 7)
-      txnQuery = txnQuery.gte('created_at', weekAgo.toISOString())
+      bookingsQuery = bookingsQuery.gte('created_at', weekAgo.toISOString())
     }
 
-    const { data: txnData } = await txnQuery
-    transactions.value = txnData || []
+    const { data: bookingsData } = await bookingsQuery
+    
+    // Map bookings to transaction format with normalized status
+    let mappedTransactions = (bookingsData || []).map(b => {
+      // Normalize status for display
+      let normalizedStatus = b.payment_status
+      if (successStatuses.includes(b.payment_status)) {
+        normalizedStatus = 'completed'
+      } else if (b.payment_status === 'unpaid') {
+        normalizedStatus = 'pending'
+      }
+      
+      return {
+        id: b.id,
+        amount: b.programs?.price || 0,
+        payment_status: normalizedStatus,
+        original_status: b.payment_status, // Keep original for reference
+        payment_method: '-',
+        created_at: b.created_at,
+        les_places: b.programs?.les_places,
+        students: { id: b.students?.id, users: b.students?.users }
+      }
+    })
+    
+    // Apply status filter based on normalized status
+    if (statusFilter.value !== 'all' && activeTab.value === 'transactions') {
+      if (statusFilter.value === 'completed') {
+        mappedTransactions = mappedTransactions.filter(t => t.payment_status === 'completed')
+      } else if (statusFilter.value === 'pending') {
+        mappedTransactions = mappedTransactions.filter(t => t.payment_status === 'pending')
+      } else if (statusFilter.value === 'failed') {
+        mappedTransactions = mappedTransactions.filter(t => 
+          ['failed', 'cancelled', 'expire', 'rejected'].includes(t.payment_status) || 
+          ['failed', 'cancelled', 'expire', 'rejected'].includes(t.original_status)
+        )
+      }
+    }
+    
+    transactions.value = mappedTransactions
 
-    // 2. Compute Stats (Simplified for demo, ideally backend aggregation)
-    const { data: allTxn } = await supabase.from('transactions').select('amount, payment_status')
-    stats.value.totalRevenue = (allTxn || [])
-      .filter(t => t.payment_status === 'completed')
-      .reduce((sum, t) => sum + (t.amount || 0), 0)
-    stats.value.completedTransactions = (allTxn || []).filter(t => t.payment_status === 'completed').length
+    // 2. Compute Stats from ALL bookings
+    const { data: allBookings } = await supabase.from('bookings').select('payment_status, programs(price)')
+    const completedBookings = (allBookings || []).filter(b => successStatuses.includes(b.payment_status))
+    
+    stats.value.totalRevenue = completedBookings.reduce((sum, b) => sum + (b.programs?.price || 0), 0)
+    stats.value.completedTransactions = completedBookings.length
 
     // 3. Fetch Withdrawals
     let wdQuery = supabase
@@ -143,11 +176,19 @@ function formatDate(date) {
 
 function getStatusInfo(status) {
   const statuses = {
-    pending: { label: 'Menunggu', class: 'warning' },
+    // Mapped statuses (from booking conversion)
     completed: { label: 'Berhasil', class: 'success' },
+    pending: { label: 'Menunggu', class: 'warning' },
     failed: { label: 'Gagal', class: 'error' },
     processing: { label: 'Diproses', class: 'info' },
-    rejected: { label: 'Ditolak', class: 'error' }
+    rejected: { label: 'Ditolak', class: 'error' },
+    // Original booking statuses  
+    paid: { label: 'Berhasil', class: 'success' },
+    settlement: { label: 'Berhasil', class: 'success' },
+    capture: { label: 'Berhasil', class: 'success' },
+    unpaid: { label: 'Menunggu', class: 'warning' },
+    cancelled: { label: 'Dibatalkan', class: 'error' },
+    expire: { label: 'Kadaluarsa', class: 'error' }
   }
   return statuses[status] || { label: status, class: 'info' }
 }
