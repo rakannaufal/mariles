@@ -1,7 +1,6 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue'
 import { useStudentData } from '@/composables/useStudentData'
-import StudentSidebar from '@/components/StudentSidebar.vue'
 
 const { loading, bookings, fetchBookings } = useStudentData()
 
@@ -74,7 +73,6 @@ function selectPlace(place) {
 
 <template>
   <div class="dashboard">
-    <StudentSidebar />
 
     <main class="main">
       <header class="page-header">
@@ -230,7 +228,7 @@ function selectPlace(place) {
 
 .stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
 .stat-box{background:white;padding:20px;border-radius:16px;text-align:center;box-shadow:0 1px 3px rgba(0,0,0,0.08)}
-.stat-value{display:block;font-size:24px;font-weight:700;color:var(--secondary)}
+.stat-value{display:block;font-size:20px;font-weight:700;color:var(--secondary)}
 .stat-label{font-size:13px;color:var(--text-secondary)}
 
 .programs-section{background:white;border-radius:16px;padding:24px;box-shadow:0 1px 3px rgba(0,0,0,0.08)}

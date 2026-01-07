@@ -4,7 +4,6 @@ import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useStudentData } from '@/composables/useStudentData'
 import { useChat } from '@/composables/useChat'
-import StudentSidebar from '@/components/StudentSidebar.vue'
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -63,7 +62,6 @@ function getStatusText(status) {
 
 <template>
   <div class="dashboard">
-    <StudentSidebar />
 
     <main class="main">
       <header class="header">

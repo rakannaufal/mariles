@@ -3,7 +3,6 @@ import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useStudentData } from '@/composables/useStudentData'
 import { useAuthStore } from '@/stores/auth'
-import StudentSidebar from '@/components/StudentSidebar.vue'
 import { supabase } from '@/lib/supabase'
 import { loadSnapScript } from '@/lib/midtrans'
 import { createPayment } from '@/services/paymentService'
@@ -330,7 +329,6 @@ function isPaymentExpired(createdAt) {
 
 <template>
   <div class="dashboard">
-    <StudentSidebar />
 
     <main class="main">
       <header class="page-header">
@@ -660,7 +658,7 @@ function isPaymentExpired(createdAt) {
 .stat-card{padding:20px;background:white;border:2px solid transparent;border-radius:16px;text-align:center;cursor:pointer;transition:all 0.2s;box-shadow:0 1px 3px rgba(0,0,0,0.08)}
 .stat-card:hover{border-color:var(--border)}
 .stat-card.active{border-color:var(--secondary);background:rgba(10,69,104,0.05)}
-.stat-value{display:block;font-size:24px;font-weight:700;color:var(--secondary)}
+.stat-value{display:block;font-size:20px;font-weight:700;color:var(--secondary)}
 .stat-label{font-size:14px;color:var(--text-secondary)}
 
 .loading-state{display:flex;justify-content:center;padding:60px}
@@ -744,7 +742,7 @@ function isPaymentExpired(createdAt) {
 .history-info p{font-size:13px;color:var(--text-secondary);margin-bottom:4px}
 .history-meta{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-muted)}
 .history-meta .divider{color:var(--border)}
-.history-meta .order-id{font-family:monospace;font-size:11px}
+.history-meta .order-id{font-family:var(--font-mono);font-size:11px}
 .history-amount{text-align:right}
 .history-amount .amount{display:block;font-size:16px;font-weight:700;color:var(--text);margin-bottom:4px}
 .status-badge-sm{display:inline-block;padding:3px 8px;border-radius:20px;font-size:10px;font-weight:600}

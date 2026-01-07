@@ -1,5 +1,4 @@
 <script setup>
-import OwnerSidebar from '@/components/OwnerSidebar.vue'
 import { ref, onMounted, onUnmounted, computed, watch } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { supabase } from '@/lib/supabase'
@@ -524,7 +523,6 @@ function getScheduleDays(schedule) {
 
 <template>
   <div class="dashboard">
-    <OwnerSidebar />
 
     <main class="main">
       <header class="header">

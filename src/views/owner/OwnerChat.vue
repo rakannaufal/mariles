@@ -1,5 +1,4 @@
 <script setup>
-import OwnerSidebar from '@/components/OwnerSidebar.vue'
 import { ref, onMounted, watch, onUnmounted, computed, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
@@ -143,7 +142,6 @@ onUnmounted(() => {
 
 <template>
   <div class="dashboard">
-    <OwnerSidebar />
 
     <main class="main">
       <header class="header">

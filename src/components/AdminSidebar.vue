@@ -60,9 +60,7 @@ async function handleLogout() {
         </router-link>
 
         <router-link to="/admin/finance" class="nav-item">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
-          </svg>
+          <span class="rp-icon">Rp</span>
           <span>Keuangan</span>
         </router-link>
 
@@ -205,6 +203,7 @@ async function handleLogout() {
   transition: all 0.2s ease;
 }
 .nav-item svg { width: 20px; height: 20px; flex-shrink: 0; }
+.nav-item .rp-icon { width: 20px; font-size: 12px; font-weight: 700; text-align: center; flex-shrink: 0; }
 .nav-item:hover { background: rgba(255, 255, 255, 0.1); color: white; }
 .nav-item.router-link-active { background: rgba(255, 255, 255, 0.15); color: white; font-weight: 600; }
 

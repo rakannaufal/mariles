@@ -1,6 +1,4 @@
 <script setup>
-import TeacherSidebar from '@/components/TeacherSidebar.vue'
-import OwnerSidebar from '@/components/OwnerSidebar.vue'
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
@@ -240,8 +238,6 @@ function formatDate(date) {
 
 <template>
   <div class="dashboard">
-    <OwnerSidebar v-if="isOwner" />
-    <TeacherSidebar v-else />
 
     <main class="main">
       <!-- Header -->
@@ -602,7 +598,7 @@ function formatDate(date) {
 
 <style scoped>
 .dashboard { display: flex; min-height: 100vh; background: #f8fafc; }
-.main { flex: 1; padding: 32px; max-width: 1000px; margin: 0 auto; }
+.main { flex: 1; padding: 32px; width: 100%; }
 
 /* Header */
 .page-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 24px; }

@@ -1,6 +1,5 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue'
-import OwnerSidebar from '@/components/OwnerSidebar.vue'
 import { useAuthStore } from '@/stores/auth'
 import { supabase } from '@/lib/supabase'
 
@@ -265,7 +264,6 @@ function getVoucherStatus(voucher) {
 
 <template>
   <div class="owner-layout">
-    <OwnerSidebar />
     
     <main class="main-content">
       <header class="page-header">
@@ -535,17 +533,18 @@ function getVoucherStatus(voucher) {
 
 <style scoped>
 .owner-layout {
+  flex: 1;
   display: flex;
+  flex-direction: column;
   min-height: 100vh;
   background: var(--background);
-  font-family: 'Inter', sans-serif;
 }
 
 .main-content {
   flex: 1;
   padding: 32px;
-  /* Removed margin-left: 280px because sidebar is flex item */
   width: 100%;
+  overflow-y: auto;
 }
 
 @media (max-width: 1024px) {
@@ -735,7 +734,6 @@ function getVoucherStatus(voucher) {
 }
 
 .voucher-code {
-  font-family: 'Monaco', monospace;
   font-weight: 700;
   font-size: 20px;
   color: var(--primary);

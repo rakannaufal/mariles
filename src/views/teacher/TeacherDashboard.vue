@@ -1,5 +1,4 @@
 <script setup>
-import TeacherSidebar from '@/components/TeacherSidebar.vue'
 import { ref, computed, onMounted } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { useTeacherData } from '@/composables/useTeacherData'
@@ -162,7 +161,6 @@ const currentDate = computed(() => {
 
 <template>
   <div class="dashboard">
-    <TeacherSidebar />
 
     <main class="main">
       <!-- Header with welcome and date -->
@@ -528,7 +526,6 @@ const currentDate = computed(() => {
   display: flex;
   min-height: 100vh;
   background: #f8fafc;
-  font-family: 'Poppins', sans-serif;
 }
 
 .main {
@@ -627,10 +624,10 @@ const currentDate = computed(() => {
   box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
 }
 
-.stat-card.primary { border-left: 4px solid #0d5782; }
-.stat-card.success { border-left: 4px solid #22c55e; }
-.stat-card.warning { border-left: 4px solid #f59e0b; }
-.stat-card.info { border-left: 4px solid #8b5cf6; }
+.stat-card.primary { }
+.stat-card.success { }
+.stat-card.warning { }
+.stat-card.info { }
 
 .stat-icon {
   width: 56px;
@@ -647,7 +644,7 @@ const currentDate = computed(() => {
 .stat-card.warning .stat-icon { background: #F1F5F9; color: #0D5782; }
 .stat-card.info .stat-icon { background: #F1F5F9; color: #0D5782; }
 
-.stat-icon svg { width: 28px; height: 28px; }
+.stat-icon svg { width: 26px; height: 26px; }
 
 .stat-content {
   flex: 1;
@@ -656,10 +653,10 @@ const currentDate = computed(() => {
 }
 
 .stat-value {
-  font-size: 32px;
-  font-weight: 700;
+  font-size: 20px;
+  font-weight: 800;
   color: #0f172a;
-  line-height: 1.1;
+  line-height: 1;
 }
 
 .stat-label {

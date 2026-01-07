@@ -1,5 +1,4 @@
 <script setup>
-import OwnerSidebar from '@/components/OwnerSidebar.vue'
 import { ref, computed, onMounted } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { supabase } from '@/lib/supabase'
@@ -627,20 +626,16 @@ const filteredTransactions = computed(() => {
 const availableBalance = computed(() => {
   const totalIncome = summary.value.totalIncome || 0
   const paidToTeachers = summary.value.totalPaidToTeachers || 0
-  // TODO: Add total withdrawals when withdrawal feature is complete
-  const totalWithdrawals = 0
-  return totalIncome - paidToTeachers - totalWithdrawals
+  // Available balance should exclude money already paid to teachers
+  return totalIncome - paidToTeachers
 })
 
-// Computed: Withdrawable balance (only if covers pending teacher payments or is private)
+// Computed: Withdrawable balance (same as available balance)
 const withdrawableBalance = computed(() => {
-  if (lesPlace.value.is_private) {
-    return lesPlace.value.balance
-  }
-  return Math.max(0, lesPlace.value.balance - lesPlace.value.pendingTeacherPayments)
+  return availableBalance.value
 })
 
-const maxWithdraw = computed(() => withdrawableBalance.value)
+const maxWithdraw = computed(() => availableBalance.value)
 
 async function handleWithdraw() {
   withdrawError.value = ''
@@ -753,7 +748,6 @@ async function handleWithdraw() {
 
 <template>
   <div class="dashboard">
-    <OwnerSidebar />
 
     <main class="main">
       <header class="header">
@@ -1023,7 +1017,7 @@ async function handleWithdraw() {
                 <div class="balance-display">
                   <div class="balance-main">
                     <span class="balance-label">Total Saldo</span>
-                    <span class="balance-value">{{ formatCurrency(lesPlace.balance) }}</span>
+                    <span class="balance-value">{{ formatCurrency(availableBalance) }}</span>
                   </div>
                   <div v-if="!lesPlace.is_private" class="balance-detail">
                     <div class="detail-row total">
@@ -1391,8 +1385,8 @@ async function handleWithdraw() {
 </template>
 
 <style scoped>
-.dashboard { display: flex; min-height: 100vh; background: #f8fafc; }
-.main { flex: 1; padding: 24px; overflow-x: auto; }
+.dashboard { flex: 1; display: flex; flex-direction: column; width: 100%; min-height: 0; overflow: hidden; }
+.main { flex: 1; padding: 24px; overflow-y: auto; width: 100%; }
 
 .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 24px; flex-wrap: wrap; gap: 16px; }
 .header h1 { font-size: 24px; font-weight: 700; margin-bottom: 4px; }
@@ -1406,15 +1400,15 @@ async function handleWithdraw() {
 /* Summary Cards */
 .summary-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
 .summary-card { background: white; border-radius: 12px; padding: 20px; display: flex; align-items: center; gap: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
-.card-icon { width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; }
-.card-icon svg { width: 24px; height: 24px; }
-.card-icon.income { background: #dcfce7; color: #16a34a; }
-.card-icon.monthly { background: #dbeafe; color: #2563eb; }
-.card-icon.pending { background: #fef3c7; color: #d97706; }
-.card-icon.paid { background: #f3e8ff; color: #9333ea; }
-.card-icon.balance { background: #dcfce7; color: #16a34a; }
-.summary-card.highlight { border: 2px solid #16a34a; background: linear-gradient(135deg, #f0fdf4, white); }
-.card-value.success { color: #16a34a; }
+.card-icon { width: 56px; height: 56px; border-radius: 14px; display: flex; align-items: center; justify-content: center; }
+.card-icon svg { width: 26px; height: 26px; }
+.card-icon.income { background: #F1F5F9; color: #0D5782; }
+.card-icon.monthly { background: #F1F5F9; color: #0D5782; }
+.card-icon.pending { background: #F1F5F9; color: #0D5782; }
+.card-icon.paid { background: #F1F5F9; color: #0D5782; }
+.card-icon.balance { background: #F1F5F9; color: #0D5782; }
+.summary-card.highlight { border: 2px solid #E2E8F0; background: white; }
+.card-value.success { color: #1e293b; }
 .card-label { display: block; font-size: 13px; color: #64748b; margin-bottom: 4px; }
 .card-value { font-size: 20px; font-weight: 700; color: #1e293b; }
 .card-hint { display: block; font-size: 11px; color: #94a3b8; margin-top: 4px; }
@@ -1427,7 +1421,7 @@ async function handleWithdraw() {
 .tab.active { background: #0a4568; color: white; }
 
 /* Panel Cards */
-.panel-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 24px; }
+.panel-grid { display: grid; grid-template-columns: 1fr; gap: 24px; }
 .panel-card { background: white; border-radius: 12px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
 .panel-card.full { grid-column: span 2; }
 .panel-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; padding-bottom: 16px; border-bottom: 1px solid #e2e8f0; }
@@ -1670,7 +1664,7 @@ async function handleWithdraw() {
 .detail-row { display: flex; justify-content: space-between; padding: 12px; background: #f8fafc; border-radius: 8px; }
 .detail-label { font-size: 13px; color: #64748b; }
 .detail-value { font-size: 14px; font-weight: 600; color: #1e293b; }
-.detail-value.mono { font-family: monospace; font-size: 12px; color: #64748b; }
+.detail-value.mono { font-size: 12px; color: #64748b; }
 
 /* Action Buttons */
 .action-buttons { display: flex; gap: 6px; }

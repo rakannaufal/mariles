@@ -470,7 +470,7 @@ const filteredReports = computed(() => {
 </template>
 
 <style scoped>
-.dashboard { display: flex; min-height: 100vh; background: #F8FAFC; font-family: 'Inter', sans-serif; }
+.dashboard { display: flex; min-height: 100vh; background: #F8FAFC; }
 .main-content { flex: 1; padding: 32px; overflow-y: auto; max-width: 1400px; margin: 0 auto; }
 
 /* Header */
@@ -482,8 +482,8 @@ const filteredReports = computed(() => {
 /* Stats */
 .stats-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 24px; margin-bottom: 32px; }
 .stat-card { background: white; border-radius: 16px; padding: 24px; display: flex; align-items: flex-start; gap: 16px; border: 1px solid #E2E8F0; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); }
-.stat-icon-box { width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.stat-icon-box svg { width: 24px; height: 24px; }
+.stat-icon-box { width: 56px; height: 56px; border-radius: 14px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.stat-icon-box svg { width: 26px; height: 26px; }
 .stat-icon-box.blue { background: #F1F5F9; color: #0D5782; }
 .stat-icon-box.red { background: #F1F5F9; color: #0D5782; }
 .stat-icon-box.orange { background: #F1F5F9; color: #0D5782; }
@@ -491,7 +491,7 @@ const filteredReports = computed(() => {
 
 .stat-info { display: flex; flex-direction: column; }
 .stat-label { font-size: 13px; font-weight: 600; color: #64748B; margin-bottom: 4px; text-transform: uppercase; }
-.stat-value { font-size: 24px; font-weight: 800; color: #1E293B; margin-bottom: 4px; }
+.stat-value { font-size: 20px; font-weight: 800; color: #1E293B; margin-bottom: 4px; }
 .stat-hint { font-size: 12px; font-weight: 500; }
 .text-red { color: #EF4444; }
 .text-orange { color: #F97316; }

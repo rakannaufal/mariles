@@ -381,7 +381,7 @@ onMounted(fetchAnalytics)
 .stat-icon.pending { background: #F1F5F9; color: #0D5782; }
 .stat-icon.students { background: #F1F5F9; color: #0D5782; }
 .stat-info { display: flex; flex-direction: column; }
-.stat-value { font-size: 22px; font-weight: 700; color: #1e293b; }
+.stat-value { font-size: 20px; font-weight: 700; color: #1e293b; }
 .stat-label { font-size: 13px; color: #64748b; }
 
 .charts-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 20px; margin-bottom: 24px; }
@@ -428,6 +428,6 @@ td.empty { text-align: center; color: #94a3b8; padding: 24px; }
   .main { padding: 16px; }
   .charts-grid, .tables-grid { grid-template-columns: 1fr; }
   .stat-card { padding: 16px; }
-  .stat-value { font-size: 18px; }
+  .stat-value { font-size: 20px; }
 }
 </style>

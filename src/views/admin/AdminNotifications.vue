@@ -293,10 +293,10 @@ function getTypeInfo(type) {
 
 .stats-row { display: flex; gap: 20px; margin-bottom: 24px; }
 .stat-card { display: flex; align-items: center; gap: 16px; padding: 24px 32px; background: white; border-radius: 16px; border: 1px solid #E2E8F0; }
-.stat-icon-box { width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.stat-icon-box svg { width: 24px; height: 24px; }
+.stat-icon-box { width: 56px; height: 56px; border-radius: 14px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.stat-icon-box svg { width: 26px; height: 26px; }
 .stat-icon-box.blue { background: #F1F5F9; color: #0D5782; }
-.stat-value { display: block; font-size: 28px; font-weight: 700; color: #1E293B; }
+.stat-value { display: block; font-size: 20px; font-weight: 700; color: #1E293B; }
 .stat-label { font-size: 14px; color: #64748B; }
 
 .loading-state { display: flex; justify-content: center; padding: 80px; }

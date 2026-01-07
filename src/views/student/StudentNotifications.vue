@@ -1,5 +1,4 @@
 <script setup>
-import StudentSidebar from '@/components/StudentSidebar.vue'
 import { ref, onMounted, computed } from 'vue'
 import { supabase } from '@/lib/supabase'
 import { useAuthStore } from '@/stores/auth'
@@ -117,7 +116,6 @@ function getTypeConfig(type) {
 
 <template>
   <div class="dashboard">
-    <StudentSidebar />
 
     <main class="main-content">
       <!-- Header -->
@@ -325,13 +323,13 @@ function getTypeConfig(type) {
   align-items: center; 
   justify-content: center; 
 }
-.stat-icon svg { width: 24px; height: 24px; }
+.stat-icon svg { width: 26px; height: 26px; }
 .stat-icon.all { background: #DBEAFE; color: #3B82F6; }
 .stat-icon.unread { background: #FEF3C7; color: #D97706; }
 .stat-icon.read { background: #D1FAE5; color: #059669; }
 
 .stat-info { display: flex; flex-direction: column; }
-.stat-value { font-size: 28px; font-weight: 700; color: #1E293B; line-height: 1; }
+.stat-value { font-size: 20px; font-weight: 700; color: #1E293B; line-height: 1; }
 .stat-label { font-size: 13px; color: #64748B; margin-top: 4px; }
 
 /* Filter Section */

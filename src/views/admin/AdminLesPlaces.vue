@@ -847,13 +847,13 @@ function getMissingFields(place) {
 .stat-mini:hover { border-color: #CBD5E1; transform: translateY(-2px); }
 .stat-mini.active { border-color: #0A4568; background: #F0F9FF; }
 .stat-icon-box { width: 44px; height: 44px; border-radius: 12px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.stat-icon-box svg { width: 22px; height: 22px; }
+.stat-icon-box svg { width: 26px; height: 26px; }
 .stat-icon-box.blue { background: #F1F5F9; color: #0D5782; }
 .stat-icon-box.green { background: #F1F5F9; color: #0D5782; }
 .stat-icon-box.orange { background: #F1F5F9; color: #0D5782; }
 .stat-icon-box.purple { background: #F1F5F9; color: #0D5782; }
 .stat-info { display: flex; flex-direction: column; }
-.stat-value { font-size: 22px; font-weight: 700; color: #1E293B; }
+.stat-value { font-size: 20px; font-weight: 700; color: #1E293B; }
 .stat-label { font-size: 13px; color: #64748B; }
 
 /* Filters */
@@ -877,7 +877,7 @@ function getMissingFields(place) {
 .modern-table tr:hover { background: #F8FAFC; }
 
 .place-cell { display: flex; align-items: center; gap: 12px; }
-.place-avatar { width: 40px; height: 40px; background: linear-gradient(135deg, #0A4568 0%, #0D5A87 100%); color: white; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 16px; flex-shrink: 0; }
+.place-avatar { width: 40px; height: 40px; background: #F1F5F9; color: #0D5782; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 16px; flex-shrink: 0; }
 .place-avatar.large { width: 56px; height: 56px; font-size: 22px; border-radius: 14px; }
 .place-name { font-weight: 600; color: #1E293B; }
 .place-date { font-size: 12px; color: #94A3B8; }

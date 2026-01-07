@@ -1114,7 +1114,7 @@ function getStepLabels() {
 .alert-success{background:var(--success-bg);color:var(--success)}
 
 .invite-code-input{display:flex;gap:var(--spacing-sm)}
-.invite-code-input .code-input{flex:1;font-family:monospace;font-size:var(--font-size-lg);letter-spacing:4px;text-transform:uppercase;text-align:center}
+.invite-code-input .code-input{flex:1;font-family:var(--font-mono);font-size:var(--font-size-lg);letter-spacing:4px;text-transform:uppercase;text-align:center}
 .success-card{display:flex;align-items:center;gap:var(--spacing-md);padding:var(--spacing-md);background:#dcfce7;border:2px solid #86efac;border-radius:var(--radius-lg);margin-top:var(--spacing-md)}
 .success-icon{width:40px;height:40px;background:#16a34a;color:white;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:bold}
 .success-info strong{color:#16a34a;display:block;margin-bottom:4px}

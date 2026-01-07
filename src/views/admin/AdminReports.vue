@@ -490,7 +490,7 @@ const filteredWithdrawals = computed(() => {
 </template>
 
 <style scoped>
-.dashboard { display: flex; min-height: 100vh; background: #F8FAFC; font-family: 'Inter', sans-serif; }
+.dashboard { display: flex; min-height: 100vh; background: #F8FAFC; }
 .main-content { flex: 1; padding: 32px; overflow-y: auto; max-width: 1400px; margin: 0 auto; }
 
 /* Header */
@@ -510,8 +510,8 @@ const filteredWithdrawals = computed(() => {
 .stat-card { background: white; border-radius: 16px; padding: 24px; display: flex; align-items: flex-start; gap: 16px; border: 1px solid #E2E8F0; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); transition: transform 0.2s; }
 .stat-card:hover { transform: translateY(-2px); box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05); }
 
-.stat-icon-box { width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.stat-icon-box svg { width: 24px; height: 24px; }
+.stat-icon-box { width: 56px; height: 56px; border-radius: 14px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.stat-icon-box svg { width: 26px; height: 26px; }
 .stat-icon-box.green { background: #F1F5F9; color: #0D5782; }
 .stat-icon-box.blue { background: #F1F5F9; color: #0D5782; }
 .stat-icon-box.orange { background: #F1F5F9; color: #0D5782; }
@@ -519,7 +519,7 @@ const filteredWithdrawals = computed(() => {
 
 .stat-info { display: flex; flex-direction: column; }
 .stat-label { font-size: 13px; font-weight: 600; color: #64748B; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
-.stat-value { font-size: 24px; font-weight: 800; color: #1E293B; margin-bottom: 4px; }
+.stat-value { font-size: 20px; font-weight: 800; color: #1E293B; margin-bottom: 4px; }
 .stat-hint, .stat-trend { font-size: 12px; color: #64748B; }
 .stat-trend { display: flex; align-items: center; gap: 4px; font-weight: 600; }
 .stat-trend.positive { color: #10B981; }
@@ -547,7 +547,7 @@ const filteredWithdrawals = computed(() => {
 .modern-table tr:last-child td { border-bottom: none; }
 .modern-table tr:hover { background: #F8FAFC; }
 
-.id-badge { font-family: 'Monaco', monospace; background: #F1F5F9; padding: 4px 8px; border-radius: 4px; font-size: 12px; color: #475569; }
+.id-badge { background: #F1F5F9; padding: 4px 8px; border-radius: 4px; font-size: 12px; color: #475569; }
 .user-cell { display: flex; flex-direction: column; }
 .user-cell .name { font-weight: 600; color: #1E293B; }
 .user-cell .sub { font-size: 12px; color: #64748B; }
@@ -555,10 +555,10 @@ const filteredWithdrawals = computed(() => {
 
 .bank-info { display: flex; flex-direction: column; }
 .bank-name { font-weight: 700; color: #1E293B; font-size: 13px; }
-.bank-acc { font-family: monospace; color: #475569; }
+.bank-acc { color: #475569; }
 .bank-holder { font-size: 12px; color: #64748B; }
 
-.amount { font-family: 'Monaco', monospace; font-weight: 600; letter-spacing: -0.5px; }
+.amount { font-weight: 600; letter-spacing: -0.5px; }
 .text-red { color: #EF4444; }
 .text-green { color: #10B981; }
 
@@ -601,7 +601,7 @@ const filteredWithdrawals = computed(() => {
 .info-row { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 14px; }
 .info-row .lbl { color: #64748B; }
 .info-row span:last-child { font-weight: 500; color: #334155; text-align: right; }
-.mono { font-family: 'Monaco', monospace; font-size: 12px; }
+.mono { font-size: 12px; }
 
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }

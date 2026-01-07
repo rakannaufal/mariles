@@ -1,6 +1,4 @@
 <script setup>
-import TeacherSidebar from '@/components/TeacherSidebar.vue'
-import OwnerSidebar from '@/components/OwnerSidebar.vue'
 import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useTeacherData } from '@/composables/useTeacherData'
@@ -229,8 +227,6 @@ onMounted(async () => {
 
 <template>
   <div class="dashboard">
-    <OwnerSidebar v-if="isOwner" />
-    <TeacherSidebar v-else />
 
     <main class="main">
       <!-- Header -->
@@ -722,7 +718,6 @@ onMounted(async () => {
   display: flex;
   min-height: 100vh;
   background: #f8fafc;
-  font-family: 'Poppins', sans-serif;
 }
 
 .main {
@@ -804,7 +799,7 @@ onMounted(async () => {
   justify-content: center;
 }
 
-.stat-icon svg { width: 24px; height: 24px; }
+.stat-icon svg { width: 26px; height: 26px; }
 
 .stat-card.blue .stat-icon { background: #F1F5F9; color: #0D5782; }
 .stat-card.green .stat-icon { background: #F1F5F9; color: #0D5782; }
@@ -814,10 +809,10 @@ onMounted(async () => {
 .stat-info { display: flex; flex-direction: column; }
 
 .stat-number {
-  font-size: 28px;
-  font-weight: 700;
+  font-size: 20px;
+  font-weight: 800;
   color: #0f172a;
-  line-height: 1.1;
+  line-height: 1;
 }
 
 .stat-label {

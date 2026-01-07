@@ -2,7 +2,6 @@
 import { ref, onMounted, computed } from 'vue'
 import { supabase } from '@/lib/supabase'
 import { useAuthStore } from '@/stores/auth'
-import OwnerSidebar from '@/components/OwnerSidebar.vue'
 
 const authStore = useAuthStore()
 
@@ -167,7 +166,6 @@ onMounted(fetchSettings)
 
 <template>
   <div class="dashboard">
-    <OwnerSidebar />
 
     <main class="main">
       <header class="header">

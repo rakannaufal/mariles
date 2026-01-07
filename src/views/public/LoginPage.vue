@@ -108,7 +108,7 @@ async function handleGoogleLogin() {
 
             <div class="form-options">
               <label class="checkbox-label"><input type="checkbox"><span>Ingat saya</span></label>
-              <a href="#" class="link">Lupa password?</a>
+              <router-link to="/forgot-password" class="link">Lupa password?</router-link>
             </div>
 
             <button type="submit" class="btn btn-secondary btn-lg w-full" :disabled="loading">

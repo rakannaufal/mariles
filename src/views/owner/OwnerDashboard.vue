@@ -1,5 +1,4 @@
 <script setup>
-import OwnerSidebar from '@/components/OwnerSidebar.vue'
 import RevenueChart from '@/components/charts/RevenueChart.vue'
 import StudentTrendChart from '@/components/charts/StudentTrendChart.vue'
 import ProgramDistributionChart from '@/components/charts/ProgramDistributionChart.vue'
@@ -274,7 +273,6 @@ function getStatusText(status) {
 
 <template>
   <div class="dashboard-layout">
-    <OwnerSidebar />
 
     <main class="main-content">
       <header class="page-header">
@@ -446,7 +444,6 @@ function getStatusText(status) {
   display: flex;
   min-height: 100vh;
   background-color: #F8FAFC;
-  font-family: 'Poppins', sans-serif;
 }
 
 .main-content {
@@ -534,21 +531,24 @@ function getStatusText(status) {
 }
 
 .stat-content .value {
-  font-size: 28px;
+  font-size: 20px;
   font-weight: 800;
   color: #0F172A;
   line-height: 1;
 }
 
 .stat-content .trend {
-  font-size: 12px;
+  font-size: 10px;
   font-weight: 500;
   margin-top: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .trend.up { color: #16A34A; }
 .trend.down { color: #DC2626; }
 .trend.neutral { color: #64748B; }
-.trend .muted { color: #94A3B8; font-weight: 400; }
+.trend .muted { color: #94A3B8; font-weight: 400; font-size: 9px; }
 
 /* Charts Overview */
 .charts-overview {
@@ -708,18 +708,26 @@ function getStatusText(status) {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font-size: 14px;
+  font-size: 12px;
+  gap: 8px;
 }
 
 .prog-name {
   font-weight: 500;
   color: #334155;
+  font-size: 13px;
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .prog-count {
-  font-size: 12px;
-  color: #64748B;
+  font-size: 11px;
+  color: #64748b;
   font-weight: 600;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .prog-bar-bg {

@@ -1,5 +1,4 @@
 <script setup>
-import OwnerSidebar from '@/components/OwnerSidebar.vue'
 import { ref, computed, onMounted } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { supabase } from '@/lib/supabase'
@@ -101,7 +100,6 @@ function getPercentage(count) {
 
 <template>
   <div class="dashboard">
-    <OwnerSidebar />
 
     <main class="main-content">
       <!-- Header -->

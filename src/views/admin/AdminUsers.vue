@@ -440,7 +440,7 @@ function getRoleInfo(role) {
 .stat-mini:hover { border-color: #CBD5E1; }
 .stat-mini.active { border-color: #0A4568; background: #F0F9FF; }
 .stat-icon-box { width: 44px; height: 44px; border-radius: 12px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.stat-icon-box svg { width: 22px; height: 22px; }
+.stat-icon-box svg { width: 26px; height: 26px; }
 .stat-icon-box.blue { background: #F1F5F9; color: #0D5782; }
 .stat-icon-box.cyan { background: #F1F5F9; color: #0D5782; }
 .stat-icon-box.green { background: #F1F5F9; color: #0D5782; }
@@ -473,10 +473,10 @@ function getRoleInfo(role) {
 
 .user-cell { display: flex; align-items: center; gap: 12px; }
 .avatar { width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 16px; color: white; }
-.avatar.student { background: linear-gradient(135deg, #3B82F6, #2563EB); }
-.avatar.teacher { background: linear-gradient(135deg, #10B981, #059669); }
-.avatar.owner { background: linear-gradient(135deg, #F59E0B, #D97706); }
-.avatar.admin { background: linear-gradient(135deg, #EF4444, #DC2626); }
+.avatar.student { background: #F1F5F9; color: #0D5782; }
+.avatar.teacher { background: #F1F5F9; color: #0D5782; }
+.avatar.owner { background: #F1F5F9; color: #0D5782; }
+.avatar.admin { background: #F1F5F9; color: #0D5782; }
 .avatar.large { width: 64px; height: 64px; font-size: 24px; }
 
 .user-name { font-weight: 600; color: #1E293B; }
@@ -525,7 +525,7 @@ function getRoleInfo(role) {
 .detail-item { display: flex; flex-direction: column; gap: 4px; }
 .detail-label { font-size: 12px; color: #64748B; }
 .detail-value { font-size: 14px; font-weight: 500; color: #1E293B; }
-.detail-value.code { font-family: monospace; font-size: 11px; background: #F1F5F9; padding: 4px 8px; border-radius: 4px; word-break: break-all; }
+.detail-value.code { font-size: 11px; background: #F1F5F9; padding: 4px 8px; border-radius: 4px; word-break: break-all; }
 
 .extra-details { margin-top: 24px; padding-top: 20px; border-top: 1px solid #E2E8F0; }
 .extra-details h5 { font-size: 14px; font-weight: 600; color: #64748B; margin-bottom: 16px; }

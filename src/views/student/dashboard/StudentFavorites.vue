@@ -3,7 +3,6 @@ import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useFavorites } from '@/composables/useFavorites'
-import StudentSidebar from '@/components/StudentSidebar.vue'
 import LesCard from '@/components/LesCard.vue'
 
 const router = useRouter()
@@ -23,7 +22,6 @@ function goToSearch() {
 
 <template>
   <div class="dashboard">
-    <StudentSidebar />
 
     <main class="main">
       <header class="page-header">

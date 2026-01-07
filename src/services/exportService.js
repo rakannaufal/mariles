@@ -80,7 +80,7 @@ export function exportToPrintablePDF(data, title, columns) {
       <meta charset="utf-8">
       <title>${title}</title>
       <style>
-        body { font-family: 'Segoe UI', sans-serif; padding: 20px; }
+        body { font-family: 'Poppins', -apple-system, sans-serif; padding: 20px; }
         h1 { text-align: center; color: #1e293b; margin-bottom: 8px; }
         .subtitle { text-align: center; color: #64748b; margin-bottom: 24px; }
         table { width: 100%; border-collapse: collapse; font-size: 12px; }

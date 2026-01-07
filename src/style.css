@@ -1,3 +1,9 @@
+/**
+ * DEPRECATED: This file is not actively used.
+ * Please use /src/index.css as the main stylesheet.
+ * This file remains for Vite template compatibility only.
+ */
+
 :root {
   font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
   line-height: 1.5;

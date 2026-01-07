@@ -1,6 +1,4 @@
 <script setup>
-import TeacherSidebar from '@/components/TeacherSidebar.vue'
-import OwnerSidebar from '@/components/OwnerSidebar.vue'
 import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useTeacherData } from '@/composables/useTeacherData'
@@ -240,8 +238,6 @@ onMounted(async () => {
 
 <template>
   <div class="dashboard">
-    <OwnerSidebar v-if="isOwner" />
-    <TeacherSidebar v-else />
 
     <main class="main">
       <!-- Header -->
@@ -529,8 +525,7 @@ onMounted(async () => {
 .main {
   flex: 1;
   padding: 32px;
-  max-width: 1200px;
-  margin: 0 auto;
+  width: 100%;
 }
 
 /* Header */
@@ -584,7 +579,7 @@ onMounted(async () => {
   justify-content: center;
 }
 
-.stat-icon svg { width: 22px; height: 22px; }
+.stat-icon svg { width: 26px; height: 26px; }
 
 .stat-icon.blue { background: #F1F5F9; color: #0D5782; }
 .stat-icon.green { background: #F1F5F9; color: #0D5782; }
@@ -592,7 +587,7 @@ onMounted(async () => {
 .stat-icon.purple { background: #F1F5F9; color: #0D5782; }
 
 .stat-info { display: flex; flex-direction: column; }
-.stat-value { font-size: 28px; font-weight: 700; color: #1e293b; }
+.stat-value { font-size: 20px; font-weight: 700; color: #1e293b; }
 .stat-label { font-size: 13px; color: #64748b; }
 
 /* Week Navigation */

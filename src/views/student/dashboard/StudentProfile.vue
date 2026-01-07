@@ -2,7 +2,6 @@
 import { ref, onMounted, watch } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { supabase } from '@/lib/supabase'
-import StudentSidebar from '@/components/StudentSidebar.vue'
 
 const authStore = useAuthStore()
 
@@ -474,7 +473,6 @@ function calculateAge(dateOfBirth) {
 
 <template>
   <div class="dashboard">
-    <StudentSidebar />
 
     <main class="main">
       <header class="page-header">

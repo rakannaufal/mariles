@@ -1,5 +1,4 @@
 <script setup>
-import TeacherSidebar from '@/components/TeacherSidebar.vue'
 import { ref, onMounted, watch, onUnmounted, computed, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
@@ -125,7 +124,6 @@ onUnmounted(() => {
 
 <template>
   <div class="dashboard">
-    <TeacherSidebar />
 
     <main class="main">
       <header class="header">
@@ -276,10 +274,14 @@ onUnmounted(() => {
   padding: var(--spacing-xl);
   display: flex;
   flex-direction: column;
+  min-height: 0;
+  height: 100vh;
+  overflow: hidden;
 }
 
 .header {
   margin-bottom: var(--spacing-lg);
+  flex-shrink: 0;
 }
 
 .header h1 {

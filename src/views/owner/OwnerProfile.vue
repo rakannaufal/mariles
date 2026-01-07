@@ -1,5 +1,4 @@
 <script setup>
-import OwnerSidebar from '@/components/OwnerSidebar.vue'
 import { ref, onMounted, watch, computed } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { supabase } from '@/lib/supabase'
@@ -368,7 +367,6 @@ async function handleSave() {
 
 <template>
   <div class="dashboard">
-    <OwnerSidebar />
 
     <main class="main">
       <!-- Header Area -->
@@ -669,8 +667,8 @@ async function handleSave() {
 
 <style scoped>
 /* Base */
-.dashboard { display: flex; min-height: 100vh; background: #f1f5f9; font-family: 'Inter', sans-serif; }
-.main { flex: 1; padding: 24px; max-width: 1100px; margin: 0 auto; overflow: hidden; }
+.dashboard { flex: 1; display: flex; flex-direction: column; width: 100%; min-height: 0; background: #f1f5f9; }
+.main { flex: 1; padding: 24px; width: 100%; overflow-y: auto; }
 
 /* Animation */
 @keyframes spin { to { transform: rotate(360deg); } }
@@ -762,7 +760,7 @@ async function handleSave() {
 .card-preview.ewallet { background: linear-gradient(135deg, #059669, #10b981); }
 .card-chip { width: 40px; height: 28px; background: rgba(255,255,255,0.2); border-radius: 6px; border: 1px solid rgba(255,255,255,0.3); }
 .card-logo, .ewallet-logo { font-weight: 800; font-size: 18px; letter-spacing: 1px; text-align: right; }
-.card-number { font-size: 20px; font-family: 'Courier New', monospace; font-weight: 600; letter-spacing: 2px; text-align: center; margin: 10px 0; }
+.card-number { font-size: 20px; font-weight: 600; letter-spacing: 2px; text-align: center; margin: 10px 0; }
 .card-holder { font-size: 12px; font-weight: 500; text-transform: uppercase; letter-spacing: 2px; }
 .ewallet-badge { background: rgba(255,255,255,0.2); padding: 4px 10px; border-radius: 20px; font-size: 10px; font-weight: 700; align-self: flex-start; }
 
@@ -785,7 +783,7 @@ async function handleSave() {
 .place-type { font-size: 12px; color: #64748b; background: #f1f5f9; padding: 2px 8px; border-radius: 10px; }
 .code-box { background: #f8fafc; border: 1px dashed #cbd5e1; border-radius: 10px; padding: 12px; text-align: center; position: relative; }
 .code-label { font-size: 10px; font-weight: 700; color: #94a3b8; letter-spacing: 0.5px; display: block; margin-bottom: 4px; }
-.code-value { font-family: monospace; font-size: 20px; font-weight: 700; color: #0369a1; letter-spacing: 3px; }
+.code-value { font-size: 20px; font-weight: 700; color: #0369a1; letter-spacing: 3px; }
 .code-actions { display: flex; justify-content: center; gap: 8px; margin-top: 8px; }
 .action-btn { width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border-radius: 8px; border: 1px solid #e2e8f0; background: white; color: #64748b; cursor: pointer; transition: all 0.2s; }
 .action-btn:hover { background: #0369a1; border-color: #0369a1; color: white; }

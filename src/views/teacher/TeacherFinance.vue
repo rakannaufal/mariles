@@ -1,6 +1,4 @@
 <script setup>
-import TeacherSidebar from '@/components/TeacherSidebar.vue'
-import OwnerSidebar from '@/components/OwnerSidebar.vue'
 import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
@@ -358,8 +356,6 @@ async function handleWithdraw() {
 
 <template>
   <div class="dashboard">
-    <OwnerSidebar v-if="isOwner" />
-    <TeacherSidebar v-else />
 
     <main class="main">
       <!-- Header -->
@@ -852,14 +848,14 @@ async function handleWithdraw() {
   justify-content: center;
 }
 
-.stat-icon svg { width: 24px; height: 24px; }
+.stat-icon svg { width: 26px; height: 26px; }
 
 .rp-icon {
   font-size: 20px;
   font-weight: 800;
 }
 
-.rp-icon.lg { font-size: 32px; }
+.rp-icon.lg { font-size: 20px; }
 
 .stat-card.primary .stat-icon { background: #F1F5F9; color: #0D5782; }
 .stat-card.green .stat-icon { background: #F1F5F9; color: #0D5782; }
@@ -867,7 +863,7 @@ async function handleWithdraw() {
 .stat-card.purple .stat-icon { background: #F1F5F9; color: #0D5782; }
 
 .stat-info { display: flex; flex-direction: column; }
-.stat-value { font-size: 22px; font-weight: 700; color: #1e293b; }
+.stat-value { font-size: 20px; font-weight: 700; color: #1e293b; }
 .stat-label { font-size: 13px; color: #64748b; }
 
 /* Tabs */
@@ -1115,7 +1111,6 @@ async function handleWithdraw() {
 
 .amount-value {
   font-weight: 700;
-  font-family: 'SF Mono', monospace;
 }
 
 .amount-value.positive { color: #16a34a; }

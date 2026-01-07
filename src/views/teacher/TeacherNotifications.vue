@@ -1,5 +1,4 @@
 <script setup>
-import TeacherSidebar from '@/components/TeacherSidebar.vue'
 import { ref, onMounted, computed } from 'vue'
 import { supabase } from '@/lib/supabase'
 import { useAuthStore } from '@/stores/auth'
@@ -98,7 +97,6 @@ function getTypeClass(type) {
 
 <template>
   <div class="dashboard">
-    <TeacherSidebar />
 
     <main class="main-content">
       <header class="page-header">
@@ -183,7 +181,7 @@ function getTypeClass(type) {
 
 <style scoped>
 .dashboard { display: flex; min-height: 100vh; background: #F8FAFC; }
-.main-content { flex: 1; padding: 32px; overflow-y: auto; max-width: 900px; }
+.main-content { flex: 1; padding: 32px; overflow-y: auto; }
 
 .page-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 24px; }
 .header-left h1 { display: flex; align-items: center; gap: 12px; font-size: 28px; font-weight: 700; color: #1E293B; margin-bottom: 4px; }

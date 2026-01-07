@@ -1,5 +1,4 @@
 <script setup>
-import OwnerSidebar from '@/components/OwnerSidebar.vue'
 import { ref, onMounted, computed, watch } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { supabase } from '@/lib/supabase'
@@ -402,7 +401,6 @@ const activePrograms = computed(() => lesPlace.value?.programs?.filter(p => p.is
 
 <template>
   <div class="dashboard">
-    <OwnerSidebar />
 
     <main class="main">
       <header class="header">
@@ -773,8 +771,8 @@ const activePrograms = computed(() => lesPlace.value?.programs?.filter(p => p.is
 /* Stats Row */
 .stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:var(--spacing-md);margin-bottom:var(--spacing-lg)}
 .stat-card{background:white;border-radius:var(--radius-xl);padding:var(--spacing-lg);display:flex;align-items:center;gap:var(--spacing-md);box-shadow:var(--shadow-sm)}
-.stat-icon{width:48px;height:48px;background:var(--background);border-radius:var(--radius-lg);display:flex;align-items:center;justify-content:center}
-.stat-icon svg{width:24px;height:24px;color:var(--primary)}
+.stat-icon{width:48px;height:48px;background:#F1F5F9;border-radius:var(--radius-lg);display:flex;align-items:center;justify-content:center}
+.stat-icon svg{width:26px;height:26px;color:#0D5782}
 .stat-info{display:flex;flex-direction:column}
 .stat-value{font-size:var(--font-size-xl);font-weight:700;color:var(--text)}
 .stat-label{font-size:var(--font-size-xs);color:var(--text-muted)}

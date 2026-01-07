@@ -1,6 +1,4 @@
 <script setup>
-import TeacherSidebar from '@/components/TeacherSidebar.vue'
-import OwnerSidebar from '@/components/OwnerSidebar.vue'
 import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
@@ -341,8 +339,6 @@ async function deleteAttempt(attemptId) {
 
 <template>
   <div class="dashboard">
-    <OwnerSidebar v-if="isOwner" />
-    <TeacherSidebar v-else />
 
     <!-- Toast -->
     <Transition name="fade">

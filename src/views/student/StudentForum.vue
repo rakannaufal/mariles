@@ -9,10 +9,20 @@ const authStore = useAuthStore()
 // State
 const loading = ref(true)
 const posts = ref([])
-const categories = ref(['Umum', 'Matematika', 'Bahasa', 'Sains', 'Seni', 'Teknologi', 'Lainnya'])
+
+// Extended Categories
+const categories = ref([
+  'Matematika', 'Fisika', 'Kimia', 'Biologi', 
+  'B. Inggris', 'B. Indonesia', 'Ekonomi', 'Sejarah', 
+  'Geografi', 'Sosiologi', 'Coding', 'Teknologi', 
+  'Seni', 'Musik', 'Olahraga', 'Agama', 
+  'UTBK', 'CPNS', 'Tips Belajar', 'Lainnya'
+])
+
 const selectedCategory = ref('')
 const searchQuery = ref('')
 const sortBy = ref('newest')
+const searchCategory = ref('') 
 
 // Modal state
 const showPostModal = ref(false)
@@ -25,7 +35,7 @@ const loadingComments = ref(false)
 const newPost = ref({
   title: '',
   content: '',
-  category: 'Umum'
+  category: 'Matematika'
 })
 const newComment = ref('')
 const submitting = ref(false)
@@ -36,29 +46,40 @@ const editCommentText = ref('')
 const editingPost = ref(false)
 const editPostData = ref({ title: '', content: '', category: '' })
 
-// Fetch all posts
+// Like State (Client Side Persistence)
+const likedPostIds = ref(new Set())
+
+// Init User Likes
+function initLikes() {
+  const stored = localStorage.getItem(`forum_likes_${authStore.user?.id}`)
+  if (stored) {
+    likedPostIds.value = new Set(JSON.parse(stored))
+  }
+}
+
+function saveLikes() {
+  if (authStore.user?.id) {
+    localStorage.setItem(`forum_likes_${authStore.user.id}`, JSON.stringify([...likedPostIds.value]))
+  }
+}
+
+// Fetch all posts (Optimized with limit)
 async function fetchPosts() {
   loading.value = true
   try {
     const { data, error } = await supabase
       .from('forum_posts')
       .select(`
-        id,
-        title,
-        content,
-        category,
-        tags,
-        views,
-        likes,
-        is_pinned,
-        created_at,
+        id, title, content, category, tags, views, likes, is_pinned, created_at,
         user:users(id, name, avatar_url)
       `)
       .order('is_pinned', { ascending: false })
       .order('created_at', { ascending: false })
+      .limit(50) 
 
     if (error) throw error
     posts.value = data || []
+    initLikes()
   } catch (err) {
     console.error('Error fetching posts:', err)
   } finally {
@@ -87,7 +108,7 @@ async function createPost() {
 
     if (error) throw error
     
-    newPost.value = { title: '', content: '', category: 'Umum' }
+    newPost.value = { title: '', content: '', category: 'Matematika' }
     showPostModal.value = false
     await fetchPosts()
   } catch (err) {
@@ -103,13 +124,15 @@ async function viewPost(post) {
   selectedPost.value = post
   showDetailModal.value = true
   
-  // Increment view count
+  // Increment view count (Optimistic UI)
+  post.views = (post.views || 0) + 1
+  
+  // Silent update
   await supabase
     .from('forum_posts')
-    .update({ views: (post.views || 0) + 1 })
+    .update({ views: post.views })
     .eq('id', post.id)
   
-  post.views = (post.views || 0) + 1
   await fetchComments(post.id)
 }
 
@@ -120,11 +143,7 @@ async function fetchComments(postId) {
     const { data, error } = await supabase
       .from('forum_comments')
       .select(`
-        id,
-        content,
-        likes,
-        created_at,
-        parent_id,
+        id, content, likes, created_at, parent_id, post_id, user_id,
         user:users(id, name, avatar_url)
       `)
       .eq('post_id', postId)
@@ -165,17 +184,34 @@ async function addComment() {
   }
 }
 
-// Like post
-async function likePost(post) {
+// Toggle Like (Like/Unlike)
+async function toggleLike(post, event) {
+  if (event) event.stopPropagation()
+  if (!authStore.user) {
+    alert('Silakan login untuk menyukai postingan')
+    return
+  }
+
+  const isLiked = likedPostIds.value.has(post.id)
+  const newCount = (post.likes || 0) + (isLiked ? -1 : 1)
+  
+  // Optimistic Update
+  post.likes = newCount < 0 ? 0 : newCount
+  if (isLiked) {
+    likedPostIds.value.delete(post.id)
+  } else {
+    likedPostIds.value.add(post.id)
+  }
+  saveLikes()
+
+  // DB Update
   try {
     await supabase
       .from('forum_posts')
-      .update({ likes: (post.likes || 0) + 1 })
+      .update({ likes: post.likes })
       .eq('id', post.id)
-    
-    post.likes = (post.likes || 0) + 1
   } catch (err) {
-    console.error('Error liking post:', err)
+    console.error('Error updating like:', err)
   }
 }
 
@@ -189,9 +225,7 @@ async function deletePost(post) {
     await supabase.from('forum_posts').delete().eq('id', post.id)
     showDetailModal.value = false
     await fetchPosts()
-  } catch (err) {
-    console.error('Error deleting post:', err)
-  }
+  } catch (err) { console.error(err) }
 }
 
 // Edit comment functions
@@ -235,7 +269,6 @@ async function deleteComment(comment) {
       .eq('id', comment.id)
 
     if (error) throw error
-    
     postComments.value = postComments.value.filter(c => c.id !== comment.id)
   } catch (err) {
     console.error('Error deleting comment:', err)
@@ -322,13 +355,11 @@ function formatDate(date) {
   const d = new Date(date)
   const now = new Date()
   const diff = now - d
-  
   if (diff < 60000) return 'Baru saja'
-  if (diff < 3600000) return Math.floor(diff / 60000) + ' menit lalu'
-  if (diff < 86400000) return Math.floor(diff / 3600000) + ' jam lalu'
-  if (diff < 604800000) return Math.floor(diff / 86400000) + ' hari lalu'
-  
-  return d.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })
+  if (diff < 3600000) return Math.floor(diff / 60000) + 'm lalu'
+  if (diff < 86400000) return Math.floor(diff / 3600000) + 'j lalu'
+  if (diff < 604800000) return Math.floor(diff / 86400000) + 'h lalu'
+  return d.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })
 }
 
 function getInitials(name) {
@@ -344,384 +375,721 @@ onMounted(fetchPosts)
   <div class="forum-page">
     <Navbar />
     
-    <!-- Page Header -->
-    <div class="page-header">
-      <div class="header-content">
+    <div class="content-container">
+      <!-- Header -->
+      <div class="header-section">
         <h1>Forum Diskusi</h1>
-        <p class="header-subtitle">Tempat berbagi pengetahuan dan berdiskusi dengan sesama pelajar</p>
+        <p>Tempat berbagi ilmu dan diskusi sesama pelajar Mariles</p>
       </div>
-    </div>
 
-    <!-- Main Content -->
-    <div class="forum-content">
-      <div class="forum-layout">
-        <!-- Sidebar -->
-        <aside class="forum-sidebar">
-          <button v-if="isLoggedIn" class="btn btn-primary btn-block" @click="showPostModal = true">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
-            </svg>
-            Buat Diskusi Baru
-          </button>
-          <router-link v-else to="/login" class="btn btn-primary btn-block">
-            Login untuk Berdiskusi
-          </router-link>
-
-          <div class="filter-section">
-            <h4>Kategori</h4>
-            <div class="category-list">
-              <button 
-                :class="{ active: selectedCategory === '' }" 
-                @click="selectedCategory = ''"
-              >Semua</button>
-              <button 
-                v-for="cat in categories" 
-                :key="cat" 
-                :class="{ active: selectedCategory === cat }"
-                @click="selectedCategory = cat"
-              >{{ cat }}</button>
-            </div>
-          </div>
-
-          <div class="filter-section">
-            <h4>Urutkan</h4>
-            <select v-model="sortBy" class="sort-select">
-              <option value="newest">Terbaru</option>
-              <option value="popular">Terpopuler</option>
-              <option value="views">Paling Dilihat</option>
-            </select>
-          </div>
-        </aside>
-
-        <!-- Posts List -->
-        <div class="posts-container">
-          <div class="search-bar">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
-            </svg>
-            <input v-model="searchQuery" type="text" placeholder="Cari diskusi...">
-          </div>
-
-          <div v-if="loading" class="loading-state">
-            <div class="spinner"></div>
-            <p>Memuat diskusi...</p>
-          </div>
-
-          <div v-else-if="!filteredPosts.length" class="empty-state">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-            </svg>
-            <h3>Belum Ada Diskusi</h3>
-            <p>{{ searchQuery ? 'Coba kata kunci lain' : 'Jadilah yang pertama memulai diskusi!' }}</p>
-          </div>
-
-          <div v-else class="posts-list">
-            <div 
-              v-for="post in filteredPosts" 
-              :key="post.id" 
-              class="post-card"
-              :class="{ pinned: post.is_pinned }"
-              @click="viewPost(post)"
-            >
-              <div class="post-avatar">
-                <img v-if="post.user?.avatar_url" :src="post.user.avatar_url" :alt="post.user?.name">
-                <span v-else class="avatar-placeholder">{{ getInitials(post.user?.name) }}</span>
-              </div>
-              <div class="post-content">
-                <div class="post-meta">
-                  <span class="author">{{ post.user?.name || 'Anonim' }}</span>
-                  <span class="dot">•</span>
-                  <span class="date">{{ formatDate(post.created_at) }}</span>
-                  <span v-if="post.is_pinned" class="pinned-badge">📌 Disematkan</span>
-                </div>
-                <h3 class="post-title">{{ post.title }}</h3>
-                <p class="post-excerpt">{{ post.content.slice(0, 150) }}{{ post.content.length > 150 ? '...' : '' }}</p>
-                <div class="post-footer">
-                  <span class="category-tag">{{ post.category }}</span>
-                  <div class="post-stats">
-                    <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg> {{ post.views || 0 }}</span>
-                    <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg> {{ post.likes || 0 }}</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
+      <!-- Action Bar -->
+      <div class="action-bar">
+        <!-- Search -->
+        <div class="search-wrapper">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="search-icon">
+            <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+          </svg>
+          <input 
+            v-model="searchQuery" 
+            type="text" 
+            placeholder="Cari topik..." 
+            class="search-input"
+          >
         </div>
-      </div>
-    </div>
-
-    <!-- Create Post Modal -->
-    <div v-if="showPostModal" class="modal-overlay" @click.self="showPostModal = false">
-      <div class="modal">
-        <div class="modal-header">
-          <h2>Buat Diskusi Baru</h2>
-          <button class="close-btn" @click="showPostModal = false">&times;</button>
-        </div>
-        <form @submit.prevent="createPost" class="modal-body">
-          <div class="form-group">
-            <label>Judul *</label>
-            <input v-model="newPost.title" type="text" placeholder="Judul diskusi Anda..." required>
-          </div>
-          <div class="form-group">
-            <label>Kategori</label>
-            <select v-model="newPost.category">
+        
+        <!-- Category Dropdown (Mobile/Desktop friendly) -->
+        <div class="category-dropdown-wrapper">
+           <select v-model="selectedCategory" class="category-select">
+              <option value="">Semua Kategori</option>
               <option v-for="cat in categories" :key="cat" :value="cat">{{ cat }}</option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label>Konten *</label>
-            <textarea v-model="newPost.content" rows="6" placeholder="Tulis pertanyaan atau diskusi Anda..." required></textarea>
-          </div>
-          <div class="modal-actions">
-            <button type="button" class="btn btn-secondary" @click="showPostModal = false">Batal</button>
-            <button type="submit" class="btn btn-primary" :disabled="submitting">
-              {{ submitting ? 'Memposting...' : 'Posting' }}
-            </button>
-          </div>
-        </form>
+           </select>
+        </div>
+
+        <button v-if="isLoggedIn" class="btn-primary" @click="showPostModal = true">
+          <span class="plus-icon">+</span>
+          Buat Diskusi
+        </button>
+      </div>
+
+      <!-- Quick Categories Chips (Scrollable) -->
+      <div class="filter-bar">
+        <div class="categories-scroll">
+          <button 
+            :class="['filter-chip', { active: selectedCategory === '' }]"
+            @click="selectedCategory = ''"
+          >Semua</button>
+          <button 
+            v-for="cat in categories" 
+            :key="cat"
+            :class="['filter-chip', { active: selectedCategory === cat }]"
+            @click="selectedCategory = cat"
+          >{{ cat }}</button>
+        </div>
+      </div>
+
+      <!-- Post List -->
+      <div v-if="loading" class="loading-state">
+        <div class="spinner"></div>
+        <p>Memuat diskusi...</p>
+      </div>
+
+      <div v-else-if="filteredPosts.length === 0" class="empty-state">
+        <div class="empty-icon">💬</div>
+        <h3>Belum Ada Diskusi</h3>
+        <p>Jadilah yang pertama memulai diskusi topik ini!</p>
+      </div>
+
+      <div v-else class="post-stack">
+        <div 
+          v-for="post in filteredPosts" 
+          :key="post.id" 
+          class="post-card"
+          @click="viewPost(post)"
+        >
+           <!-- Vote Sidebar (Desktop) or Footer (Mobile) -->
+           <div class="vote-section">
+              <button 
+                class="btn-vote" 
+                :class="{ 'liked': likedPostIds.has(post.id) }"
+                @click.stop="toggleLike(post)"
+              >
+                  <svg viewBox="0 0 24 24" fill="currentColor" class="heart-icon">
+                    <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+                  </svg>
+                  <span class="like-count">{{ post.likes || 0 }}</span>
+              </button>
+           </div>
+
+           <div class="post-main">
+              <div class="post-header-row">
+                 <div class="user-row">
+                    <img v-if="post.user?.avatar_url" :src="post.user.avatar_url" class="post-avatar">
+                    <div v-else class="post-avatar-placeholder">{{ getInitials(post.user?.name) }}</div>
+                    <span class="post-author">{{ post.user?.name }}</span>
+                    <span class="post-dot">•</span>
+                    <span class="post-time">{{ formatDate(post.created_at) }}</span>
+                 </div>
+                 <span class="category-badge">{{ post.category }}</span>
+              </div>
+              
+              <h3 class="post-title">{{ post.title }}</h3>
+              <p class="post-snippet">{{ post.content.substring(0, 160) }}{{ post.content.length > 160 ? '...' : '' }}</p>
+              
+              <div class="post-footer-row">
+                 <div class="footer-item">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="icon"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                    {{ post.views || 0 }}
+                 </div>
+                 <div class="footer-item">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="icon"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
+                    {{ 0 }} <!-- Comments count placeholder -->
+                 </div>
+              </div>
+           </div>
+        </div>
       </div>
     </div>
 
-    <!-- Post Detail Modal -->
-    <div v-if="showDetailModal && selectedPost" class="modal-overlay" @click.self="showDetailModal = false">
-      <div class="modal detail-modal">
-        <div class="modal-header">
-          <div class="header-info">
-            <span class="category-tag">{{ selectedPost.category }}</span>
-            <span class="date">{{ formatDate(selectedPost.created_at) }}</span>
-          </div>
-          <button class="close-btn" @click="showDetailModal = false">&times;</button>
-        </div>
-        <div class="modal-body">
-          <h2 class="detail-title">{{ selectedPost.title }}</h2>
-          <div class="author-info">
-            <div class="author-avatar">
-              <img v-if="selectedPost.user?.avatar_url" :src="selectedPost.user.avatar_url">
-              <span v-else>{{ getInitials(selectedPost.user?.name) }}</span>
-            </div>
-            <span class="author-name">{{ selectedPost.user?.name || 'Anonim' }}</span>
-          </div>
-          <!-- Post content - edit mode -->
-          <div v-if="editingPost" class="edit-post-form">
-            <div class="form-group">
-              <label>Judul</label>
-              <input v-model="editPostData.title" type="text">
-            </div>
-            <div class="form-group">
-              <label>Kategori</label>
-              <select v-model="editPostData.category">
+    <!-- Modals (Simplified for brevity, assuming standard modal structure) -->
+    <div v-if="showPostModal" class="modal-overlay" @click.self="showPostModal = false">
+       <div class="modal">
+          <h3>Buat Diskusi Baru</h3>
+          <form @submit.prevent="createPost" class="modal-form">
+             <input v-model="newPost.title" placeholder="Judul" required class="input-field">
+             <select v-model="newPost.category" class="input-field">
                 <option v-for="cat in categories" :key="cat" :value="cat">{{ cat }}</option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label>Konten</label>
-              <textarea v-model="editPostData.content" rows="5"></textarea>
-            </div>
-            <div class="edit-actions">
-              <button class="btn btn-secondary" @click="cancelEditPost">Batal</button>
-              <button class="btn btn-primary" @click="saveEditPost" :disabled="submitting">{{ submitting ? 'Menyimpan...' : 'Simpan' }}</button>
-            </div>
+             </select>
+             <textarea v-model="newPost.content" placeholder="Isi diskusi..." rows="5" required class="input-field"></textarea>
+             <div class="modal-actions">
+                <button type="button" @click="showPostModal = false" class="btn-cancel">Batal</button>
+                <button type="submit" class="btn-primary">Posting</button>
+             </div>
+          </form>
+       </div>
+    </div>
+    
+    <!-- Detail Modal -->
+    <div v-if="showDetailModal && selectedPost" class="modal-overlay" @click.self="showDetailModal = false">
+       <div class="modal detail-modal">
+          <div class="modal-header-simple">
+             <div class="user-row large">
+                <div class="post-avatar-placeholder">{{ getInitials(selectedPost.user?.name) }}</div>
+                <div>
+                   <div class="author-name">{{ selectedPost.user?.name }}</div>
+                   <div class="post-time">{{ formatDate(selectedPost.created_at) }}</div>
+                </div>
+             </div>
+             <button class="close-btn" @click="showDetailModal = false">&times;</button>
           </div>
-          <!-- Post content - normal mode -->
-          <div v-else class="detail-content">{{ selectedPost.content }}</div>
+          
+          <h2 class="detail-title">{{ selectedPost.title }}</h2>
+          <div class="detail-body">{{ selectedPost.content }}</div>
           
           <div class="detail-actions">
-            <button class="action-btn" @click="likePost(selectedPost)">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>
-              {{ selectedPost.likes || 0 }} Suka
-            </button>
-            <span class="views">{{ selectedPost.views || 0 }} dilihat</span>
-            <!-- Edit/Delete for post owner -->
-            <template v-if="selectedPost.user?.id === authStore.user?.id && !editingPost">
-              <button class="action-btn edit" @click="startEditPost">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-                Edit
+              <button 
+                class="btn-vote-large" 
+                :class="{ 'liked': likedPostIds.has(selectedPost.id) }"
+                @click="toggleLike(selectedPost)"
+              >
+                  <svg viewBox="0 0 24 24" fill="currentColor" class="heart-icon">
+                    <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+                  </svg>
+                  <span>{{ selectedPost.likes || 0 }} Suka</span>
               </button>
-              <button class="action-btn delete" @click="deletePost(selectedPost)">
-                Hapus
-              </button>
-            </template>
           </div>
 
-          <!-- Comments Section -->
+          <!-- Comments -->
           <div class="comments-section">
-            <h3>Komentar ({{ postComments.length }})</h3>
-            
-            <form v-if="isLoggedIn" @submit.prevent="addComment" class="comment-form">
-              <textarea v-model="newComment" rows="2" placeholder="Tulis komentar..."></textarea>
-              <button type="submit" class="btn btn-primary btn-sm" :disabled="submitting || !newComment.trim()">
-                Kirim
-              </button>
-            </form>
+             <h4>Komentar ({{ postComments.length }})</h4>
+             <div v-if="isLoggedIn" class="comment-input-box">
+                <input v-model="newComment" placeholder="Tulis komentar..." @keyup.enter="addComment">
+                <button @click="addComment">Kirim</button>
+             </div>
+             
+             <div class="comments-list-simple">
+                <div v-for="c in postComments" :key="c.id" class="comment-simple">
+                   
+                   <!-- Normal View -->
+                   <div v-if="editingComment !== c.id" class="comment-view-mode">
+                      <div class="comment-main">
+                         <div class="comment-header">
+                            <span class="comment-author">{{ c.user?.name }}</span>
+                            <span class="comment-time">{{ formatDate(c.created_at) }}</span>
+                         </div>
+                         <div class="comment-text">{{ c.content }}</div>
+                      </div>
+                      
+                      <!-- Actions (Right Aligned) -->
+                      <div v-if="authStore.user?.id === c.user_id" class="comment-actions">
+                         <button @click="startEditComment(c)" class="btn-action edit" title="Edit">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                         </button>
+                         <button @click="deleteComment(c)" class="btn-action delete" title="Hapus">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+                         </button>
+                      </div>
+                   </div>
 
-            <div v-if="loadingComments" class="loading-comments">
-              <div class="spinner-sm"></div>
-            </div>
+                   <!-- Edit View -->
+                   <div v-else class="comment-edit-mode">
+                      <input v-model="editCommentText" class="edit-comment-input" @keyup.enter="saveEditComment(c)">
+                      <div class="edit-actions-row">
+                         <button @click="cancelEditComment" class="btn-mini secondary">Batal</button>
+                         <button @click="saveEditComment(c)" class="btn-mini primary">Simpan</button>
+                      </div>
+                   </div>
 
-            <div v-else-if="!postComments.length" class="no-comments">
-              Belum ada komentar. Jadilah yang pertama!
-            </div>
-
-            <div v-else class="comments-list">
-              <div v-for="comment in postComments" :key="comment.id" class="comment-item">
-                <div class="comment-avatar">
-                  <img v-if="comment.user?.avatar_url" :src="comment.user.avatar_url">
-                  <span v-else>{{ getInitials(comment.user?.name) }}</span>
                 </div>
-                <div class="comment-content">
-                  <div class="comment-header">
-                    <span class="name">{{ comment.user?.name || 'Anonim' }}</span>
-                    <span class="time">{{ formatDate(comment.created_at) }}</span>
-                    <!-- Actions for comment owner -->
-                    <div v-if="comment.user?.id === authStore.user?.id" class="comment-actions">
-                      <button v-if="editingComment !== comment.id" class="action-link" @click.stop="startEditComment(comment)">Edit</button>
-                      <button class="action-link delete" @click.stop="deleteComment(comment)">Hapus</button>
-                    </div>
-                  </div>
-                  <!-- Edit mode -->
-                  <div v-if="editingComment === comment.id" class="edit-comment-form">
-                    <textarea v-model="editCommentText" rows="2"></textarea>
-                    <div class="edit-actions">
-                      <button class="btn btn-sm btn-secondary" @click="cancelEditComment">Batal</button>
-                      <button class="btn btn-sm btn-primary" @click="saveEditComment(comment)">Simpan</button>
-                    </div>
-                  </div>
-                  <!-- Normal display -->
-                  <p v-else>{{ comment.content }}</p>
-                </div>
-              </div>
-            </div>
+             </div>
           </div>
-        </div>
-      </div>
+       </div>
     </div>
+
   </div>
 </template>
 
 <style scoped>
-.forum-page { min-height: 100vh; background: #f8fafc; padding-top: 64px; }
+/* Base Layout */
+.forum-page {
+  min-height: 100vh;
+  background-color: #F8FAFC;
+  padding-bottom: 40px;
+}
 
-.page-header { background: linear-gradient(135deg, #0d5782, #0a4568); padding: 40px 24px; color: white; text-align: center; }
-.header-content h1 { font-size: 32px; font-weight: 700; margin: 0 0 8px; color: white; }
-.header-subtitle { opacity: 0.9; font-size: 16px; margin: 0; }
+.content-container {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 100px 20px 20px;
+}
 
-.forum-content { max-width: 1200px; margin: 0 auto; padding: 24px; }
-.forum-layout { display: grid; grid-template-columns: 260px 1fr; gap: 24px; }
+/* Header */
+.header-section {
+  text-align: center;
+  margin-bottom: 32px;
+}
 
-.forum-sidebar { background: white; border-radius: 16px; padding: 20px; height: fit-content; position: sticky; top: 88px; }
-.btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 12px 20px; border-radius: 12px; font-size: 14px; font-weight: 600; cursor: pointer; border: none; transition: all 0.2s; text-decoration: none; }
-.btn svg { width: 18px; height: 18px; }
-.btn-primary { background: linear-gradient(135deg, #0d5782, #0a4568); color: white; }
-.btn-secondary { background: #f1f5f9; color: #475569; }
-.btn-block { width: 100%; }
-.btn-sm { padding: 8px 16px; font-size: 13px; }
+.header-section h1 {
+  font-size: 28px;
+  font-weight: 800;
+  color: #1E293B;
+  margin-bottom: 6px;
+  letter-spacing: -0.5px;
+}
 
-.filter-section { margin-top: 24px; }
-.filter-section h4 { font-size: 13px; font-weight: 600; color: #64748b; margin: 0 0 12px; text-transform: uppercase; }
-.category-list { display: flex; flex-wrap: wrap; gap: 8px; }
-.category-list button { padding: 6px 12px; background: #f1f5f9; border: none; border-radius: 20px; font-size: 13px; cursor: pointer; transition: all 0.2s; }
-.category-list button:hover, .category-list button.active { background: #0d5782; color: white; }
-.sort-select { width: 100%; padding: 10px 14px; border: 2px solid #e2e8f0; border-radius: 10px; font-size: 14px; }
+.header-section p {
+  color: #64748B;
+  font-size: 15px;
+}
 
-.posts-container { flex: 1; }
-.search-bar { display: flex; align-items: center; gap: 12px; background: white; padding: 14px 18px; border-radius: 14px; margin-bottom: 20px; }
-.search-bar svg { width: 20px; height: 20px; color: #94a3b8; }
-.search-bar input { flex: 1; border: none; outline: none; font-size: 15px; }
+/* Action Bar */
+.action-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  background: white;
+  padding: 12px 16px;
+  border-radius: 12px;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.05); /* Soft shadow */
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
 
-.loading-state, .empty-state { text-align: center; padding: 60px 20px; background: white; border-radius: 16px; }
-.spinner { width: 40px; height: 40px; border: 3px solid #e2e8f0; border-top-color: #0d5782; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 16px; }
-@keyframes spin { to { transform: rotate(360deg); } }
-.empty-state svg { width: 64px; height: 64px; color: #cbd5e1; margin-bottom: 16px; }
+.search-wrapper {
+  flex: 1;
+  min-width: 200px;
+  display: flex;
+  align-items: center;
+  background: #F1F5F9;
+  border-radius: 8px;
+  padding: 0 12px;
+}
 
-.posts-list { display: flex; flex-direction: column; gap: 16px; }
-.post-card { display: flex; gap: 16px; background: white; padding: 20px; border-radius: 16px; cursor: pointer; transition: all 0.2s; border: 2px solid transparent; }
-.post-card:hover { border-color: #0d5782; transform: translateY(-2px); }
-.post-card.pinned { background: #fffbeb; border-color: #fcd34d; }
-.post-avatar { width: 48px; height: 48px; border-radius: 12px; overflow: hidden; flex-shrink: 0; background: #e2e8f0; }
-.post-avatar img { width: 100%; height: 100%; object-fit: cover; }
-.avatar-placeholder { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; background: #0d5782; color: white; font-weight: 600; }
-.post-content { flex: 1; min-width: 0; }
-.post-meta { display: flex; align-items: center; gap: 8px; font-size: 13px; color: #64748b; margin-bottom: 8px; }
-.author { font-weight: 600; color: #475569; }
-.pinned-badge { background: #fef3c7; color: #b45309; padding: 2px 8px; border-radius: 10px; font-size: 11px; }
-.post-title { font-size: 18px; font-weight: 600; margin: 0 0 8px; color: #1e293b; }
-.post-excerpt { font-size: 14px; color: #64748b; margin: 0 0 12px; line-height: 1.5; }
-.post-footer { display: flex; justify-content: space-between; align-items: center; }
-.category-tag { background: #e0f2fe; color: #0369a1; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; }
-.post-stats { display: flex; gap: 16px; font-size: 13px; color: #64748b; }
-.post-stats span { display: flex; align-items: center; gap: 4px; }
-.post-stats svg { width: 16px; height: 16px; }
+.search-icon {
+  width: 18px;
+  height: 18px;
+  color: #94A3B8;
+  margin-right: 8px;
+}
 
-.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 1000; padding: 20px; overflow-y: auto; }
-.modal { background: white; border-radius: 20px; width: 100%; max-width: 600px; max-height: 90vh; overflow-y: auto; }
+.search-input {
+  width: 100%;
+  padding: 10px 0;
+  border: none;
+  background: transparent;
+  font-size: 14px;
+  color: #334155;
+}
+.search-input:focus { outline: none; }
+
+.category-dropdown-wrapper {
+  flex-shrink: 0;
+  min-width: 180px;
+}
+
+.category-select {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #E2E8F0;
+  border-radius: 8px;
+  background: white;
+  color: #334155;
+  font-size: 14px;
+  cursor: pointer;
+}
+.category-select:focus { outline: none; border-color: #0F172A; }
+
+.btn-primary {
+  background-color: #0F172A;
+  color: white;
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 14px;
+  border: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background-color 0.2s;
+}
+
+.btn-primary:hover { background-color: #1E293B; }
+.plus-icon { font-size: 18px; font-weight: 300; line-height: 1; }
+
+/* Filter Bar (Horizontal Chips) */
+.filter-bar {
+  margin-bottom: 24px;
+  overflow: hidden;
+}
+
+.categories-scroll {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  -ms-overflow-style: none; /* Hide scrollbar IE/Edge */
+  scrollbar-width: none; /* Hide scrollbar Firefox */
+}
+.categories-scroll::-webkit-scrollbar { display: none; /* Hide scrollbar Chrome */ }
+
+.filter-chip {
+  padding: 6px 14px;
+  border-radius: 20px;
+  background: white;
+  border: 1px solid #E2E8F0;
+  color: #64748B;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s;
+}
+
+.filter-chip.active {
+  background: #0F172A;
+  color: white;
+  border-color: #0F172A;
+}
+.filter-chip:hover:not(.active) { background: #F1F5F9; }
+
+/* POST STACK - NEW LAYOUT */
+.post-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.post-card {
+  background: white;
+  border-radius: 12px;
+  padding: 20px;
+  border: 1px solid #F1F5F9;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+  cursor: pointer;
+  display: flex; /* Horizontal Layout: Vote | Content */
+  gap: 16px;
+  transition: transform 0.1s ease, box-shadow 0.1s ease;
+}
+
+.post-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+  border-color: #E2E8F0;
+}
+
+/* Vote Section (Left Side) */
+.vote-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 40px;
+}
+
+.btn-vote {
+  background: none;
+  border: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  cursor: pointer;
+  color: #94A3B8; /* Default Grey */
+  transition: transform 0.1s;
+}
+
+.btn-vote:hover {
+  color: #64748B;
+  transform: scale(1.1);
+}
+
+.btn-vote.liked {
+  color: #EF4444; /* Red when liked */
+}
+
+.heart-icon {
+  width: 24px;
+  height: 24px;
+}
+
+.like-count {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+/* Post Content (Right Side) */
+.post-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.post-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.user-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.post-avatar, .post-avatar-placeholder {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+.post-avatar-placeholder {
+  background: #CBD5E1;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: bold;
+}
+
+.post-author { font-weight: 600; color: #334155; }
+.post-dot { color: #CBD5E1; }
+.post-time { color: #94A3B8; font-size: 12px; }
+
+.category-badge {
+  background: #F1F5F9;
+  color: #64748B;
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-weight: 600;
+}
+
+.post-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: #1E293B;
+  margin: 0 0 6px 0;
+  line-height: 1.4;
+}
+
+.post-snippet {
+  font-size: 14px;
+  color: #64748B;
+  line-height: 1.5;
+  margin: 0 0 12px 0;
+}
+
+.post-footer-row {
+  display: flex;
+  gap: 16px;
+  font-size: 12px;
+  color: #94A3B8;
+}
+
+.footer-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.footer-item .icon { width: 14px; height: 14px; }
+
+
+/* Simplified Modal Styles */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  padding: 20px;
+}
+
+.modal {
+  background: white;
+  border-radius: 16px;
+  padding: 24px;
+  width: 100%;
+  max-width: 500px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+}
+
+.input-field {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #E2E8F0;
+  background: #F8FAFC;
+  border-radius: 8px;
+  margin-bottom: 12px;
+  font-size: 14px;
+}
+.input-field:focus { outline-color: #0F172A; background: white; }
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.btn-cancel {
+  background: #F1F5F9;
+  color: #475569;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+/* Detail Modal Specifics */
 .detail-modal { max-width: 700px; }
-.modal-header { display: flex; justify-content: space-between; align-items: center; padding: 20px 24px; border-bottom: 1px solid #e2e8f0; position: sticky; top: 0; background: white; z-index: 1; }
-.modal-header h2 { font-size: 20px; font-weight: 700; margin: 0; }
-.header-info { display: flex; gap: 12px; align-items: center; }
-.close-btn { width: 36px; height: 36px; border-radius: 10px; border: none; background: #f1f5f9; font-size: 24px; cursor: pointer; }
-.modal-body { padding: 24px; }
-.form-group { margin-bottom: 20px; }
-.form-group label { display: block; font-size: 14px; font-weight: 600; margin-bottom: 8px; }
-.form-group input, .form-group select, .form-group textarea { width: 100%; padding: 12px 16px; border: 2px solid #e2e8f0; border-radius: 12px; font-size: 14px; }
-.form-group input:focus, .form-group select:focus, .form-group textarea:focus { outline: none; border-color: #0d5782; }
-.modal-actions { display: flex; gap: 12px; justify-content: flex-end; }
 
-.detail-title { font-size: 24px; font-weight: 700; margin: 0 0 16px; }
-.author-info { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; }
-.author-avatar { width: 40px; height: 40px; border-radius: 10px; overflow: hidden; background: #0d5782; display: flex; align-items: center; justify-content: center; color: white; font-weight: 600; }
-.author-avatar img { width: 100%; height: 100%; object-fit: cover; }
-.author-name { font-weight: 600; }
-.detail-content { font-size: 15px; line-height: 1.7; color: #475569; padding: 20px; background: #f8fafc; border-radius: 12px; margin-bottom: 20px; white-space: pre-wrap; }
-.detail-actions { display: flex; align-items: center; gap: 16px; margin-bottom: 24px; }
-.action-btn { display: flex; align-items: center; gap: 6px; padding: 8px 16px; background: #f1f5f9; border: none; border-radius: 10px; font-size: 14px; cursor: pointer; }
-.action-btn:hover { background: #e2e8f0; }
-.action-btn.delete { color: #dc2626; }
-.action-btn svg { width: 18px; height: 18px; }
-.views { font-size: 14px; color: #64748b; }
+.modal-header-simple {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  border-bottom: 1px solid #F1F5F9;
+  padding-bottom: 16px;
+}
 
-.comments-section { border-top: 1px solid #e2e8f0; padding-top: 24px; }
-.comments-section h3 { font-size: 16px; font-weight: 700; margin: 0 0 16px; }
-.comment-form { display: flex; gap: 12px; margin-bottom: 20px; }
-.comment-form textarea { flex: 1; padding: 12px; border: 2px solid #e2e8f0; border-radius: 12px; resize: none; font-size: 14px; }
-.comment-form textarea:focus { outline: none; border-color: #0d5782; }
-.loading-comments { text-align: center; padding: 20px; }
-.spinner-sm { width: 24px; height: 24px; border: 2px solid #e2e8f0; border-top-color: #0d5782; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto; }
-.no-comments { text-align: center; color: #94a3b8; padding: 24px; background: #f8fafc; border-radius: 12px; }
-.comments-list { display: flex; flex-direction: column; gap: 16px; }
-.comment-item { display: flex; gap: 12px; }
-.comment-avatar { width: 36px; height: 36px; border-radius: 10px; overflow: hidden; background: #64748b; display: flex; align-items: center; justify-content: center; color: white; font-size: 12px; flex-shrink: 0; }
-.comment-avatar img { width: 100%; height: 100%; object-fit: cover; }
-.comment-content { flex: 1; background: #f8fafc; padding: 12px 16px; border-radius: 12px; }
-.comment-header { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 6px; }
-.comment-header .name { font-weight: 600; font-size: 14px; }
-.comment-header .time { font-size: 12px; color: #94a3b8; }
-.comment-content p { margin: 0; font-size: 14px; line-height: 1.5; }
+.user-row.large .post-avatar-placeholder { width: 40px; height: 40px; font-size: 14px; }
+.user-row.large .author-name { font-weight: 700; font-size: 16px; color: #1E293B; }
 
-/* Comment & Post Actions */
-.comment-actions { display: flex; gap: 8px; margin-left: auto; }
-.action-link { background: none; border: none; font-size: 12px; color: #64748b; cursor: pointer; padding: 2px 6px; border-radius: 4px; }
-.action-link:hover { background: #e2e8f0; color: #0d5782; }
-.action-link.delete { color: #dc2626; }
-.action-link.delete:hover { background: #fee2e2; }
+.detail-title { font-size: 24px; margin-bottom: 16px; color: #1E293B; }
+.detail-body { font-size: 16px; line-height: 1.7; color: #334155; margin-bottom: 24px; white-space: pre-wrap; }
 
-.action-btn.edit { color: #0d5782; }
-.action-btn.edit:hover { background: #e0f2fe; }
+.detail-actions {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 32px;
+}
 
-/* Edit Forms */
-.edit-comment-form { margin-top: 8px; }
-.edit-comment-form textarea { width: 100%; padding: 10px; border: 2px solid #e2e8f0; border-radius: 8px; font-size: 14px; resize: none; margin-bottom: 8px; }
-.edit-comment-form textarea:focus { outline: none; border-color: #0d5782; }
-.edit-actions { display: flex; gap: 8px; justify-content: flex-end; }
+.btn-vote-large {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 32px;
+  border-radius: 50px;
+  border: 2px solid #E2E8F0;
+  background: white;
+  color: #64748B;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+}
 
-.edit-post-form { background: #f8fafc; padding: 20px; border-radius: 12px; margin-bottom: 20px; }
-.edit-post-form .form-group { margin-bottom: 16px; }
-.edit-post-form .form-group:last-of-type { margin-bottom: 0; }
+.btn-vote-large:hover { border-color: #CBD5E1; }
+.btn-vote-large.liked {
+  border-color: #FECACA;
+  background: #FEF2F2;
+  color: #EF4444;
+}
 
-@media (max-width: 768px) {
-  .forum-layout { grid-template-columns: 1fr; }
-  .forum-sidebar { position: static; }
-  .post-card { flex-direction: column; gap: 12px; }
-  .post-avatar { width: 40px; height: 40px; }
-  .comment-actions { margin-left: 0; width: 100%; justify-content: flex-end; margin-top: 4px; }
+/* Comments Section */
+.comments-section h4 { margin: 0 0 12px 0; color: #1E293B; }
+
+.comment-input-box {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+.comment-input-box input {
+  flex: 1;
+  padding: 10px;
+  border: 1px solid #E2E8F0;
+  border-radius: 8px;
+}
+.comment-input-box button {
+  background: #0F172A;
+  color: white;
+  border: none;
+  padding: 0 20px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.comment-simple {
+  padding: 12px;
+  background: #F8FAFC;
+  border-radius: 8px;
+  margin-bottom: 8px;
+}
+
+.comment-view-mode {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.comment-main { flex: 1; }
+
+.comment-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.comment-author { font-weight: 600; font-size: 13px; color: #334155; }
+.comment-time { font-size: 10px; color: #94A3B8; }
+.comment-text { font-size: 14px; color: #475569; line-height: 1.4; }
+
+.comment-actions {
+  display: flex;
+  gap: 4px;
+  opacity: 0.6;
+  transition: opacity 0.2s;
+}
+.comment-actions:hover { opacity: 1; }
+
+.btn-action {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  color: #94A3B8;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.btn-action:hover { background: #E2E8F0; color: #334155; }
+.btn-action.delete:hover { background: #FEE2E2; color: #EF4444; }
+.btn-action svg { width: 14px; height: 14px; }
+
+/* Edit Mode Styles */
+.comment-edit-mode {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.edit-comment-input {
+  width: 100%;
+  padding: 8px;
+  border: 1px solid #E2E8F0;
+  border-radius: 6px;
+  font-size: 14px;
+}
+.edit-actions-row {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.btn-mini {
+  padding: 4px 10px;
+  border-radius: 4px;
+  font-size: 12px;
+  border: none;
+  cursor: pointer;
+  font-weight: 600;
+}
+.btn-mini.secondary { background: #F1F5F9; color: #64748B; }
+.btn-mini.primary { background: #0F172A; color: white; }
+
+/* Mobile */
+@media (max-width: 640px) {
+  .post-card { flex-direction: column; }
+  .vote-section { 
+    flex-direction: row; 
+    border-right: none; 
+    border-bottom: 1px solid #F1F5F9;
+    width: 100%;
+    padding-bottom: 8px;
+    margin-bottom: 8px;
+    justify-content: flex-start;
+    gap: 8px;
+  }
+  .btn-vote { flex-direction: row; }
+  .action-bar { flex-direction: column; align-items: stretch; }
+  .category-dropdown-wrapper { width: 100%; }
 }
 </style>

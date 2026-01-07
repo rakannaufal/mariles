@@ -1,5 +1,4 @@
 <script setup>
-import OwnerSidebar from '@/components/OwnerSidebar.vue'
 import { ref, onMounted, computed } from 'vue'
 import { supabase } from '@/lib/supabase'
 import { useAuthStore } from '@/stores/auth'
@@ -130,7 +129,6 @@ function extractRejectionReason(message) {
 
 <template>
   <div class="dashboard">
-    <OwnerSidebar />
 
     <main class="main-content">
       <!-- Page Header -->

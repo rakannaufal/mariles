@@ -1,5 +1,4 @@
 <script setup>
-import OwnerSidebar from '@/components/OwnerSidebar.vue'
 import { ref, onMounted, computed, watch } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { supabase } from '@/lib/supabase'
@@ -304,7 +303,6 @@ function calculateAge(birthDate) {
 
 <template>
   <div class="dashboard">
-    <OwnerSidebar />
 
     <main class="main">
       <header class="header">
@@ -603,9 +601,9 @@ function calculateAge(birthDate) {
 .stat-icon.primary{background:#eff6ff;color:var(--primary)}
 .stat-icon.success{background:#f0fdf4;color:var(--success)}
 .stat-icon.warning{background:#fffbeb;color:var(--warning)}
-.stat-icon svg{width:24px;height:24px}
+.stat-icon svg{width:26px;height:26px}
 .stat-info{display:flex;flex-direction:column}
-.stat-value{font-size:24px;font-weight:700;color:var(--text)}
+.stat-value{font-size:20px;font-weight:700;color:var(--text)}
 .stat-label{font-size:13px;color:var(--text-muted)}
 
 /* Toolbar */
@@ -843,7 +841,7 @@ input:checked + .slider:before {
 
 .code-top{display:flex;justify-content:space-between;align-items:center;padding:12px 16px;background:#fafafa;border-bottom:1px solid var(--border-light)}
 .invite-code-item.is-expired .code-top{background:#fff1f2}
-.code-value{font-family:monospace;font-size:18px;font-weight:700;letter-spacing:1px;color:var(--text)}
+.code-value{font-family:var(--font-mono);font-size:18px;font-weight:700;letter-spacing:1px;color:var(--text)}
 
 .code-status{font-size:10px;text-transform:uppercase;font-weight:700;padding:2px 8px;border-radius:10px}
 .status-active{background:#dcfce7;color:#15803d}

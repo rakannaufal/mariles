@@ -491,7 +491,6 @@ function getVoucherStatus(voucher) {
   display: flex;
   min-height: 100vh;
   background: var(--background);
-  font-family: 'Inter', sans-serif;
 }
 
 .main-content {
@@ -680,7 +679,6 @@ function getVoucherStatus(voucher) {
 }
 
 .voucher-code {
-  font-family: 'Monaco', monospace;
   font-weight: 700;
   font-size: 20px;
   color: var(--primary);

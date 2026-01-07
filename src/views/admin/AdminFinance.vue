@@ -318,9 +318,7 @@ function getSourceClass(source) {
       <header class="page-header">
         <div class="header-left">
           <h1>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
-            </svg>
+            <span class="header-rp-icon">Rp</span>
             Keuangan Platform
           </h1>
           <p class="subtitle">Kelola pendapatan platform, pencairan, dan refund</p>
@@ -350,7 +348,7 @@ function getSourceClass(source) {
             </div>
             <div class="stat-info">
               <span class="stat-label">Total Pendapatan Platform</span>
-              <span class="stat-value">{{ formatCurrency(stats.totalRevenue) }}</span>
+              <span class="stat-value">Rp {{ formatCurrency(stats.totalRevenue) }}</span>
               <span class="stat-hint">Dari semua komisi & biaya</span>
             </div>
           </div>
@@ -616,6 +614,7 @@ function getSourceClass(source) {
 .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 28px; }
 .header-left h1 { display: flex; align-items: center; gap: 12px; font-size: 26px; font-weight: 700; color: #1E293B; margin-bottom: 4px; }
 .header-left h1 svg { width: 26px; height: 26px; color: #0A4568; }
+.header-rp-icon { font-size: 20px; font-weight: 800; color: #0A4568; }
 .subtitle { font-size: 14px; color: #64748B; }
 
 .btn-refresh { display: flex; align-items: center; gap: 8px; padding: 10px 16px; background: white; border: 1px solid #E2E8F0; border-radius: 10px; font-size: 14px; font-weight: 500; color: #475569; cursor: pointer; transition: all 0.2s; }
@@ -632,8 +631,8 @@ function getSourceClass(source) {
 .stat-card { background: white; border-radius: 16px; padding: 24px; display: flex; align-items: flex-start; gap: 16px; border: 1px solid #E2E8F0; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); transition: transform 0.2s; }
 .stat-card:hover { transform: translateY(-2px); box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05); }
 
-.stat-icon-box { width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.stat-icon-box svg { width: 24px; height: 24px; }
+.stat-icon-box { width: 56px; height: 56px; border-radius: 14px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.stat-icon-box svg { width: 26px; height: 26px; }
 .stat-icon-box.green { background: #F1F5F9; color: #0D5782; }
 .stat-icon-box.blue { background: #F1F5F9; color: #0D5782; }
 .stat-icon-box.orange { background: #F1F5F9; color: #0D5782; }
@@ -643,7 +642,7 @@ function getSourceClass(source) {
 
 .stat-info { display: flex; flex-direction: column; }
 .stat-label { font-size: 13px; font-weight: 600; color: #64748B; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
-.stat-value { font-size: 24px; font-weight: 800; color: #1E293B; margin-bottom: 4px; }
+.stat-value { font-size: 20px; font-weight: 800; color: #1E293B; margin-bottom: 4px; }
 .stat-hint { font-size: 12px; color: #64748B; }
 
 /* Tabs */

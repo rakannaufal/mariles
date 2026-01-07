@@ -1,6 +1,4 @@
 <script setup>
-import TeacherSidebar from '@/components/TeacherSidebar.vue'
-import OwnerSidebar from '@/components/OwnerSidebar.vue'
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useTeacherData } from '@/composables/useTeacherData'
@@ -488,8 +486,6 @@ async function deleteAllLatihanForStudent(student) {
 
 <template>
   <div class="dashboard">
-    <OwnerSidebar v-if="isOwner" />
-    <TeacherSidebar v-else />
 
     <!-- Toast -->
     <Transition name="fade">
@@ -998,8 +994,7 @@ async function deleteAllLatihanForStudent(student) {
 .main {
   flex: 1;
   padding: 32px;
-  max-width: 1200px;
-  margin: 0 auto;
+  width: 100%;
 }
 
 /* Header */
@@ -1156,7 +1151,7 @@ async function deleteAllLatihanForStudent(student) {
   justify-content: center;
 }
 
-.stat-icon svg { width: 22px; height: 22px; }
+.stat-icon svg { width: 26px; height: 26px; }
 
 .stat-card.primary .stat-icon { background: #F1F5F9; color: #0D5782; }
 .stat-card.green .stat-icon { background: #F1F5F9; color: #0D5782; }
@@ -1164,7 +1159,7 @@ async function deleteAllLatihanForStudent(student) {
 .stat-card.purple .stat-icon { background: #F1F5F9; color: #0D5782; }
 
 .stat-info { display: flex; flex-direction: column; }
-.stat-value { font-size: 28px; font-weight: 700; color: #1e293b; }
+.stat-value { font-size: 20px; font-weight: 700; color: #1e293b; }
 .stat-label { font-size: 13px; color: #64748b; }
 
 .stat-badge {

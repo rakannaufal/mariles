@@ -2,7 +2,6 @@
 import { ref, onMounted, computed } from 'vue'
 import { supabase } from '@/lib/supabase'
 import { useAuthStore } from '@/stores/auth'
-import OwnerSidebar from '@/components/OwnerSidebar.vue'
 
 const authStore = useAuthStore()
 
@@ -220,7 +219,6 @@ onMounted(fetchStatistics)
 
 <template>
   <div class="dashboard">
-    <OwnerSidebar />
 
     <main class="main">
       <header class="header">
@@ -447,7 +445,7 @@ onMounted(fetchStatistics)
 .stat-icon.bookings { background: #F1F5F9; color: #0D5782; }
 .stat-icon.pending { background: #F1F5F9; color: #0D5782; }
 .stat-info { display: flex; flex-direction: column; gap: 2px; }
-.stat-value { font-size: 28px; font-weight: 800; color: #0F172A; line-height: 1; }
+.stat-value { font-size: 20px; font-weight: 800; color: #0F172A; line-height: 1; }
 .stat-value small { font-size: 13px; font-weight: 400; opacity: 0.7; }
 .stat-label { font-size: 13px; color: #64748b; font-weight: 500; }
 

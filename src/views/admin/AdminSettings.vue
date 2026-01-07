@@ -353,14 +353,14 @@ function toast(msg, type = 'success') {
 .settings-card { background: white; border-radius: 16px; border: 1px solid #E2E8F0; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
 
 .card-header { display: flex; align-items: center; gap: 16px; padding: 20px 24px; background: #F8FAFC; border-bottom: 1px solid #E2E8F0; }
-.card-icon { width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.card-icon svg { width: 22px; height: 22px; }
-.card-icon.blue { background: #DBEAFE; color: #3B82F6; }
-.card-icon.green { background: #D1FAE5; color: #059669; }
-.card-icon.purple { background: #EDE9FE; color: #8B5CF6; }
-.card-icon.red { background: #FEE2E2; color: #EF4444; }
-.card-icon.orange { background: #FFEDD5; color: #EA580C; }
-.card-icon.teal { background: #CCFBF1; color: #0D9488; }
+.card-icon { width: 56px; height: 56px; border-radius: 14px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.card-icon svg { width: 26px; height: 26px; }
+.card-icon.blue { background: #F1F5F9; color: #0D5782; }
+.card-icon.green { background: #F1F5F9; color: #0D5782; }
+.card-icon.purple { background: #F1F5F9; color: #0D5782; }
+.card-icon.red { background: #F1F5F9; color: #0D5782; }
+.card-icon.orange { background: #F1F5F9; color: #0D5782; }
+.card-icon.teal { background: #F1F5F9; color: #0D5782; }
 .rp-icon { font-size: 18px; font-weight: 800; }
 
 .card-header h3 { font-size: 15px; font-weight: 600; color: #1E293B; margin-bottom: 2px; }

@@ -1,5 +1,4 @@
 <script setup>
-import OwnerSidebar from '@/components/OwnerSidebar.vue'
 import { ref, onMounted, computed } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { supabase } from '@/lib/supabase'
@@ -183,7 +182,6 @@ function getPaymentConfig(status) {
 
 <template>
   <div class="dashboard">
-    <OwnerSidebar />
 
     <!-- Toast -->
     <Transition name="slide">
@@ -462,7 +460,7 @@ function getPaymentConfig(status) {
 .stat-icon.red { background: #F1F5F9; color: #0D5782; }
 
 .stat-info { display: flex; flex-direction: column; gap: 2px; }
-.stat-value { font-size: 32px; font-weight: 800; color: #0F172A; line-height: 1; }
+.stat-value { font-size: 20px; font-weight: 800; color: #0F172A; line-height: 1; }
 .stat-label { font-size: 13px; color: #64748B; font-weight: 500; }
 
 /* Content Card */
