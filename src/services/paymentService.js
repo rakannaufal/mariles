@@ -195,16 +195,17 @@ export async function payWithSnap(snapToken, { onSuccess, onPending, onError, on
   try {
     await openSnapPayment(snapToken, {
       onSuccess: async (result) => {
-        // Update transaction status
-        await updatePaymentStatus(result.order_id, 'completed', result)
+        // Status diupdate oleh webhook, frontend hanya trigger callback
+        // Ini mencegah fake payment dari Console Browser
+        console.log('Payment success callback, status will be updated by webhook')
         onSuccess?.(result)
       },
       onPending: async (result) => {
-        await updatePaymentStatus(result.order_id, 'pending', result)
+        console.log('Payment pending callback, status will be updated by webhook')
         onPending?.(result)
       },
       onError: async (result) => {
-        await updatePaymentStatus(result.order_id, 'failed', result)
+        console.log('Payment error callback, status will be updated by webhook')
         onError?.(result)
       },
       onClose: () => {
@@ -430,7 +431,7 @@ export async function requestWithdrawal({
     const feeSettings = await loadPlatformFees()
     const { min_withdrawal, max_withdrawal, withdrawal_fee } = feeSettings
 
-    // Validate min/max withdrawal
+    // Validate min/max withdrawal (frontend validation)
     if (amount < min_withdrawal) {
       return { 
         success: false, 
@@ -444,57 +445,35 @@ export async function requestWithdrawal({
       }
     }
 
-    // Validate balance
-    const { data: balance } = await supabase
-      .from('balances')
-      .select('available_balance')
-      .eq('user_id', userId)
-      .single()
+    // ============================================================
+    // ATOMIK: Menggunakan RPC untuk mencegah race condition
+    // RPC function melakukan SELECT FOR UPDATE sehingga hanya 1
+    // request yang bisa diproses pada saat bersamaan
+    // ============================================================
+    const { data, error } = await supabase.rpc('process_withdrawal', {
+      p_user_id: userId,
+      p_amount: amount,
+      p_les_place_id: lesPlaceId,
+      p_bank_name: bankName,
+      p_bank_account: bankAccount,
+      p_bank_holder: bankHolder,
+      p_fee: withdrawal_fee
+    })
 
-    if (!balance || balance.available_balance < amount) {
-      return { success: false, error: 'Saldo tidak mencukupi' }
+    if (error) {
+      console.error('RPC error:', error)
+      throw new Error(error.message)
     }
 
-    // Use flat withdrawal fee from settings
-    const fee = withdrawal_fee
-    const netAmount = amount - fee
-
-    // Create withdrawal record
-    const { data: withdrawal, error: dbError } = await supabase
-      .from('withdrawals')
-      .insert({
-        user_id: userId,
-        les_place_id: lesPlaceId,
-        amount: amount,
-        fee: fee,
-        net_amount: netAmount,
-        bank_name: bankName,
-        bank_account: bankAccount,
-        bank_holder: bankHolder,
-        status: 'pending'
-      })
-      .select()
-      .single()
-
-    if (dbError) throw dbError
-
-    // Deduct from available balance immediately
-    await supabase
-      .from('balances')
-      .update({
-        available_balance: balance.available_balance - amount,
-        updated_at: new Date().toISOString()
-      })
-      .eq('user_id', userId)
-
-    // In production, this would trigger Midtrans Iris Disbursement
-    // For now, we simulate immediate processing
-    // await processWithdrawal(withdrawal.id)
+    // RPC returns JSON object with success/error
+    if (!data.success) {
+      return { success: false, error: data.error }
+    }
 
     return {
       success: true,
-      withdrawal: withdrawal,
-      message: 'Permintaan pencairan berhasil. Dana akan ditransfer dalam 1-3 hari kerja.'
+      withdrawal: { id: data.withdrawal_id },
+      message: data.message || 'Permintaan pencairan berhasil. Dana akan ditransfer dalam 1-3 hari kerja.'
     }
 
   } catch (error) {

@@ -184,6 +184,11 @@ const routes = [
         path: 'notifications', 
         name: 'student-notifications', 
         component: () => import('@/views/student/StudentNotifications.vue')
+      },
+      { 
+        path: 'refund', 
+        name: 'student-refund', 
+        component: () => import('@/views/student/StudentRefund.vue')
       }
     ]
   },
@@ -454,14 +459,36 @@ const router = createRouter({
   }
 })
 
-// Helper function to get user role
+// ============================================================
+// ROLE CACHING - Menghindari query berulang setiap navigasi
+// ============================================================
+let cachedRole = null
+let cachedUserId = null
+
+// Helper function to get user role WITH CACHE
 async function getUserRole(userId) {
+  // Return cached role if same user
+  if (cachedUserId === userId && cachedRole) {
+    return cachedRole
+  }
+  
   const { data } = await supabase
     .from('users')
     .select('role')
     .eq('id', userId)
     .single()
-  return data?.role || 'student'
+  
+  // Cache the result
+  cachedUserId = userId
+  cachedRole = data?.role || 'student'
+  
+  return cachedRole
+}
+
+// Function to clear cache (call on logout)
+export function clearRoleCache() {
+  cachedRole = null
+  cachedUserId = null
 }
 
 // Navigation Guard
@@ -487,9 +514,9 @@ router.beforeEach(async (to, from, next) => {
     if (user) {
       const role = await getUserRole(user.id)
       
-      // Always redirect owner and teacher to their dashboard from public pages
-      // KECUALI halaman recovery password
-      if ((role === 'owner' || role === 'teacher' || role === 'admin') && !to.meta.recovery) {
+      // HANYA redirect dari halaman auth (login/register), BUKAN semua halaman public
+      // Ini memungkinkan Owner/Teacher tetap bisa melihat Landing Page, FAQ, About, dll
+      if ((role === 'owner' || role === 'teacher' || role === 'admin') && to.meta.authPage) {
         return next({ name: `${role}-dashboard` })
       }
       

@@ -76,44 +76,48 @@ function getStatusText(status) {
       </header>
 
       <!-- Stats -->
-      <div class="stats-grid">
+      <section class="stats-grid">
         <div class="stat-card">
-          <div class="stat-icon active">
+          <div class="stat-icon-box green">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
           </div>
-          <div>
-            <h3>{{ stats.active_classes }}</h3>
-            <p>Kelas Aktif</p>
+          <div class="stat-info">
+            <span class="stat-label">Kelas Aktif</span>
+            <span class="stat-value">{{ stats.active_classes }}</span>
+            <span class="stat-hint">Program yang diikuti</span>
           </div>
         </div>
         <div class="stat-card">
-          <div class="stat-icon pending">
+          <div class="stat-icon-box orange">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
           </div>
-          <div>
-            <h3>{{ stats.pending_bookings }}</h3>
-            <p>Menunggu</p>
+          <div class="stat-info">
+            <span class="stat-label">Menunggu</span>
+            <span class="stat-value">{{ stats.pending_bookings }}</span>
+            <span class="stat-hint">Perlu pembayaran</span>
           </div>
         </div>
         <div class="stat-card">
-          <div class="stat-icon completed">
+          <div class="stat-icon-box blue">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
           </div>
-          <div>
-            <h3>{{ stats.completed_classes }}</h3>
-            <p>Selesai</p>
+          <div class="stat-info">
+            <span class="stat-label">Selesai</span>
+            <span class="stat-value">{{ stats.completed_classes }}</span>
+            <span class="stat-hint">Program selesai</span>
           </div>
         </div>
         <div class="stat-card">
-          <div class="stat-icon favorites">
+          <div class="stat-icon-box red">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
           </div>
-          <div>
-            <h3>{{ stats.favorites_count }}</h3>
-            <p>Favorit</p>
+          <div class="stat-info">
+            <span class="stat-label">Favorit</span>
+            <span class="stat-value">{{ stats.favorites_count }}</span>
+            <span class="stat-hint">Tempat les favorit</span>
           </div>
         </div>
-      </div>
+      </section>
 
       <div v-if="loading" class="loading-state">
         <div class="loading-spinner"></div>
@@ -272,16 +276,19 @@ function getStatusText(status) {
 .btn-cta:hover{background:var(--primary);transform:translateY(-2px)}
 .btn-cta svg{width:18px;height:18px}
 
-.stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px}
-.stat-card{background:white;padding:20px;border-radius:16px;box-shadow:0 1px 3px rgba(0,0,0,0.08);display:flex;align-items:center;gap:16px}
-.stat-icon{width:48px;height:48px;border-radius:12px;display:flex;align-items:center;justify-content:center}
-.stat-icon svg{width:24px;height:24px}
-.stat-icon.active{background:rgba(34,197,94,0.1);color:#22c55e}
-.stat-icon.pending{background:rgba(245,158,11,0.1);color:#f59e0b}
-.stat-icon.completed{background:rgba(59,130,246,0.1);color:#3b82f6}
-.stat-icon.favorites{background:rgba(239,68,68,0.1);color:#ef4444}
-.stat-card h3{font-size:24px;font-weight:700;color:var(--text)}
-.stat-card p{color:var(--text-secondary);font-size:13px;margin-top:2px}
+.stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:20px;margin-bottom:28px}
+.stat-card{background:white;padding:24px;border-radius:16px;display:flex;align-items:flex-start;gap:16px;border:1px solid #E2E8F0;box-shadow:0 4px 6px -1px rgba(0,0,0,0.05);transition:transform 0.2s}
+.stat-card:hover{transform:translateY(-2px);box-shadow:0 10px 15px -3px rgba(0,0,0,0.05)}
+.stat-icon-box{width:56px;height:56px;border-radius:14px;display:flex;align-items:center;justify-content:center;flex-shrink:0;background:#F1F5F9;color:#0D5782}
+.stat-icon-box svg{width:26px;height:26px}
+.stat-icon-box.green{background:#F1F5F9;color:#0D5782}
+.stat-icon-box.orange{background:#F1F5F9;color:#0D5782}
+.stat-icon-box.blue{background:#F1F5F9;color:#0D5782}
+.stat-icon-box.red{background:#F1F5F9;color:#0D5782}
+.stat-info{display:flex;flex-direction:column}
+.stat-label{font-size:13px;font-weight:600;color:#64748B;margin-bottom:4px;text-transform:uppercase;letter-spacing:0.5px}
+.stat-value{font-size:22px;font-weight:800;color:#1E293B;margin-bottom:4px}
+.stat-hint{font-size:12px;color:#64748B}
 
 .loading-state{display:flex;justify-content:center;padding:60px}
 .loading-spinner{width:40px;height:40px;border:3px solid var(--border);border-top-color:var(--primary);border-radius:50%;animation:spin 1s linear infinite}
