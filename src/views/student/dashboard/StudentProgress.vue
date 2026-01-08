@@ -1,76 +1,174 @@
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, watch, computed } from 'vue'
 import { useStudentData } from '@/composables/useStudentData'
+import { useMyClass } from '@/composables/useMyClass'
+import { useAuthStore } from '@/stores/auth'
+import { supabase } from '@/lib/supabase'
 
-const { loading, bookings, fetchBookings } = useStudentData()
+const authStore = useAuthStore()
+const { loading: bookingsLoading, bookings, fetchBookings } = useStudentData()
 
-const selectedPlace = ref(null)
+const loading = ref(true)
+const selectedPlaceId = ref(null)
+const lesPlaces = ref([])
 
 onMounted(async () => {
   await fetchBookings()
+  await buildLesPlacesWithProgress()
   if (lesPlaces.value.length > 0) {
-    selectedPlace.value = lesPlaces.value[0]
+    selectedPlaceId.value = lesPlaces.value[0].id
   }
+  loading.value = false
 })
 
-// Group by les place
-const lesPlaces = computed(() => {
-  const places = []
-  // Include confirmed, active, and completed bookings
+// Build les places with real progress data using MyClass composable
+async function buildLesPlacesWithProgress() {
+  const userId = authStore.user?.id
+  if (!userId) return
+  
+  // Get student ID from students table (needed for some queries)
+  const { data: studentData } = await supabase
+    .from('students')
+    .select('id')
+    .eq('user_id', userId)
+    .single()
+  
+  const studentId = studentData?.id
+  
   const activeBookings = bookings.value.filter(b => 
     ['confirmed', 'active', 'completed'].includes(b.status)
   )
   
-  activeBookings.forEach(booking => {
+  if (!activeBookings.length) {
+    lesPlaces.value = []
+    return
+  }
+  
+  // Group by place
+  const placesMap = {}
+  
+  for (const booking of activeBookings) {
     const place = booking.program?.les_place
-    if (!place) return
+    if (!place) continue
     
-    const progress = null // Real progress calculation to be implemented
-    
-    let existingPlace = places.find(p => p.id === place.id)
-    if (!existingPlace) {
-      existingPlace = {
+    if (!placesMap[place.id]) {
+      placesMap[place.id] = {
         id: place.id,
         name: place.name,
         photos: place.photos,
         city: place.city,
         programs: []
       }
-      places.push(existingPlace)
     }
     
-    existingPlace.programs.push({
+    // Fetch progress data using MyClass composable
+    const progressData = await fetchProgramProgressWithMyClass(
+      booking.program.id, 
+      booking.id, 
+      studentId, 
+      userId,
+      booking.program
+    )
+    
+    placesMap[place.id].programs.push({
       id: booking.program.id,
       name: booking.program.name,
       subject: booking.program.subject,
       status: booking.status,
       bookingId: booking.id,
-      progress: progress?.progress_percent || 0,
-      attendance: progress?.attendance_percent || 0,
-      score: progress?.average_score || 0,
-      hours: progress?.hours_completed || 0
+      progress: progressData.progress,
+      attendance: progressData.attendance,
+      score: progressData.score
     })
-  })
+  }
   
-  return places
+  lesPlaces.value = Object.values(placesMap)
+}
+
+// Use MyClass composable to calculate progress EXACTLY like MyClassDetail does
+async function fetchProgramProgressWithMyClass(programId, bookingId, studentId, authUserId, program) {
+  try {
+    // Create a fresh useMyClass instance for this program
+    const myClass = useMyClass()
+    
+    // 1. Fetch materials (modules and videos) - use STUDENTID not authUserId!
+    // material_progress.student_id references students.id, NOT auth.users.id
+    await myClass.fetchMaterials(programId, studentId)
+    
+    // 2. Fetch quizzes with attempts - pass both IDs for legacy support
+    await myClass.fetchTests(programId, studentId, authUserId)
+    
+    // 3. Fetch exercises with submissions
+    await myClass.fetchExercises(programId, studentId, authUserId)
+    
+    // 4. Fetch attendance for this booking
+    await myClass.fetchAttendance(bookingId)
+    
+    // 5. Fetch report card for accurate final grade
+    await myClass.fetchReportCard(studentId, program, authUserId)
+    
+    // 6. Calculate progress using EXACT same logic as MyClass
+    const progress = myClass.calculateCourseProgress()
+    
+    // 7. Calculate attendance percentage
+    const attendanceRecords = myClass.attendance.value || []
+    const presentCount = attendanceRecords.filter(a => 
+      a.status === 'present' || a.status === 'late'
+    ).length
+    const attendancePercent = attendanceRecords.length > 0 
+      ? Math.round((presentCount / attendanceRecords.length) * 100) 
+      : 0
+    
+    // 8. Get score from reportCard (same as MyClassDetail)
+    const avgScore = myClass.reportCard.value?.final_grade || 0
+    
+    return {
+      progress,
+      attendance: attendancePercent,
+      score: avgScore
+    }
+    
+  } catch (err) {
+    console.error('Error fetching program progress:', err)
+    return { progress: 0, attendance: 0, score: 0 }
+  }
+}
+
+// Get selected place
+const selectedPlace = ref(null)
+watch(selectedPlaceId, (newId) => {
+  selectedPlace.value = lesPlaces.value.find(p => p.id === newId) || null
+})
+watch(lesPlaces, () => {
+  if (selectedPlaceId.value) {
+    selectedPlace.value = lesPlaces.value.find(p => p.id === selectedPlaceId.value) || null
+  }
 })
 
+// Total stats for selected place
 const totalStats = computed(() => {
-  if (!selectedPlace.value) return { programs: 0, attendance: 0, score: 0, hours: 0 }
-  const programs = selectedPlace.value.programs
+  if (!selectedPlace.value) return { programs: 0, attendance: 0, score: 0 }
+  const programs = selectedPlace.value.programs || []
+  
+  const progsWithAttendance = programs.filter(p => p.attendance > 0)
+  const progsWithScore = programs.filter(p => p.score > 0)
+  
   return {
     programs: programs.length,
-    attendance: programs.length ? Math.round(programs.reduce((a, p) => a + p.attendance, 0) / programs.length) : 0,
-    score: programs.length ? Math.round(programs.reduce((a, p) => a + p.score, 0) / programs.length) : 0,
-    hours: programs.reduce((a, p) => a + p.hours, 0)
+    attendance: progsWithAttendance.length 
+      ? Math.round(progsWithAttendance.reduce((a, p) => a + p.attendance, 0) / progsWithAttendance.length) 
+      : 0,
+    score: progsWithScore.length 
+      ? Math.round(progsWithScore.reduce((a, p) => a + p.score, 0) / progsWithScore.length) 
+      : 0
   }
 })
 
 function selectPlace(place) {
+  selectedPlaceId.value = place.id
   selectedPlace.value = place
 }
 </script>
-
 <template>
   <div class="dashboard">
 
@@ -128,10 +226,7 @@ function selectPlace(place) {
               <span class="stat-value">{{ totalStats.score }}</span>
               <span class="stat-label">Rata-rata Nilai</span>
             </div>
-            <div class="stat-box">
-              <span class="stat-value">{{ totalStats.hours }}h</span>
-              <span class="stat-label">Jam Belajar</span>
-            </div>
+
           </div>
 
           <!-- Program Progress -->
@@ -170,11 +265,7 @@ function selectPlace(place) {
                     <span>{{ program.score }}</span>
                     <small>Nilai</small>
                   </div>
-                  <div class="mini-stat">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                    <span>{{ program.hours }}h</span>
-                    <small>Jam</small>
-                  </div>
+
                 </div>
 
                 <router-link :to="`/student/myclass/${program.bookingId}`" class="btn-detail">
@@ -226,7 +317,7 @@ function selectPlace(place) {
 .place-header h2{font-size:20px;font-weight:700;margin-bottom:4px}
 .place-header p{color:var(--text-secondary);font-size:14px}
 
-.stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
+.stats-row{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
 .stat-box{background:white;padding:20px;border-radius:16px;text-align:center;box-shadow:0 1px 3px rgba(0,0,0,0.08)}
 .stat-value{display:block;font-size:20px;font-weight:700;color:var(--secondary)}
 .stat-label{font-size:13px;color:var(--text-secondary)}

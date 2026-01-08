@@ -6,6 +6,7 @@ import { useMyClass } from '@/composables/useMyClass'
 import { getLevelLabel, getLevelColor, getTypeLabel, getTypeColor, getTypeBgColor } from '@/utils/badgeUtils'
 import { supabase } from '@/lib/supabase'
 import Navbar from '@/components/Navbar.vue'
+import StatCard from '@/components/StatCard.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -431,42 +432,44 @@ function joinMeeting() {
         <div class="container">
           <!-- Stats Overview -->
           <div class="stats-overview">
-            <div class="stat-card">
-              <div class="stat-icon progress">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
-                  <polyline points="22 4 12 14.01 9 11.01"/>
-                </svg>
-              </div>
-              <div class="stat-content">
-                <span class="stat-value">{{ calculateCourseProgress() }}%</span>
-                <span class="stat-label">Progress Belajar</span>
-              </div>
-            </div>
-            <div class="stat-card">
-              <div class="stat-icon grade">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
-                </svg>
-              </div>
-              <div class="stat-content">
-                <span class="stat-value">{{ averageGrade ?? '-' }}</span>
-                <span class="stat-label">Rata-rata Nilai</span>
-              </div>
-            </div>
-            <div class="stat-card">
-              <div class="stat-icon attendance">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
-                  <circle cx="9" cy="7" r="4"/>
-                  <polyline points="16 11 18 13 22 9"/>
-                </svg>
-              </div>
-              <div class="stat-content">
-                <span class="stat-value">{{ attendanceStats.rate }}%</span>
-                <span class="stat-label">Kehadiran</span>
-              </div>
-            </div>
+            <StatCard 
+                label="Progress Belajar" 
+                :value="calculateCourseProgress() + '%'" 
+                icon-color="blue"
+            >
+                <template #icon>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                    <polyline points="22 4 12 14.01 9 11.01"/>
+                  </svg>
+                </template>
+            </StatCard>
+
+            <StatCard 
+                label="Rata-rata Nilai" 
+                :value="averageGrade ?? '-'" 
+                icon-color="purple"
+            >
+                <template #icon>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+                  </svg>
+                </template>
+            </StatCard>
+
+            <StatCard 
+                label="Kehadiran" 
+                :value="attendanceStats.rate + '%'" 
+                icon-color="green"
+            >
+                <template #icon>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                    <circle cx="9" cy="7" r="4"/>
+                    <polyline points="16 11 18 13 22 9"/>
+                  </svg>
+                </template>
+            </StatCard>
           </div>
 
           <!-- Tabs -->
@@ -1145,9 +1148,9 @@ function joinMeeting() {
 .stats-overview {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: var(--spacing-md);
-  margin-bottom: var(--spacing-xl);
-  margin-top: calc(-1 * var(--spacing-xl) - 30px);
+  gap: 24px;
+  margin-bottom: 24px;
+  width: 100%;
 }
 
 .stat-card {
@@ -1975,8 +1978,7 @@ function joinMeeting() {
   }
   
   .stats-overview {
-    grid-template-columns: 1fr;
-    margin-top: var(--spacing-md);
+    width: 100%;
   }
 
   .tabs-nav {
@@ -1993,6 +1995,8 @@ function joinMeeting() {
     padding: var(--spacing-md);
   }
 
+@media (max-width: 1200px) { .stats-overview { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 768px) { .stats-overview { grid-template-columns: 1fr; } }
   .attendance-list {
     grid-template-columns: 1fr;
   }

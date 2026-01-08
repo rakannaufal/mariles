@@ -1,7 +1,9 @@
 <script setup>
 import AdminSidebar from '@/components/AdminSidebar.vue'
+import StatCard from '@/components/StatCard.vue'
 import { ref, onMounted, computed } from 'vue'
 import { supabase } from '@/lib/supabase'
+import { useAuthStore } from '@/stores/auth'
 
 const loading = ref(true)
 const activeTab = ref('reviews')
@@ -25,6 +27,10 @@ const stats = ref({
   resolvedReports: 0
 })
 
+const authStore = useAuthStore()
+const debugRole = computed(() => authStore.userRole)
+const userEmail = computed(() => authStore.user?.email)
+
 // Response Modal
 const showResponseModal = ref(false)
 const responseReport = ref(null)
@@ -37,6 +43,18 @@ const statusOptions = [
   { value: 'dismissed', label: 'Ditolak', desc: 'Laporan tidak valid atau tidak cukup bukti' }
 ]
 
+// Flag Modal
+const showFlagModal = ref(false)
+const flaggingReview = ref(null)
+const flagReason = ref('')
+const flagReasonOptions = [
+  'Mengandung kata-kata kasar atau tidak sopan',
+  'Spam atau promosi tidak relevan',
+  'Informasi palsu atau menyesatkan',
+  'Melanggar privasi orang lain',
+  'Alasan lainnya'
+]
+
 onMounted(async () => {
   await fetchData()
 })
@@ -44,16 +62,92 @@ onMounted(async () => {
 async function fetchData() {
   loading.value = true
   try {
-    // 1. Fetch Reviews
-    const { data: reviewData, count: reviewCount } = await supabase
+    // 1. Fetch Reviews - includes moderation columns
+    const { data: reviewData, count: reviewCount, error: reviewError } = await supabase
       .from('reviews')
-      .select('id, rating, comment, is_flagged, created_at, students(users(name)), les_places(name)', { count: 'exact' })
+      .select('id, rating, comment, is_flagged, is_visible, flag_reason, created_at, student_id, les_place_id', { count: 'exact' })
       .order('created_at', { ascending: false })
       .limit(50)
 
-    reviews.value = reviewData || []
+    if (reviewError) {
+      console.error('Review fetch error:', reviewError)
+      // If is_flagged column doesn't exist, fallback to query without it
+      if (reviewError.code === '42703') {
+        const { data: fallbackData, count: fallbackCount } = await supabase
+          .from('reviews')
+          .select('id, rating, comment, created_at, student_id, les_place_id', { count: 'exact' })
+          .order('created_at', { ascending: false })
+          .limit(50)
+        
+        if (fallbackData && fallbackData.length > 0) {
+          const studentIds = [...new Set(fallbackData.map(r => r.student_id).filter(Boolean))]
+          const lesPlaceIds = [...new Set(fallbackData.map(r => r.les_place_id).filter(Boolean))]
+          
+          const { data: studentsData } = await supabase
+            .from('students')
+            .select('id, users(name)')
+            .in('id', studentIds.length > 0 ? studentIds : ['00000000-0000-0000-0000-000000000000'])
+          
+          const { data: lesPlacesData } = await supabase
+            .from('les_places')
+            .select('id, name')
+            .in('id', lesPlaceIds.length > 0 ? lesPlaceIds : ['00000000-0000-0000-0000-000000000000'])
+          
+          const studentMap = {}
+          const lesPlaceMap = {}
+          ;(studentsData || []).forEach(s => { studentMap[s.id] = s.users?.name || 'Anonim' })
+          ;(lesPlacesData || []).forEach(l => { lesPlaceMap[l.id] = l.name })
+          
+          reviews.value = fallbackData.map(r => ({
+            ...r,
+            is_flagged: false,
+            students: { users: { name: studentMap[r.student_id] || 'Anonim' } },
+            les_places: { name: lesPlaceMap[r.les_place_id] || 'Unknown' }
+          }))
+        }
+        stats.value.totalReviews = fallbackCount || 0
+        stats.value.flaggedReviews = 0
+        loading.value = false
+        return
+      }
+    }
+
+    // Fetch student and les_place names separately
+    if (reviewData && reviewData.length > 0) {
+      const studentIds = [...new Set(reviewData.map(r => r.student_id).filter(Boolean))]
+      const lesPlaceIds = [...new Set(reviewData.map(r => r.les_place_id).filter(Boolean))]
+      
+      // Fetch students with users
+      const { data: studentsData } = await supabase
+        .from('students')
+        .select('id, users(name)')
+        .in('id', studentIds.length > 0 ? studentIds : ['00000000-0000-0000-0000-000000000000'])
+      
+      // Fetch les_places
+      const { data: lesPlacesData } = await supabase
+        .from('les_places')
+        .select('id, name')
+        .in('id', lesPlaceIds.length > 0 ? lesPlaceIds : ['00000000-0000-0000-0000-000000000000'])
+      
+      // Map data
+      const studentMap = {}
+      const lesPlaceMap = {}
+      ;(studentsData || []).forEach(s => { studentMap[s.id] = s.users?.name || 'Anonim' })
+      ;(lesPlacesData || []).forEach(l => { lesPlaceMap[l.id] = l.name })
+      
+      // Enrich reviews
+      reviews.value = reviewData.map(r => ({
+        ...r,
+        is_flagged: r.is_flagged ?? false,
+        students: { users: { name: studentMap[r.student_id] || 'Anonim' } },
+        les_places: { name: lesPlaceMap[r.les_place_id] || 'Unknown' }
+      }))
+    } else {
+      reviews.value = reviewData || []
+    }
+
     stats.value.totalReviews = reviewCount || 0
-    stats.value.flaggedReviews = (reviewData || []).filter(r => r.is_flagged).length
+    stats.value.flaggedReviews = (reviews.value || []).filter(r => r.is_flagged).length
 
     // 2. Fetch Reports (New Table)
     const { data: reportData } = await supabase
@@ -70,6 +164,7 @@ async function fetchData() {
 
   } catch (err) {
     console.error('Error:', err)
+    toast(`Error: ${err.message || 'Gagal memuat data'}`, 'error')
   } finally {
     loading.value = false
   }
@@ -149,33 +244,134 @@ function getNotificationTitle(status) {
   return titles[status] || 'Update Laporan'
 }
 
-async function flagReview(review) {
+// Open flag modal
+function openFlagModal(review) {
+  flaggingReview.value = review
+  flagReason.value = ''
+  showFlagModal.value = true
+}
+
+function closeFlagModal() {
+  showFlagModal.value = false
+  flaggingReview.value = null
+  flagReason.value = ''
+}
+
+// Enhanced flag with reason, visibility toggle, and notification
+async function submitFlag() {
+  if (!flagReason.value) {
+    toast('Pilih alasan flag', 'error')
+    return
+  }
+  
   try {
-    await supabase.from('reviews').update({ is_flagged: true }).eq('id', review.id)
+    const currentUser = (await supabase.auth.getUser()).data.user
+    
+    // Update review: flag it, hide from public, add reason
+    await supabase.from('reviews').update({ 
+      is_flagged: true,
+      is_visible: false, // Hide from public
+      flag_reason: flagReason.value,
+      flagged_at: new Date().toISOString(),
+      flagged_by: currentUser?.id || null
+    }).eq('id', flaggingReview.value.id)
+    
+    // Send notification to the student
+    if (flaggingReview.value.student_id) {
+      // Get student's user_id
+      const { data: studentData } = await supabase
+        .from('students')
+        .select('user_id')
+        .eq('id', flaggingReview.value.student_id)
+        .single()
+      
+      if (studentData?.user_id) {
+        await supabase.from('notifications').insert({
+          user_id: studentData.user_id,
+          type: 'review_flagged',
+          title: 'Ulasan Anda Ditandai',
+          message: `Ulasan Anda untuk "${flaggingReview.value.les_places?.name || 'tempat les'}" telah ditinjau oleh admin. Alasan: ${flagReason.value}. Review akan disembunyikan sementara dari publik.`,
+          is_read: false,
+          created_at: new Date().toISOString()
+        })
+      }
+    }
+    
     await fetchData()
-    toast('Review ditandai sebagai tidak pantas', 'warning')
+    closeFlagModal()
+    toast('Review ditandai dan disembunyikan dari publik', 'warning')
   } catch (err) {
-    toast('Gagal', 'error')
+    console.error('Error flagging review:', err)
+    toast('Gagal menandai review', 'error')
   }
 }
 
+// Unflag and make visible again
 async function unflagReview(review) {
   try {
-    await supabase.from('reviews').update({ is_flagged: false }).eq('id', review.id)
+    await supabase.from('reviews').update({ 
+      is_flagged: false,
+      is_visible: true, // Show again
+      flag_reason: null,
+      flagged_at: null,
+      flagged_by: null
+    }).eq('id', review.id)
+    
+    // Notify student that their review is restored
+    if (review.student_id) {
+      const { data: studentData } = await supabase
+        .from('students')
+        .select('user_id')
+        .eq('id', review.student_id)
+        .single()
+      
+      if (studentData?.user_id) {
+        await supabase.from('notifications').insert({
+          user_id: studentData.user_id,
+          type: 'review_restored',
+          title: 'Ulasan Anda Dipulihkan',
+          message: `Ulasan Anda untuk "${review.les_places?.name || 'tempat les'}" telah dipulihkan dan sekarang dapat dilihat publik kembali.`,
+          is_read: false,
+          created_at: new Date().toISOString()
+        })
+      }
+    }
+    
     await fetchData()
-    toast('Flag dihapus', 'success')
+    toast('Flag dihapus, review tampil kembali', 'success')
   } catch (err) {
-    toast('Gagal', 'error')
+    toast('Gagal menghapus flag', 'error')
   }
 }
 
+// Delete with notification
 async function deleteReview(review) {
-  if (!confirm('Hapus review ini secara permanen?')) return
+  if (!confirm('Hapus review ini secara permanen? Siswa akan diberitahu.')) return
   try {
+    // Notify student before deleting
+    if (review.student_id) {
+      const { data: studentData } = await supabase
+        .from('students')
+        .select('user_id')
+        .eq('id', review.student_id)
+        .single()
+      
+      if (studentData?.user_id) {
+        await supabase.from('notifications').insert({
+          user_id: studentData.user_id,
+          type: 'review_deleted',
+          title: 'Ulasan Anda Dihapus',
+          message: `Ulasan Anda untuk "${review.les_places?.name || 'tempat les'}" telah dihapus oleh admin karena melanggar ketentuan platform.`,
+          is_read: false,
+          created_at: new Date().toISOString()
+        })
+      }
+    }
+    
     await supabase.from('reviews').delete().eq('id', review.id)
     await fetchData()
     showModal.value = false
-    toast('Review berhasil dihapus', 'success')
+    toast('Review berhasil dihapus, siswa telah diberitahu', 'success')
   } catch (err) {
     toast('Gagal menghapus', 'error')
   }
@@ -233,52 +429,59 @@ const filteredReports = computed(() => {
 
       <!-- Stats Row -->
       <section class="stats-row">
-        <div class="stat-card">
-          <div class="stat-icon-box blue">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
-            </svg>
-          </div>
-          <div class="stat-info">
-            <span class="stat-value">{{ stats.totalReviews }}</span>
-            <span class="stat-label">Total Review</span>
-          </div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-icon-box red">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/>
-            </svg>
-          </div>
-          <div class="stat-info">
-            <span class="stat-value">{{ stats.flaggedReviews }}</span>
-            <span class="stat-label">Review Diflag</span>
-            <span class="stat-hint text-red" v-if="stats.flaggedReviews > 0">Perlu ditinjau</span>
-          </div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-icon-box orange">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-            </svg>
-          </div>
-          <div class="stat-info">
-            <span class="stat-value">{{ stats.pendingReports }}</span>
-            <span class="stat-label">Laporan Masuk</span>
-            <span class="stat-hint text-orange" v-if="stats.pendingReports > 0">Tindakan diperlukan</span>
-          </div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-icon-box green">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>
-            </svg>
-          </div>
-          <div class="stat-info">
-            <span class="stat-value">{{ stats.resolvedReports }}</span>
-            <span class="stat-label">Laporan Selesai</span>
-          </div>
-        </div>
+        <StatCard 
+            label="Total Review" 
+            :value="stats.totalReviews" 
+            icon-color="blue"
+        >
+            <template #icon>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+              </svg>
+            </template>
+        </StatCard>
+
+        <StatCard 
+            label="Review Diflag" 
+            :value="stats.flaggedReviews" 
+            icon-color="red"
+        >
+            <template #icon>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/>
+              </svg>
+            </template>
+            <template #extra>
+              <span class="stat-hint text-red" v-if="stats.flaggedReviews > 0">Perlu ditinjau</span>
+            </template>
+        </StatCard>
+
+        <StatCard 
+            label="Laporan Masuk" 
+            :value="stats.pendingReports" 
+            icon-color="orange"
+        >
+            <template #icon>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+              </svg>
+            </template>
+            <template #extra>
+              <span class="stat-hint text-orange" v-if="stats.pendingReports > 0">Tindakan diperlukan</span>
+            </template>
+        </StatCard>
+
+        <StatCard 
+            label="Laporan Selesai" 
+            :value="stats.resolvedReports" 
+            icon-color="green"
+        >
+            <template #icon>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>
+              </svg>
+            </template>
+        </StatCard>
       </section>
 
       <!-- Tabs & Content -->
@@ -315,7 +518,10 @@ const filteredReports = computed(() => {
             <div v-for="review in reviews" :key="review.id" class="review-card" :class="{ flagged: review.is_flagged }">
               <div class="flagged-banner" v-if="review.is_flagged">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg>
-                Ditandai oleh sistem/admin
+                Ditandai oleh admin
+              </div>
+              <div v-if="review.is_flagged && review.flag_reason" class="flag-reason-banner">
+                <strong>Alasan:</strong> {{ review.flag_reason }}
               </div>
               <div class="card-body">
                 <div class="review-header">
@@ -332,17 +538,24 @@ const filteredReports = computed(() => {
                   </div>
                 </div>
                 <p class="comment">{{ review.comment || 'Tidak ada komentar tertulis.' }}</p>
+                <div v-if="review.is_flagged" class="visibility-badge">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+                  Tersembunyi dari publik
+                </div>
                 <div class="card-footer">
                   <span class="date">{{ formatDate(review.created_at) }}</span>
                   <div class="actions">
-                    <button v-if="!review.is_flagged" class="btn-icon flag" @click="flagReview(review)" title="Flag">
+                    <button v-if="!review.is_flagged" class="btn-action flag" @click="openFlagModal(review)">
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg>
+                      Tandai
                     </button>
-                    <button v-else class="btn-icon unflag" @click="unflagReview(review)" title="Unflag">
+                    <button v-else class="btn-action unflag" @click="unflagReview(review)">
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+                      Pulihkan
                     </button>
-                    <button class="btn-icon delete" @click="deleteReview(review)" title="Hapus">
+                    <button class="btn-action delete" @click="deleteReview(review)">
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                      Hapus
                     </button>
                   </div>
                 </div>
@@ -466,6 +679,52 @@ const filteredReports = computed(() => {
         </div>
       </div>
     </Teleport>
+
+    <!-- Flag Modal -->
+    <Teleport to="body">
+      <div v-if="showFlagModal && flaggingReview" class="flag-modal-overlay" @click.self="closeFlagModal">
+        <div class="flag-modal">
+          <button class="modal-close" @click="closeFlagModal">&times;</button>
+          
+          <div class="flag-modal-header">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/>
+            </svg>
+            <h3>Tandai Review</h3>
+          </div>
+          
+          <div class="flag-modal-info">
+            <p><strong>Review dari:</strong> {{ flaggingReview.students?.users?.name || 'Anonim' }}</p>
+            <p class="review-preview">"{{ flaggingReview.comment || 'Tidak ada komentar' }}"</p>
+          </div>
+          
+          <div class="flag-modal-form">
+            <label>Pilih alasan penandaan:</label>
+            <div class="reason-options">
+              <label v-for="reason in flagReasonOptions" :key="reason" class="reason-option" :class="{ selected: flagReason === reason }">
+                <input type="radio" v-model="flagReason" :value="reason">
+                <span>{{ reason }}</span>
+              </label>
+            </div>
+          </div>
+          
+          <div class="flag-modal-warning">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+            </svg>
+            <span>Review yang ditandai akan <strong>disembunyikan dari publik</strong> dan siswa akan menerima notifikasi.</span>
+          </div>
+          
+          <div class="flag-modal-actions">
+            <button class="btn-cancel" @click="closeFlagModal">Batal</button>
+            <button class="btn-flag" @click="submitFlag" :disabled="!flagReason">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg>
+              Tandai & Sembunyikan
+            </button>
+          </div>
+        </div>
+      </div>
+    </Teleport>
   </div>
 </template>
 
@@ -480,19 +739,16 @@ const filteredReports = computed(() => {
 .subtitle { color: #64748B; font-size: 15px; }
 
 /* Stats */
-.stats-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 24px; margin-bottom: 32px; }
-.stat-card { background: white; border-radius: 16px; padding: 24px; display: flex; align-items: flex-start; gap: 16px; border: 1px solid #E2E8F0; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); }
-.stat-icon-box { width: 56px; height: 56px; border-radius: 14px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.stat-icon-box svg { width: 26px; height: 26px; }
-.stat-icon-box.blue { background: #F1F5F9; color: #0D5782; }
-.stat-icon-box.red { background: #F1F5F9; color: #0D5782; }
-.stat-icon-box.orange { background: #F1F5F9; color: #0D5782; }
-.stat-icon-box.green { background: #F1F5F9; color: #0D5782; }
+.stats-row { 
+  display: grid; 
+  grid-template-columns: repeat(4, 1fr); 
+  gap: 24px; 
+  margin-bottom: 32px; 
+  width: 100%;
+}
 
-.stat-info { display: flex; flex-direction: column; }
-.stat-label { font-size: 13px; font-weight: 600; color: #64748B; margin-bottom: 4px; text-transform: uppercase; }
-.stat-value { font-size: 20px; font-weight: 800; color: #1E293B; margin-bottom: 4px; }
-.stat-hint { font-size: 12px; font-weight: 500; }
+/* StatCard styling handled by component */
+.stat-hint { font-size: 11px; margin-top: 4px; display: block; }
 .text-red { color: #EF4444; }
 .text-orange { color: #F97316; }
 
@@ -532,12 +788,14 @@ const filteredReports = computed(() => {
 .date { font-size: 12px; color: #94A3B8; }
 
 .actions { display: flex; gap: 8px; }
-.btn-icon { width: 32px; height: 32px; border: none; border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s; }
-.btn-icon.flag { background: #F1F5F9; color: #64748B; }
-.btn-icon.flag:hover { background: #FFF7ED; color: #F59E0B; }
-.btn-icon.unflag { background: #ECFDF5; color: #10B981; }
-.btn-icon.delete { background: #F1F5F9; color: #64748B; }
-.btn-icon.delete:hover { background: #FEF2F2; color: #DC2626; }
+.btn-action { display: flex; align-items: center; gap: 6px; padding: 6px 12px; border: none; border-radius: 8px; cursor: pointer; font-size: 12px; font-weight: 600; transition: all 0.2s; }
+.btn-action svg { width: 14px; height: 14px; flex-shrink: 0; }
+.btn-action.flag { background: #FFF7ED; color: #D97706; }
+.btn-action.flag:hover { background: #FFEDD5; color: #C2410C; }
+.btn-action.unflag { background: #ECFDF5; color: #059669; }
+.btn-action.unflag:hover { background: #D1FAE5; color: #047857; }
+.btn-action.delete { background: #FEF2F2; color: #DC2626; }
+.btn-action.delete:hover { background: #FECACA; color: #B91C1C; }
 
 /* Reports List */
 .filters-bar { margin-bottom: 24px; display: flex; gap: 12px; }
@@ -626,4 +884,46 @@ const filteredReports = computed(() => {
 .btn-sm.respond { display: flex; align-items: center; gap: 6px; background: #0A4568; color: white; padding: 8px 16px; }
 .btn-sm.respond svg { width: 14px; height: 14px; }
 .btn-sm.respond:hover { background: #083350; }
+
+/* Flag Reason Banner */
+.flag-reason-banner { background: #FEF3C7; color: #92400E; font-size: 12px; padding: 8px 16px; border-bottom: 1px solid #FDE68A; }
+.flag-reason-banner strong { font-weight: 600; }
+
+/* Visibility Badge */
+.visibility-badge { display: inline-flex; align-items: center; gap: 6px; background: #FEE2E2; color: #DC2626; font-size: 11px; font-weight: 600; padding: 6px 10px; border-radius: 6px; margin-bottom: 12px; }
+.visibility-badge svg { width: 14px; height: 14px; }
+
+/* Flag Modal */
+.flag-modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 1000; padding: 20px; }
+.flag-modal { background: white; border-radius: 20px; width: 100%; max-width: 480px; max-height: 90vh; overflow-y: auto; position: relative; }
+.flag-modal .modal-close { position: absolute; top: 16px; right: 16px; width: 36px; height: 36px; border-radius: 50%; border: none; background: #F1F5F9; font-size: 24px; cursor: pointer; display: flex; align-items: center; justify-content: center; color: #64748B; }
+
+.flag-modal-header { display: flex; align-items: center; gap: 12px; padding: 24px 24px 16px; border-bottom: 1px solid #E2E8F0; }
+.flag-modal-header svg { width: 28px; height: 28px; color: #DC2626; }
+.flag-modal-header h3 { font-size: 20px; font-weight: 700; color: #0F172A; margin: 0; }
+
+.flag-modal-info { padding: 16px 24px; background: #F8FAFC; border-bottom: 1px solid #E2E8F0; }
+.flag-modal-info p { margin: 0 0 8px; font-size: 14px; color: #475569; }
+.flag-modal-info .review-preview { font-style: italic; color: #64748B; margin: 0; }
+
+.flag-modal-form { padding: 20px 24px; }
+.flag-modal-form > label { display: block; font-size: 14px; font-weight: 600; color: #1E293B; margin-bottom: 12px; }
+
+.reason-options { display: flex; flex-direction: column; gap: 8px; }
+.reason-option { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border: 2px solid #E2E8F0; border-radius: 10px; cursor: pointer; transition: all 0.2s; }
+.reason-option:hover { border-color: #CBD5E1; }
+.reason-option.selected { border-color: #DC2626; background: #FEF2F2; }
+.reason-option input { display: none; }
+.reason-option span { font-size: 14px; color: #334155; }
+
+.flag-modal-warning { display: flex; gap: 12px; padding: 16px 24px; background: #FFF7ED; border-top: 1px solid #FFEDD5; }
+.flag-modal-warning svg { width: 20px; height: 20px; color: #EA580C; flex-shrink: 0; margin-top: 2px; }
+.flag-modal-warning span { font-size: 13px; color: #9A3412; line-height: 1.5; }
+
+.flag-modal-actions { display: flex; justify-content: flex-end; gap: 12px; padding: 16px 24px; border-top: 1px solid #E2E8F0; background: #F8FAFC; border-radius: 0 0 20px 20px; }
+.flag-modal-actions .btn-cancel { padding: 12px 24px; background: white; border: 1px solid #E2E8F0; border-radius: 10px; font-weight: 600; font-size: 14px; cursor: pointer; color: #64748B; }
+.flag-modal-actions .btn-flag { display: flex; align-items: center; gap: 8px; padding: 12px 24px; background: #DC2626; color: white; border: none; border-radius: 10px; font-weight: 600; font-size: 14px; cursor: pointer; }
+.flag-modal-actions .btn-flag svg { width: 16px; height: 16px; }
+.flag-modal-actions .btn-flag:hover { background: #B91C1C; }
+.flag-modal-actions .btn-flag:disabled { opacity: 0.5; cursor: not-allowed; }
 </style>

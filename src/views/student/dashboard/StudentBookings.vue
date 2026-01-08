@@ -6,6 +6,7 @@ import { useAuthStore } from '@/stores/auth'
 import { supabase } from '@/lib/supabase'
 import { loadSnapScript } from '@/lib/midtrans'
 import { createPayment } from '@/services/paymentService'
+import StatCard from '@/components/StatCard.vue'
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -352,23 +353,72 @@ function isPaymentExpired(createdAt) {
       <!-- BOOKING VIEW -->
       <template v-if="activeView === 'bookings'">
         <!-- Stats Cards -->
+        <!-- Stats Cards -->
         <div class="stats-row">
-          <button :class="['stat-card', { active: activeTab === 'all' }]" @click="activeTab = 'all'">
-            <span class="stat-value">{{ stats.all }}</span>
-            <span class="stat-label">Semua</span>
-          </button>
-          <button :class="['stat-card', { active: activeTab === 'active' }]" @click="activeTab = 'active'">
-            <span class="stat-value">{{ stats.active }}</span>
-            <span class="stat-label">Aktif</span>
-          </button>
-          <button :class="['stat-card', { active: activeTab === 'pending' }]" @click="activeTab = 'pending'">
-            <span class="stat-value">{{ stats.pending }}</span>
-            <span class="stat-label">Menunggu</span>
-          </button>
-          <button :class="['stat-card', { active: activeTab === 'completed' }]" @click="activeTab = 'completed'">
-            <span class="stat-value">{{ stats.completed }}</span>
-            <span class="stat-label">Selesai</span>
-          </button>
+          <StatCard 
+              label="Semua" 
+              :value="stats.all" 
+              icon-color="blue"
+              :active="activeTab === 'all'"
+              @click="activeTab = 'all'"
+              class="cursor-pointer"
+          >
+              <template #icon>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="3" y="3" width="7" height="7"></rect>
+                  <rect x="14" y="3" width="7" height="7"></rect>
+                  <rect x="14" y="14" width="7" height="7"></rect>
+                  <rect x="3" y="14" width="7" height="7"></rect>
+                </svg>
+              </template>
+          </StatCard>
+
+          <StatCard 
+              label="Aktif" 
+              :value="stats.active" 
+              icon-color="green"
+              :active="activeTab === 'active'"
+              @click="activeTab = 'active'"
+              class="cursor-pointer"
+          >
+              <template #icon>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                  <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                </svg>
+              </template>
+          </StatCard>
+
+          <StatCard 
+              label="Menunggu" 
+              :value="stats.pending" 
+              icon-color="orange"
+              :active="activeTab === 'pending'"
+              @click="activeTab = 'pending'"
+              class="cursor-pointer"
+          >
+              <template #icon>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="12" cy="12" r="10"></circle>
+                  <polyline points="12 6 12 12 16 14"></polyline>
+                </svg>
+              </template>
+          </StatCard>
+
+          <StatCard 
+              label="Selesai" 
+              :value="stats.completed" 
+              icon-color="purple"
+              :active="activeTab === 'completed'"
+              @click="activeTab = 'completed'"
+              class="cursor-pointer"
+          >
+              <template #icon>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"></path>
+                </svg>
+              </template>
+          </StatCard>
         </div>
 
         <div v-if="loading" class="loading-state">
@@ -654,12 +704,17 @@ function isPaymentExpired(createdAt) {
 .view-toggle button.active{background:var(--secondary);color:white}
 .view-toggle button:hover:not(.active){background:var(--background)}
 
-.stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px}
-.stat-card{padding:20px;background:white;border:2px solid transparent;border-radius:16px;text-align:center;cursor:pointer;transition:all 0.2s;box-shadow:0 1px 3px rgba(0,0,0,0.08)}
-.stat-card:hover{border-color:var(--border)}
-.stat-card.active{border-color:var(--secondary);background:rgba(10,69,104,0.05)}
-.stat-value{display:block;font-size:20px;font-weight:700;color:var(--secondary)}
-.stat-label{font-size:14px;color:var(--text-secondary)}
+
+.cursor-pointer { cursor: pointer; }
+.stats-row { 
+  display: grid;
+  grid-template-columns: repeat(4, 1fr); 
+  gap: 24px; 
+  margin-bottom: 24px; 
+  width: 100%;
+}
+
+/* StatCard styling handled by component */
 
 .loading-state{display:flex;justify-content:center;padding:60px}
 .loading-spinner{width:40px;height:40px;border:3px solid var(--border);border-top-color:var(--primary);border-radius:50%;animation:spin 1s linear infinite}
@@ -785,6 +840,7 @@ function isPaymentExpired(createdAt) {
 .detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px}
 .modal-footer{display:flex;gap:12px;justify-content:flex-end;padding:16px 24px;border-top:1px solid var(--border-light);background:var(--background)}
 
-@media(max-width:1024px){.stats-row{grid-template-columns:repeat(2,1fr)}.history-summary{grid-template-columns:1fr}}
+@media(max-width:1024px){.stats-row{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:768px){.stats-row{grid-template-columns:1fr}}
 @media(max-width:768px){.booking-card{flex-direction:column}.booking-image{width:100%;height:160px}.booking-details{flex-wrap:wrap}.page-header{flex-direction:column}}
 </style>

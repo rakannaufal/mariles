@@ -1,5 +1,6 @@
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, watch } from 'vue'
+import StatCard from '@/components/StatCard.vue'
 import { useAuthStore } from '@/stores/auth'
 import { supabase } from '@/lib/supabase'
 
@@ -281,42 +282,45 @@ function getVoucherStatus(voucher) {
       </header>
 
       <!-- Stats Cards -->
+      <!-- Stats Cards -->
       <div class="stats-grid">
-        <div class="stat-card">
-          <div class="stat-icon purple">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path>
-              <line x1="7" y1="7" x2="7.01" y2="7"></line>
-            </svg>
-          </div>
-          <div class="stat-info">
-            <span class="stat-label">Total Voucher</span>
-            <span class="stat-value">{{ stats.total }}</span>
-          </div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-icon green">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <polyline points="20 6 9 17 4 12"></polyline>
-            </svg>
-          </div>
-          <div class="stat-info">
-            <span class="stat-label">Aktif</span>
-            <span class="stat-value">{{ stats.active }}</span>
-          </div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-icon blue">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline>
-              <polyline points="17 6 23 6 23 12"></polyline>
-            </svg>
-          </div>
-          <div class="stat-info">
-            <span class="stat-label">Total Penukaran</span>
-            <span class="stat-value">{{ stats.redeemed }}</span>
-          </div>
-        </div>
+        <StatCard 
+            label="Total Voucher" 
+            :value="stats.total" 
+            icon-color="blue"
+        >
+            <template #icon>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path>
+                  <line x1="7" y1="7" x2="7.01" y2="7"></line>
+                </svg>
+            </template>
+        </StatCard>
+
+        <StatCard 
+            label="Aktif" 
+            :value="stats.active" 
+            icon-color="green"
+        >
+            <template #icon>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="20 6 9 17 4 12"></polyline>
+                </svg>
+            </template>
+        </StatCard>
+
+        <StatCard 
+            label="Total Penukaran" 
+            :value="stats.redeemed" 
+            icon-color="purple"
+        >
+            <template #icon>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline>
+                  <polyline points="17 6 23 6 23 12"></polyline>
+                </svg>
+            </template>
+        </StatCard>
       </div>
 
        <!-- Filters -->
@@ -571,74 +575,15 @@ function getVoucherStatus(voucher) {
   color: var(--text-secondary);
 }
 
-/* Stats Cards */
-.stats-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr); /* Force 3 columns */
-  gap: 20px;
-  margin-bottom: 32px;
+/* Stats Cards - Compact Inline */
+.stats-grid { 
+  display: grid; 
+  grid-template-columns: repeat(4, 1fr); 
+  gap: 24px; 
+  margin-bottom: 24px; 
+  width: 100%;
 }
-
-@media (max-width: 768px) {
-  .stats-grid {
-    grid-template-columns: 1fr;
-  }
-}
-
-.stat-card {
-  background: white;
-  padding: 20px 24px;
-  border-radius: 16px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  border: 2px solid transparent;
-  transition: all 0.25s ease;
-}
-
-.stat-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(0,0,0,0.08);
-}
-
-.stat-icon {
-  width: 56px;
-  height: 56px;
-  border-radius: 14px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-.stat-icon svg {
-  width: 26px;
-  height: 26px;
-}
-
-.stat-icon.purple { background: #F1F5F9; color: #0D5782; }
-.stat-icon.green { background: #F1F5F9; color: #0D5782; }
-.stat-icon.blue { background: #F1F5F9; color: #0D5782; }
-
-.stat-info {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.stat-label {
-  font-size: 13px;
-  color: var(--text-secondary);
-  font-weight: 500;
-}
-
-.stat-value {
-  font-size: 32px;
-  font-weight: 800;
-  color: var(--text);
-  line-height: 1;
-}
+/* StatCard styling handled by component */
 
 /* Filters */
 .filters-bar {

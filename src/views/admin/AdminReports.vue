@@ -1,5 +1,6 @@
 <script setup>
 import AdminSidebar from '@/components/AdminSidebar.vue'
+import StatCard from '@/components/StatCard.vue'
 import { ref, computed, onMounted, watch } from 'vue'
 import { supabase } from '@/lib/supabase'
 import { exportFinanceReport } from '@/services/exportService' 
@@ -248,55 +249,62 @@ const filteredWithdrawals = computed(() => {
 
       <!-- Stats Grid -->
       <section class="stats-grid">
-        <div class="stat-card">
-          <div class="stat-icon-box green">
-<span class="currency-symbol">Rp</span>
-          </div>
-          <div class="stat-info">
-            <span class="stat-label">Total Pendapatan</span>
-            <span class="stat-value">{{ formatCurrency(stats.totalRevenue) }}</span>
-            <span class="stat-trend positive">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
-              +12.5%
-            </span>
-          </div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-icon-box blue">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>
-            </svg>
-          </div>
-          <div class="stat-info">
-            <span class="stat-label">Transaksi Berhasil</span>
-            <span class="stat-value">{{ stats.completedTransactions }}</span>
-            <span class="stat-hint">dari total transaksi</span>
-          </div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-icon-box orange">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
-            </svg>
-          </div>
-          <div class="stat-info">
-            <span class="stat-label">Pencairan Pending</span>
-            <span class="stat-value">{{ stats.pendingWithdrawals }}</span>
-            <span class="stat-hint">Butuh tindakan segera</span>
-          </div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-icon-box purple">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/>
-            </svg>
-          </div>
-          <div class="stat-info">
-            <span class="stat-label">Total Dicairkan</span>
-            <span class="stat-value">{{ formatCurrency(stats.totalWithdrawn) }}</span>
-            <span class="stat-hint">Ke rekening pemilik</span>
-          </div>
-        </div>
+        <StatCard 
+            label="Total Pendapatan" 
+            :value="formatCurrency(stats.totalRevenue)" 
+            icon-color="green"
+            trend="+12.5%"
+            :trend-up="true"
+        >
+            <template #icon>
+              <span class="currency-symbol">Rp</span>
+            </template>
+        </StatCard>
+
+        <StatCard 
+            label="Transaksi Berhasil" 
+            :value="stats.completedTransactions" 
+            icon-color="blue"
+        >
+            <template #icon>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>
+              </svg>
+            </template>
+            <template #extra>
+              <span class="stat-hint">dari total transaksi</span>
+            </template>
+        </StatCard>
+
+        <StatCard 
+            label="Pencairan Pending" 
+            :value="stats.pendingWithdrawals" 
+            icon-color="orange"
+        >
+            <template #icon>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+              </svg>
+            </template>
+            <template #extra>
+              <span class="stat-hint">Butuh tindakan segera</span>
+            </template>
+        </StatCard>
+
+        <StatCard 
+            label="Total Dicairkan" 
+            :value="formatCurrency(stats.totalWithdrawn)" 
+            icon-color="purple"
+        >
+            <template #icon>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/>
+              </svg>
+            </template>
+            <template #extra>
+              <span class="stat-hint">Ke rekening pemilik</span>
+            </template>
+        </StatCard>
       </section>
 
       <!-- Content Area -->
@@ -506,24 +514,17 @@ const filteredWithdrawals = computed(() => {
 .btn-export svg { width: 18px; height: 18px; }
 
 /* Stats Grid */
-.stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 24px; margin-bottom: 32px; }
-.stat-card { background: white; border-radius: 16px; padding: 24px; display: flex; align-items: flex-start; gap: 16px; border: 1px solid #E2E8F0; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); transition: transform 0.2s; }
-.stat-card:hover { transform: translateY(-2px); box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05); }
+/* Stats Cards - Compact Inline */
+.stats-grid { 
+  display: grid; 
+  grid-template-columns: repeat(4, 1fr); 
+  gap: 24px; 
+  margin-bottom: 24px; 
+  width: 100%;
+}
 
-.stat-icon-box { width: 56px; height: 56px; border-radius: 14px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.stat-icon-box svg { width: 26px; height: 26px; }
-.stat-icon-box.green { background: #F1F5F9; color: #0D5782; }
-.stat-icon-box.blue { background: #F1F5F9; color: #0D5782; }
-.stat-icon-box.orange { background: #F1F5F9; color: #0D5782; }
-.stat-icon-box.purple { background: #F1F5F9; color: #0D5782; }
-
-.stat-info { display: flex; flex-direction: column; }
-.stat-label { font-size: 13px; font-weight: 600; color: #64748B; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
-.stat-value { font-size: 20px; font-weight: 800; color: #1E293B; margin-bottom: 4px; }
-.stat-hint, .stat-trend { font-size: 12px; color: #64748B; }
-.stat-trend { display: flex; align-items: center; gap: 4px; font-weight: 600; }
-.stat-trend.positive { color: #10B981; }
-.stat-trend svg { width: 14px; height: 14px; }
+/* StatCard styling handled by component */
+.stat-hint { font-size: 11px; color: #64748B; margin-top: 4px; display: block; }
 
 /* Content Card */
 .content-card { background: white; border-radius: 16px; border: 1px solid #E2E8F0; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); }

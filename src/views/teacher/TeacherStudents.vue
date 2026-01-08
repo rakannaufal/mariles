@@ -1,15 +1,20 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
+import StatCard from '@/components/StatCard.vue'
 import { useRoute } from 'vue-router'
 import { useTeacherData } from '@/composables/useTeacherData'
 import { useMyClass } from '@/composables/useMyClass'
+import { useProgramCompletion } from '@/composables/useProgramCompletion'
+import { useAuthStore } from '@/stores/auth'
 import { supabase } from '@/lib/supabase'
 
 const route = useRoute()
 const isOwner = computed(() => route.path.startsWith('/owner'))
+const authStore = useAuthStore()
 
 const { loading, students, lesPlace, programs: teacherPrograms, fetchTeacherStudents, fetchTeacherProfile, fetchTeacherSchedule } = useTeacherData()
 const { fetchReportCard } = useMyClass()
+const { completeBookingLocal, terminateBookingLocal, checkDropoutEligibility } = useProgramCompletion()
 
 const filter = ref('all')
 const statusFilter = ref('all')
@@ -17,6 +22,15 @@ const searchQuery = ref('')
 const viewMode = ref('grid') // 'grid' or 'table'
 const showStudentModal = ref(false)
 const selectedStudent = ref(null)
+
+// Complete/Terminate modal states
+const showCompleteModal = ref(false)
+const showTerminateModal = ref(false)
+const completeStudent = ref(null)
+const terminateStudent = ref(null)
+const completeForm = ref({ result: 'passed', notes: '' })
+const terminateForm = ref({ reason: 'tidak_hadir', customReason: '' })
+const notification = ref({ show: false, type: '', message: '' })
 
 // Stats
 const studentStats = computed(() => {
@@ -30,7 +44,10 @@ const studentStats = computed(() => {
     return joinDate.getMonth() === now.getMonth() && joinDate.getFullYear() === now.getFullYear()
   }).length
 
-  return { total, active, avgProgress, newThisMonth }
+  /* Logic needed for "Perlu Perhatian" */
+  const needsAttention = students.value.filter(s => s.status === 'warning' || (s.progress && s.progress < 50)).length
+
+  return { total, active, avgProgress, newThisMonth, needsAttention }
 })
 
 // Get all programs - combine from students (for filtering) and teacherPrograms (for showing all)
@@ -148,6 +165,77 @@ function getGradeFromScore(score) {
   return 'D'
 }
 
+// Notification helper
+function showNotification(type, message) {
+  notification.value = { show: true, type, message }
+  setTimeout(() => notification.value.show = false, 4000)
+}
+
+// Complete functions
+function openCompleteModal(student, event) {
+  event?.stopPropagation()
+  completeStudent.value = student
+  completeForm.value = { result: 'passed', notes: '' }
+  showCompleteModal.value = true
+}
+
+async function submitComplete() {
+  if (!completeStudent.value?.booking_id) {
+    showNotification('error', 'Data booking tidak ditemukan')
+    return
+  }
+  
+  try {
+    await completeBookingLocal(completeStudent.value.booking_id, {
+      completionType: 'manual',
+      completionResult: completeForm.value.result,
+      notes: completeForm.value.notes || null
+    })
+    
+    showNotification('success', `Program ${completeStudent.value.name} berhasil ditandai selesai!`)
+    showCompleteModal.value = false
+    await fetchTeacherStudents()
+  } catch (err) {
+    showNotification('error', 'Gagal menandai selesai: ' + err.message)
+  }
+}
+
+// Terminate functions  
+function openTerminateModal(student, event) {
+  event?.stopPropagation()
+  terminateStudent.value = student
+  terminateForm.value = { reason: 'tidak_hadir', customReason: '' }
+  showTerminateModal.value = true
+}
+
+async function submitTerminate() {
+  if (!terminateStudent.value?.booking_id) {
+    showNotification('error', 'Data booking tidak ditemukan')
+    return
+  }
+  
+  const reasonMap = {
+    'tidak_hadir': 'Tidak hadir 3x berturut-turut',
+    'tidak_aktif': 'Tidak ada aktivitas > 3 minggu',
+    'permintaan': 'Atas permintaan siswa',
+    'lainnya': terminateForm.value.customReason
+  }
+  
+  try {
+    await terminateBookingLocal(
+      terminateStudent.value.booking_id, 
+      reasonMap[terminateForm.value.reason] || terminateForm.value.reason,
+      authStore.user?.id
+    )
+    
+    showNotification('success', `Program ${terminateStudent.value.name} berhasil dihentikan.`)
+    showTerminateModal.value = false
+    await fetchTeacherStudents()
+  } catch (err) {
+    showNotification('error', 'Gagal menghentikan program: ' + err.message)
+  }
+}
+
 onMounted(async () => {
   await fetchTeacherProfile()
   await Promise.all([fetchTeacherStudents(), fetchTeacherSchedule()])
@@ -176,60 +264,60 @@ onMounted(async () => {
 
       <!-- Stats Cards -->
       <section class="stats-row">
-        <div class="stat-card primary">
-          <div class="stat-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
-              <circle cx="9" cy="7" r="4"/>
-            </svg>
-          </div>
-          <div class="stat-content">
-            <span class="stat-value">{{ studentStats.total }}</span>
-            <span class="stat-label">Total Siswa</span>
-          </div>
-        </div>
+        <StatCard 
+            label="Total Siswa" 
+            :value="studentStats.total" 
+            icon-color="blue"
+        >
+            <template #icon>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                  <circle cx="9" cy="7" r="4"/>
+                </svg>
+            </template>
+        </StatCard>
         
-        <div class="stat-card success">
-          <div class="stat-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
-              <polyline points="22 4 12 14.01 9 11.01"/>
-            </svg>
-          </div>
-          <div class="stat-content">
-            <span class="stat-value">{{ studentStats.active }}</span>
-            <span class="stat-label">Siswa Aktif</span>
-          </div>
-        </div>
+        <StatCard 
+            label="Siswa Aktif" 
+            :value="studentStats.active" 
+            icon-color="green"
+        >
+            <template #icon>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                  <polyline points="22 4 12 14.01 9 11.01"/>
+                </svg>
+            </template>
+        </StatCard>
         
-        <div class="stat-card info">
-          <div class="stat-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <line x1="18" y1="20" x2="18" y2="10"/>
-              <line x1="12" y1="20" x2="12" y2="4"/>
-              <line x1="6" y1="20" x2="6" y2="14"/>
-            </svg>
-          </div>
-          <div class="stat-content">
-            <span class="stat-value">{{ studentStats.avgProgress }}%</span>
-            <span class="stat-label">Rata-rata Progress</span>
-          </div>
-        </div>
+        <StatCard 
+            label="Rata-rata Progress" 
+            :value="studentStats.avgProgress + '%'" 
+            icon-color="purple"
+        >
+            <template #icon>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <line x1="18" y1="20" x2="18" y2="10"/>
+                  <line x1="12" y1="20" x2="12" y2="4"/>
+                  <line x1="6" y1="20" x2="6" y2="14"/>
+                </svg>
+            </template>
+        </StatCard>
         
-        <div class="stat-card warning">
-          <div class="stat-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
-              <circle cx="8.5" cy="7" r="4"/>
-              <line x1="20" y1="8" x2="20" y2="14"/>
-              <line x1="23" y1="11" x2="17" y2="11"/>
-            </svg>
-          </div>
-          <div class="stat-content">
-            <span class="stat-value">{{ studentStats.newThisMonth }}</span>
-            <span class="stat-label">Siswa Baru (Bulan Ini)</span>
-          </div>
-        </div>
+        <StatCard 
+            label="Perlu Perhatian" 
+            :value="studentStats.needsAttention" 
+            icon-color="red"
+        >
+            <template #icon>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                  <circle cx="8.5" cy="7" r="4"/>
+                  <line x1="20" y1="8" x2="20" y2="14"/>
+                  <line x1="23" y1="11" x2="17" y2="11"/>
+                </svg>
+            </template>
+        </StatCard>
       </section>
 
       <!-- Filter Bar -->
@@ -240,19 +328,16 @@ onMounted(async () => {
               <circle cx="11" cy="11" r="8"/>
               <line x1="21" y1="21" x2="16.65" y2="16.65"/>
             </svg>
-            <input v-model="searchQuery" type="text" placeholder="Cari nama atau email siswa...">
+            <input 
+              v-model="searchQuery" 
+              type="text" 
+              placeholder="Cari nama atau email siswa..."
+            >
           </div>
           
           <select v-model="filter" class="filter-select">
             <option value="all">Semua Program</option>
             <option v-for="prog in programs" :key="prog.id" :value="prog.id">{{ prog.name }}</option>
-          </select>
-          
-          <select v-model="statusFilter" class="filter-select">
-            <option value="all">Semua Status</option>
-            <option value="active">Aktif</option>
-            <option value="inactive">Tidak Aktif</option>
-            <option value="warning">Perlu Perhatian</option>
           </select>
         </div>
         
@@ -346,22 +431,21 @@ onMounted(async () => {
 
           <!-- Quick Actions -->
           <div class="card-actions">
-            <router-link :to="isOwner ? '/owner/grades' : '/teacher/grades'" class="action-btn primary" @click.stop>
+            <button class="action-btn secondary" @click="openCompleteModal(student, $event)" v-if="student.status === 'active'">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                <polyline points="14 2 14 8 20 8"/>
-                <line x1="16" y1="13" x2="8" y2="13"/>
-                <line x1="16" y1="17" x2="8" y2="17"/>
+                <path d="M9 12l2 2 4-4"/>
+                <circle cx="12" cy="12" r="10"/>
               </svg>
-              Input Nilai
-            </router-link>
-            <router-link :to="isOwner ? '/owner/attendance' : '/teacher/attendance'" class="action-btn secondary" @click.stop>
+              Selesai
+            </button>
+            <button class="action-btn danger" @click="openTerminateModal(student, $event)" v-if="student.status === 'active'">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
-                <polyline points="22 4 12 14.01 9 11.01"/>
+                <circle cx="12" cy="12" r="10"/>
+                <line x1="15" y1="9" x2="9" y2="15"/>
+                <line x1="9" y1="9" x2="15" y2="15"/>
               </svg>
-              Absensi
-            </router-link>
+              Berhentikan
+            </button>
           </div>
         </div>
 
@@ -600,6 +684,96 @@ onMounted(async () => {
           </div>
         </div>
       </div>
+
+      <!-- Notification Toast -->
+      <div v-if="notification.show" :class="['notification-toast', notification.type]">
+        <span>{{ notification.message }}</span>
+        <button @click="notification.show = false">&times;</button>
+      </div>
+
+      <!-- Complete Modal -->
+      <div v-if="showCompleteModal" class="completion-modal-overlay" @click.self="showCompleteModal = false">
+        <div class="completion-modal">
+          <div class="completion-modal-header">
+            <h3>Tandai Selesai</h3>
+            <button class="close-btn" @click="showCompleteModal = false">&times;</button>
+          </div>
+          
+          <div class="completion-modal-body">
+            <div class="student-info-row">
+              <span class="info-label">Siswa</span>
+              <span class="info-value">{{ completeStudent?.name }}</span>
+            </div>
+            <div class="student-info-row">
+              <span class="info-label">Program</span>
+              <span class="info-value">{{ completeStudent?.program?.name }}</span>
+            </div>
+            
+            <div class="form-field">
+              <label class="field-label">Hasil Akhir</label>
+              <select v-model="completeForm.result" class="form-select">
+                <option value="passed">Lulus</option>
+                <option value="failed">Tidak Lulus</option>
+              </select>
+            </div>
+            
+            <div class="form-field">
+              <label class="field-label">Catatan <span class="optional">(opsional)</span></label>
+              <textarea v-model="completeForm.notes" class="form-textarea" placeholder="Tambahkan catatan jika diperlukan..." rows="3"></textarea>
+            </div>
+          </div>
+          
+          <div class="completion-modal-footer">
+            <button class="btn-cancel" @click="showCompleteModal = false">Batal</button>
+            <button class="btn-confirm success" @click="submitComplete">Konfirmasi Selesai</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Terminate Modal -->
+      <div v-if="showTerminateModal" class="completion-modal-overlay" @click.self="showTerminateModal = false">
+        <div class="completion-modal">
+          <div class="completion-modal-header warning">
+            <h3>Hentikan Program</h3>
+            <button class="close-btn" @click="showTerminateModal = false">&times;</button>
+          </div>
+          
+          <div class="completion-modal-body">
+            <div class="student-info-row">
+              <span class="info-label">Siswa</span>
+              <span class="info-value">{{ terminateStudent?.name }}</span>
+            </div>
+            <div class="student-info-row">
+              <span class="info-label">Program</span>
+              <span class="info-value">{{ terminateStudent?.program?.name }}</span>
+            </div>
+            
+            <div class="form-field">
+              <label class="field-label">Alasan Penghentian</label>
+              <select v-model="terminateForm.reason" class="form-select">
+                <option value="tidak_hadir">Tidak hadir 3x berturut-turut</option>
+                <option value="tidak_aktif">Tidak ada aktivitas lebih dari 3 minggu</option>
+                <option value="permintaan">Atas permintaan siswa</option>
+                <option value="lainnya">Alasan lain</option>
+              </select>
+            </div>
+            
+            <div class="form-field" v-if="terminateForm.reason === 'lainnya'">
+              <label class="field-label">Jelaskan Alasan</label>
+              <textarea v-model="terminateForm.customReason" class="form-textarea" placeholder="Tuliskan alasan penghentian..." rows="3"></textarea>
+            </div>
+            
+            <div class="warning-notice">
+              <strong>Perhatian:</strong> Siswa tidak akan bisa mengakses materi setelah program dihentikan.
+            </div>
+          </div>
+          
+          <div class="completion-modal-footer">
+            <button class="btn-cancel" @click="showTerminateModal = false">Batal</button>
+            <button class="btn-confirm danger" @click="submitTerminate">Hentikan Program</button>
+          </div>
+        </div>
+      </div>
     </main>
   </div>
 </template>
@@ -636,43 +810,15 @@ onMounted(async () => {
 .subtitle { color: #64748b; font-size: 14px; }
 
 /* Stats Row */
+/* Stats Cards - Compact Inline */
 .stats-row {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 20px;
-  margin-bottom: 28px;
+  gap: 24px;
+  margin-bottom: 24px;
+  width: 100%;
 }
-
-.stat-card {
-  background: white;
-  border-radius: 16px;
-  padding: 20px 24px;
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
-  border: 2px solid transparent;
-  transition: all 0.25s ease;
-}
-
-.stat-card:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08); }
-
-.stat-icon {
-  width: 56px;
-  height: 56px;
-  border-radius: 14px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-.stat-icon svg { width: 26px; height: 26px; }
-
-.stat-card.primary .stat-icon { background: #F1F5F9; color: #0D5782; }
-.stat-card.success .stat-icon { background: #F1F5F9; color: #0D5782; }
-.stat-card.info .stat-icon { background: #F1F5F9; color: #0D5782; }
-.stat-card.warning .stat-icon { background: #F1F5F9; color: #0D5782; }
+/* StatCard styling handled by component */
 
 .stat-content { display: flex; flex-direction: column; gap: 2px; }
 .stat-value { font-size: 20px; font-weight: 800; color: #0f172a; line-height: 1; }
@@ -684,15 +830,15 @@ onMounted(async () => {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 24px;
-  flex-wrap: wrap;
   gap: 16px;
+  flex-wrap: wrap;
 }
 
 .filter-left {
   display: flex;
-  gap: 12px;
   flex-wrap: wrap;
   flex: 1;
+  gap: 16px;
 }
 
 .search-box {
@@ -977,6 +1123,12 @@ onMounted(async () => {
 .action-btn.secondary { background: #e0f2fe; color: #0d5782; }
 .action-btn.secondary:hover { background: #bfdbfe; }
 
+.action-btn.success { background: #22c55e; color: white; border: none; cursor: pointer; }
+.action-btn.success:hover { background: #16a34a; }
+
+.action-btn.danger { background: white; color: #dc2626; border: 1px solid #fecaca; cursor: pointer; }
+.action-btn.danger:hover { background: #fee2e2; }
+
 /* Empty State */
 .empty-state {
   grid-column: 1 / -1;
@@ -1237,7 +1389,8 @@ onMounted(async () => {
   .main { padding: 16px; }
   .stats-row { grid-template-columns: 1fr; }
   .filter-section { flex-direction: column; align-items: stretch; }
-  .filter-left { flex-direction: column; }
+  .filter-section { flex-direction: column; align-items: stretch; }
+  .filter-left { flex-direction: column; gap: 16px; }
   .search-box { max-width: 100%; }
   .students-grid { grid-template-columns: 1fr; }
   .detail-grid { grid-template-columns: 1fr; }
@@ -1454,4 +1607,385 @@ onMounted(async () => {
   to { transform: rotate(360deg); }
 }
 
+/* Notification Toast */
+.notification-toast {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 20px;
+  border-radius: 12px;
+  font-weight: 500;
+  font-size: 14px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  z-index: 1100;
+}
+
+.notification-toast.success { background: #dcfce7; color: #16a34a; }
+.notification-toast.error { background: #fee2e2; color: #dc2626; }
+
+.notification-toast button {
+  background: none;
+  border: none;
+  font-size: 20px;
+  cursor: pointer;
+  color: inherit;
+  opacity: 0.7;
+}
+
+.notification-toast button:hover { opacity: 1; }
+
+/* Compact Modal */
+.modal.compact { max-width: 420px; }
+
+/* Form Group */
+.form-group { margin-bottom: 20px; }
+.form-group label { display: block; font-size: 14px; font-weight: 500; color: #475569; margin-bottom: 8px; }
+.form-group textarea {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 14px;
+  min-height: 80px;
+  resize: vertical;
+  font-family: inherit;
+}
+
+/* Radio Group */
+.radio-group { display: flex; gap: 12px; }
+.radio-group.vertical { flex-direction: column; gap: 10px; }
+
+.radio-label {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  font-size: 14px;
+  padding: 12px 16px;
+  background: #f8fafc;
+  border: 2px solid #e2e8f0;
+  border-radius: 10px;
+  transition: all 0.2s ease;
+}
+
+.radio-label:hover { 
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+}
+
+.radio-label input { display: none; }
+
+.radio-label input:checked ~ * { font-weight: 600; }
+
+.radio-label:has(input:checked) {
+  background: #eff6ff;
+  border-color: #0d5782;
+}
+
+.radio-dot {
+  width: 20px;
+  height: 20px;
+  border: 2px solid #cbd5e1;
+  border-radius: 50%;
+  position: relative;
+  flex-shrink: 0;
+  transition: all 0.2s ease;
+}
+
+.radio-label input:checked + .radio-dot { 
+  border-color: #0d5782;
+  background: white;
+}
+
+.radio-label input:checked + .radio-dot::after {
+  content: '';
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  width: 8px;
+  height: 8px;
+  background: #0d5782;
+  border-radius: 50%;
+}
+
+/* Warning Box */
+.warning-box {
+  background: #fef3c7;
+  border: 1px solid #fcd34d;
+  border-radius: 10px;
+  padding: 14px;
+  color: #92400e;
+}
+
+.warning-box strong { display: block; margin-bottom: 4px; }
+.warning-box p { margin: 0; font-size: 13px; }
+
+/* Modal Header Variants */
+.modal-header.warning h2 { color: #d97706; }
+.modal-header.success h2 { color: #16a34a; }
+
+.modal-subtitle { 
+  color: #64748b; 
+  font-size: 14px;
+  margin-top: 4px;
+}
+
+/* Modal Close Button */
+.modal.compact .modal-close {
+  position: absolute;
+  top: 12px;
+  right: 16px;
+  background: none;
+  border: none;
+  font-size: 28px;
+  color: #94a3b8;
+  cursor: pointer;
+  line-height: 1;
+}
+
+.modal.compact .modal-close:hover { color: #64748b; }
+
+/* Modal Button Variants */
+.modal-btn.success {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: #22c55e;
+  color: white;
+  border: none;
+}
+
+.modal-btn.success:hover { background: #16a34a; }
+.modal-btn.success svg { width: 16px; height: 16px; }
+
+.modal-btn.danger {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: #dc2626;
+  color: white;
+  border: none;
+}
+
+.modal-btn.danger:hover { background: #b91c1c; }
+.modal-btn.danger svg { width: 16px; height: 16px; }
+
+/* ============= COMPLETION MODAL ============= */
+.completion-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+}
+
+.completion-modal {
+  background: white;
+  border-radius: 12px;
+  width: 100%;
+  max-width: 440px;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.25);
+  overflow: hidden;
+}
+
+.completion-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 24px;
+  border-bottom: 1px solid #e2e8f0;
+  background: #f8fafc;
+}
+
+.completion-modal-header h3 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #16a34a;
+}
+
+.completion-modal-header.warning h3 {
+  color: #dc2626;
+}
+
+.close-btn {
+  background: none;
+  border: none;
+  font-size: 24px;
+  color: #94a3b8;
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  transition: all 0.2s;
+}
+
+.close-btn:hover {
+  background: #e2e8f0;
+  color: #64748b;
+}
+
+.completion-modal-body {
+  padding: 24px;
+}
+
+.student-info-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 0;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.student-info-row:last-of-type {
+  margin-bottom: 20px;
+}
+
+.info-label {
+  font-size: 13px;
+  color: #64748b;
+}
+
+.info-value {
+  font-size: 14px;
+  font-weight: 500;
+  color: #0f172a;
+}
+
+.form-field {
+  margin-bottom: 20px;
+}
+
+.field-label {
+  display: block;
+  font-size: 13px;
+  font-weight: 500;
+  color: #475569;
+  margin-bottom: 8px;
+}
+
+.optional {
+  font-weight: 400;
+  color: #94a3b8;
+}
+
+.form-select {
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 14px;
+  color: #0f172a;
+  background: white;
+  cursor: pointer;
+  transition: border-color 0.2s;
+}
+
+.form-select:focus {
+  outline: none;
+  border-color: #0d5782;
+}
+
+.form-textarea {
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 14px;
+  font-family: inherit;
+  resize: vertical;
+  min-height: 80px;
+  transition: border-color 0.2s;
+}
+
+.form-textarea:focus {
+  outline: none;
+  border-color: #0d5782;
+}
+
+.form-textarea::placeholder {
+  color: #94a3b8;
+}
+
+.warning-notice {
+  background: #fef3c7;
+  border: 1px solid #fcd34d;
+  border-radius: 8px;
+  padding: 12px 14px;
+  font-size: 13px;
+  color: #92400e;
+  line-height: 1.5;
+}
+
+.warning-notice strong {
+  color: #78350f;
+}
+
+.completion-modal-footer {
+  display: flex;
+  gap: 12px;
+  padding: 16px 24px;
+  border-top: 1px solid #e2e8f0;
+  background: #f8fafc;
+}
+
+.btn-cancel {
+  flex: 1;
+  padding: 12px 20px;
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #64748b;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-cancel:hover {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+}
+
+.btn-confirm {
+  flex: 1;
+  padding: 12px 20px;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: white;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-confirm.success {
+  background: #16a34a;
+}
+
+.btn-confirm.success:hover {
+  background: #15803d;
+}
+
+.btn-confirm.danger {
+  background: #dc2626;
+}
+
+.btn-confirm.danger:hover {
+  background: #b91c1c;
+}
+
 </style>
+@media (max-width: 1200px) { .stats-row { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 768px) { .stats-row { grid-template-columns: 1fr; } }

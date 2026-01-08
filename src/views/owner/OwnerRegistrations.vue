@@ -1,5 +1,6 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue'
+import StatCard from '@/components/StatCard.vue'
 import { useAuthStore } from '@/stores/auth'
 import { supabase } from '@/lib/supabase'
 
@@ -258,45 +259,55 @@ function getPaymentConfig(status) {
 
       <!-- Stats Cards -->
       <div class="stats-grid">
-        <div class="stat-card" @click="filter = 'all'" :class="{ active: filter === 'all' }">
-          <div class="stat-icon blue">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
-          </div>
-          <div class="stat-info">
-            <span class="stat-value">{{ stats.total }}</span>
-            <span class="stat-label">Total Pendaftaran</span>
-          </div>
-        </div>
+      <div class="stats-grid">
+        <StatCard 
+            label="Total Pendaftaran" 
+            :value="stats.total" 
+            icon-color="blue"
+            :active="filter === 'all'"
+            @click="filter = 'all'"
+        >
+            <template #icon>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+            </template>
+        </StatCard>
+        
+        <StatCard 
+            label="Menunggu" 
+            :value="stats.pending" 
+            icon-color="yellow"
+            :active="filter === 'pending'"
+            @click="filter = 'pending'"
+        >
+            <template #icon>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            </template>
+        </StatCard>
 
-        <div class="stat-card" @click="filter = 'pending'" :class="{ active: filter === 'pending' }">
-          <div class="stat-icon yellow">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-          </div>
-          <div class="stat-info">
-            <span class="stat-value">{{ stats.pending }}</span>
-            <span class="stat-label">Menunggu</span>
-          </div>
-        </div>
+        <StatCard 
+            label="Aktif" 
+            :value="stats.active" 
+            icon-color="green"
+            :active="filter === 'active'"
+            @click="filter = 'active'"
+        >
+            <template #icon>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+            </template>
+        </StatCard>
 
-        <div class="stat-card" @click="filter = 'active'" :class="{ active: filter === 'active' }">
-          <div class="stat-icon green">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
-          </div>
-          <div class="stat-info">
-            <span class="stat-value">{{ stats.active }}</span>
-            <span class="stat-label">Aktif</span>
-          </div>
-        </div>
-
-        <div class="stat-card" @click="filter = 'cancelled'" :class="{ active: filter === 'cancelled' }">
-          <div class="stat-icon red">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
-          </div>
-          <div class="stat-info">
-            <span class="stat-value">{{ stats.cancelled }}</span>
-            <span class="stat-label">Dibatalkan</span>
-          </div>
-        </div>
+        <StatCard 
+            label="Dibatalkan" 
+            :value="stats.cancelled" 
+            icon-color="red"
+            :active="filter === 'cancelled'"
+            @click="filter = 'cancelled'"
+        >
+            <template #icon>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+            </template>
+        </StatCard>
+      </div>
       </div>
 
       <!-- Content -->
@@ -422,18 +433,15 @@ function getPaymentConfig(status) {
 /* Stats */
 .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 28px; }
 
-.stat-card { 
-  display: flex; 
-  align-items: center; 
-  gap: 16px; 
-  padding: 20px 24px; 
-  background: white; 
-  border-radius: 16px; 
-  cursor: pointer; 
-  transition: all 0.25s ease; 
-  border: 2px solid transparent; 
-  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+/* Stats Cards - Compact Inline */
+.stats-grid { 
+  display: grid; 
+  grid-template-columns: repeat(4, 1fr); 
+  gap: 24px; 
+  margin-bottom: 24px; 
+  width: 100%;
 }
+/* StatCard styling handled by component */
 .stat-card:hover { 
   transform: translateY(-2px); 
   box-shadow: 0 6px 20px rgba(0,0,0,0.08); 

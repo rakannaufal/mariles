@@ -1,5 +1,6 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
+import StatCard from '@/components/StatCard.vue'
 import { useRoute } from 'vue-router'
 import { useTeacherData } from '@/composables/useTeacherData'
 import { supabase } from '@/lib/supabase'
@@ -412,58 +413,58 @@ onMounted(async () => {
 
       <!-- Stats Cards -->
       <section class="stats-grid">
-        <div class="stat-card blue">
-          <div class="stat-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-              <polyline points="14 2 14 8 20 8"/>
-            </svg>
-          </div>
-          <div class="stat-info">
-            <span class="stat-value">{{ stats.totalMaterials }}</span>
-            <span class="stat-label">Materi/Modul</span>
-          </div>
-        </div>
+        <StatCard 
+            label="Materi/Modul" 
+            :value="stats.totalMaterials" 
+            icon-color="blue"
+        >
+            <template #icon>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                <polyline points="14 2 14 8 20 8"/>
+              </svg>
+            </template>
+        </StatCard>
         
-        <div class="stat-card green">
-          <div class="stat-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M9 11l3 3L22 4"/>
-              <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
-            </svg>
-          </div>
-          <div class="stat-info">
-            <span class="stat-value">{{ stats.totalExercises }}</span>
-            <span class="stat-label">Latihan/Kuis</span>
-          </div>
-        </div>
+        <StatCard 
+            label="Latihan/Kuis" 
+            :value="stats.totalExercises" 
+            icon-color="green"
+        >
+            <template #icon>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M9 11l3 3L22 4"/>
+                <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
+              </svg>
+            </template>
+        </StatCard>
         
-        <div class="stat-card purple">
-          <div class="stat-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <polygon points="23 7 16 12 23 17 23 7"/>
-              <rect x="1" y="5" width="15" height="14" rx="2" ry="2"/>
-            </svg>
-          </div>
-          <div class="stat-info">
-            <span class="stat-value">{{ stats.totalVideos }}</span>
-            <span class="stat-label">Video</span>
-          </div>
-        </div>
+        <StatCard 
+            label="Video" 
+            :value="stats.totalVideos" 
+            icon-color="purple"
+        >
+            <template #icon>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polygon points="23 7 16 12 23 17 23 7"/>
+                <rect x="1" y="5" width="15" height="14" rx="2" ry="2"/>
+              </svg>
+            </template>
+        </StatCard>
         
-        <div class="stat-card orange">
-          <div class="stat-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M12 2L2 7l10 5 10-5-10-5z"/>
-              <path d="M2 17l10 5 10-5"/>
-              <path d="M2 12l10 5 10-5"/>
-            </svg>
-          </div>
-          <div class="stat-info">
-            <span class="stat-value">{{ stats.totalAll }}</span>
-            <span class="stat-label">Total Konten</span>
-          </div>
-        </div>
+        <StatCard 
+            label="Total Konten" 
+            :value="stats.totalAll" 
+            icon-color="orange"
+        >
+            <template #icon>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 2L2 7l10 5 10-5-10-5z"/>
+                <path d="M2 17l10 5 10-5"/>
+                <path d="M2 12l10 5 10-5"/>
+              </svg>
+            </template>
+        </StatCard>
       </section>
 
       <!-- Tabs -->
@@ -933,43 +934,15 @@ onMounted(async () => {
   transform: translateX(20px);
 }
 
-/* Stats Grid */
-.stats-grid {
+/* Stats Cards - Compact Inline */
+.stats-grid { 
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 16px;
-  margin-bottom: 32px;
+  grid-template-columns: repeat(4, 1fr); 
+  gap: 24px; 
+  margin-bottom: 24px; 
+  width: 100%;
 }
-
-.stat-card {
-  background: white;
-  border-radius: 14px;
-  padding: 20px;
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.06);
-}
-
-.stat-icon {
-  width: 48px;
-  height: 48px;
-  border-radius: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.stat-icon svg { width: 26px; height: 26px; }
-
-.stat-card.blue .stat-icon { background: #F1F5F9; color: #0D5782; }
-.stat-card.green .stat-icon { background: #F1F5F9; color: #0D5782; }
-.stat-card.purple .stat-icon { background: #F1F5F9; color: #0D5782; }
-.stat-card.orange .stat-icon { background: #F1F5F9; color: #0D5782; }
-
-.stat-info { display: flex; flex-direction: column; }
-.stat-value { font-size: 20px; font-weight: 700; color: #1e293b; }
-.stat-label { font-size: 13px; color: #64748b; }
+/* StatCard styling handled by component */
 
 /* Tabs */
 .tabs-section {
@@ -1568,3 +1541,5 @@ onMounted(async () => {
   .content-grid { grid-template-columns: 1fr; }
 }
 </style>
+@media (max-width: 1200px) { .stats-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 768px) { .stats-grid { grid-template-columns: 1fr; } }

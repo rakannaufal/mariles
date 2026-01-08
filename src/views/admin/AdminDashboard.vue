@@ -1,6 +1,7 @@
 <script setup>
 import AdminSidebar from '@/components/AdminSidebar.vue'
 import { ref, computed, onMounted } from 'vue'
+import StatCard from '@/components/StatCard.vue'
 import { supabase } from '@/lib/supabase'
 
 const loading = ref(true)
@@ -208,62 +209,65 @@ function getStatusBadge(status) {
 
       <div v-else class="dashboard-content">
         <!-- Stats Grid -->
+        <!-- Stats Grid -->
         <section class="stats-grid">
-          <div class="stat-card primary">
-            <div class="icon-wrapper blue">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
-                <circle cx="9" cy="7" r="4"/>
-                <path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
-              </svg>
-            </div>
-            <div class="stat-content">
-              <span class="label">Total Pengguna</span>
-              <h3 class="value">{{ stats.totalUsers.value.toLocaleString() }}</h3>
-              <span class="trend up">{{ stats.totalUsers.trend }} <span class="muted">bulan ini</span></span>
-            </div>
-          </div>
+          <StatCard 
+              label="Total Pengguna" 
+              :value="stats.totalUsers.value.toLocaleString()" 
+              icon-color="blue"
+              :trend="stats.totalUsers.trend"
+              :trend-up="stats.totalUsers.trendUp"
+          >
+              <template #icon>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                  <circle cx="9" cy="7" r="4"/>
+                  <path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                </svg>
+              </template>
+          </StatCard>
 
-          <div class="stat-card">
-            <div class="icon-wrapper green">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
-                <polyline points="9 22 9 12 15 12 15 22"/>
-              </svg>
-            </div>
-            <div class="stat-content">
-              <span class="label">Tempat Les</span>
-              <h3 class="value">{{ stats.totalLesPlaces.value }}</h3>
-              <span class="trend up">{{ stats.totalLesPlaces.trend }} <span class="muted">bulan ini</span></span>
-            </div>
-          </div>
+          <StatCard 
+              label="Tempat Les" 
+              :value="stats.totalLesPlaces.value" 
+              icon-color="green"
+              :trend="stats.totalLesPlaces.trend"
+              :trend-up="stats.totalLesPlaces.trendUp"
+          >
+              <template #icon>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+                  <polyline points="9 22 9 12 15 12 15 22"/>
+                </svg>
+              </template>
+          </StatCard>
 
-          <div class="stat-card" :class="{ 'warning': stats.pendingVerifications.value > 0 }">
-            <div class="icon-wrapper" :class="stats.pendingVerifications.value > 0 ? 'orange' : 'green'">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
-                <polyline points="22 4 12 14.01 9 11.01"/>
-              </svg>
-            </div>
-            <div class="stat-content">
-              <span class="label">Verifikasi Pending</span>
-              <h3 class="value">{{ stats.pendingVerifications.value }}</h3>
-              <span class="trend" :class="stats.pendingVerifications.value > 0 ? 'warning' : 'success'">
-                {{ stats.pendingVerifications.trend }}
-              </span>
-            </div>
-          </div>
+          <StatCard 
+              label="Verifikasi Pending" 
+              :value="stats.pendingVerifications.value" 
+              :icon-color="stats.pendingVerifications.value > 0 ? 'orange' : 'green'"
+              :trend="stats.pendingVerifications.trend"
+              :trend-up="stats.pendingVerifications.trendUp"
+          >
+              <template #icon>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                  <polyline points="22 4 12 14.01 9 11.01"/>
+                </svg>
+              </template>
+          </StatCard>
 
-          <div class="stat-card">
-            <div class="icon-wrapper purple">
-              <span class="currency-icon">Rp</span>
-            </div>
-            <div class="stat-content">
-              <span class="label">Total Pendapatan</span>
-              <h3 class="value">{{ formatCurrency(stats.totalRevenue.value) }}</h3>
-              <span class="trend up">{{ stats.totalRevenue.trend }} <span class="muted">bulan ini</span></span>
-            </div>
-          </div>
+          <StatCard 
+              label="Total Pendapatan" 
+              :value="formatCurrency(stats.totalRevenue.value)" 
+              icon-color="purple"
+              :trend="stats.totalRevenue.trend"
+              :trend-up="stats.totalRevenue.trendUp"
+          >
+              <template #icon>
+                <span class="currency-icon">Rp</span>
+              </template>
+          </StatCard>
         </section>
 
         <!-- User Breakdown + Quick Actions -->
@@ -525,34 +529,16 @@ function getStatusBadge(status) {
 .loading-state { display: flex; justify-content: center; padding: 100px; }
 .spinner { width: 40px; height: 40px; border: 3px solid #E2E8F0; border-top-color: #0A4568; border-radius: 50%; animation: spin 1s linear infinite; }
 
-/* Stats Grid */
-.stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; margin-bottom: 24px; }
-
-.stat-card { background: white; border-radius: 16px; border: 1px solid #E2E8F0; padding: 20px; display: flex; align-items: center; gap: 16px; transition: all 0.2s; }
-.stat-card:hover { border-color: #CBD5E1; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
-.stat-card.warning { border-color: #FBBF24; background: #FFFBEB; }
-.stat-card.primary { background: #F1F5F9; color: #0D5782; border: 1px solid #E2E8F0; }
-.stat-card.primary label { color: #64748B; }
-.stat-card.primary .value { color: #0D5782; }
-.stat-card.primary .trend { color: #16A34A; }
-
-.icon-wrapper { width: 56px; height: 56px; border-radius: 14px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.icon-wrapper svg { width: 26px; height: 26px; }
-.icon-wrapper.blue { background: #F1F5F9; color: #0D5782; }
-.icon-wrapper.green { background: #F1F5F9; color: #0D5782; }
-.icon-wrapper.orange { background: #F1F5F9; color: #0D5782; }
-.icon-wrapper.purple { background: #F1F5F9; color: #0D5782; }
+/* Stats Cards - Compact Inline */
+.stats-grid { 
+  display: grid; 
+  grid-template-columns: repeat(4, 1fr); 
+  gap: 24px; 
+  margin-bottom: 24px; 
+  width: 100%;
+}
 .currency-icon { font-weight: 800; font-size: 18px; }
-.stat-card.primary .icon-wrapper { background: #F1F5F9; color: #0D5782; }
-
-.stat-content { flex: 1; }
-.stat-content .label { display: block; font-size: 13px; color: #64748B; margin-bottom: 4px; }
-.stat-content .value { font-size: 20px; font-weight: 800; color: #1E293B; margin-bottom: 4px; }
-.stat-content .trend { font-size: 12px; font-weight: 500; }
-.trend.up { color: #16A34A; }
-.trend.warning { color: #D97706; }
-.trend.success { color: #16A34A; }
-.trend .muted { color: #94A3B8; font-weight: 400; }
+/* StatCard styling handled by component */
 
 /* Overview Grid */
 .overview-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 24px; }

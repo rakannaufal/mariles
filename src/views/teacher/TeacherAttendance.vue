@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useTeacherData } from '@/composables/useTeacherData'
 
@@ -14,7 +14,8 @@ const {
   fetchTeacherSchedule,
   fetchTeacherStudents,
   fetchTeacherProfile,
-  saveAttendance
+  saveAttendance,
+  checkAttendanceByDate
 } = useTeacherData()
 
 // Date navigation
@@ -224,15 +225,48 @@ async function submitAttendance() {
   
   if (savedCount > 0) {
     showNotification('success', `Absensi berhasil disimpan ke database! Hadir: ${present}, Tidak Hadir: ${absent}, Terlambat: ${late}, Sakit/Izin: ${sick}`)
+    // Reload attendance status after save
+    await loadAttendanceStatus()
   } else {
     showNotification('success', `Absensi tersimpan (lokal)! Hadir: ${present}, Tidak Hadir: ${absent}, Terlambat: ${late}, Sakit/Izin: ${sick}`)
   }
 }
 
+// Load attendance status for current selected day
+async function loadAttendanceStatus() {
+  const dayOffset = selectedDayIndex.value - 1
+  const sessionDate = new Date(currentWeekStart.value)
+  sessionDate.setDate(sessionDate.getDate() + dayOffset)
+  const sessionDateStr = sessionDate.toISOString().split('T')[0]
+  
+  const statusMap = await checkAttendanceByDate(sessionDateStr)
+  
+  // Update schedule items with attendance status
+  schedule.value.forEach(session => {
+    if (statusMap[session.program_id]?.hasAttendance) {
+      session.attendance_status = 'completed'
+      const records = statusMap[session.program_id].records || []
+      session.present = records.filter(r => r.status === 'present' || r.status === 'late').length
+      session.absent = records.filter(r => r.status === 'absent').length
+    } else {
+      session.attendance_status = 'pending'
+      session.present = 0
+      session.absent = 0
+    }
+  })
+}
+
+// Watch for day/week changes to reload attendance
+
+watch([selectedDayIndex, currentWeekStart], async () => {
+  await loadAttendanceStatus()
+})
+
 onMounted(async () => {
   await fetchTeacherProfile()
   await fetchTeacherSchedule()
   await fetchTeacherStudents()
+  await loadAttendanceStatus()
 })
 </script>
 

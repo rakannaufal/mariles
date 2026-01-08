@@ -1,8 +1,11 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, watch, onMounted, computed } from 'vue'
+import StatCard from '@/components/StatCard.vue'
 import { useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
-import { supabase } from '@/lib/supabase'
+import { usePlatformSettings } from '@/composables/usePlatformSettings'
+const { getSetting } = usePlatformSettings()
+
 
 const route = useRoute()
 const isOwner = computed(() => route.path.startsWith('/owner'))
@@ -21,6 +24,11 @@ const loading = ref(true)
 const payments = ref([])
 const lesPlace = ref(null)
 const selectedMonth = ref('all')
+const platformFees = ref({
+  withdrawal_fee: 5000,
+  min_withdrawal: 50000,
+  max_withdrawal: 10000000
+})
 
 // Summary
 const summary = ref({
@@ -81,6 +89,10 @@ const maxMonthly = computed(() => {
 
 onMounted(async () => {
   await fetchData()
+  const fees = await getSetting('platform_fees')
+  if (fees) {
+    platformFees.value = fees
+  }
 })
 
 async function fetchData() {
@@ -389,40 +401,40 @@ async function handleWithdraw() {
       <div v-else>
         <!-- Stats Cards -->
         <section class="stats-grid simplified">
-          <div class="stat-card primary">
-            <div class="stat-icon">
-              <span class="rp-icon">Rp</span>
-            </div>
-            <div class="stat-info">
-              <span class="stat-value">{{ formatCurrency(summary.totalEarnings) }}</span>
-              <span class="stat-label">Total Diterima</span>
-            </div>
-          </div>
+          <StatCard 
+              label="Total Diterima" 
+              :value="formatCurrency(summary.totalEarnings)" 
+              icon-color="blue"
+          >
+              <template #icon>
+                <span class="rp-icon">Rp</span>
+              </template>
+          </StatCard>
           
-          <div class="stat-card green">
-            <div class="stat-icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <rect x="3" y="4" width="18" height="18" rx="2"/>
-                <line x1="3" y1="10" x2="21" y2="10"/>
-              </svg>
-            </div>
-            <div class="stat-info">
-              <span class="stat-value">{{ formatCurrency(summary.monthlyEarnings) }}</span>
-              <span class="stat-label">Bulan Ini</span>
-            </div>
-          </div>
+          <StatCard 
+              label="Bulan Ini" 
+              :value="formatCurrency(summary.monthlyEarnings)" 
+              icon-color="green"
+          >
+              <template #icon>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="3" y="4" width="18" height="18" rx="2"/>
+                  <line x1="3" y1="10" x2="21" y2="10"/>
+                </svg>
+              </template>
+          </StatCard>
           
-          <div class="stat-card purple">
-            <div class="stat-icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <polyline points="20 6 9 17 4 12"/>
-              </svg>
-            </div>
-            <div class="stat-info">
-              <span class="stat-value">{{ payments.filter(p => p.payment_status === 'completed').length }}x</span>
-              <span class="stat-label">Pembayaran Selesai</span>
-            </div>
-          </div>
+          <StatCard 
+              label="Pembayaran Selesai" 
+              :value="(payments.filter(p => p.payment_status === 'completed').length) + 'x'" 
+              icon-color="purple"
+          >
+              <template #icon>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="20 6 9 17 4 12"/>
+                </svg>
+              </template>
+          </StatCard>
         </section>
 
         <!-- Tabs -->
@@ -670,42 +682,58 @@ async function handleWithdraw() {
                     >
                   </div>
                   <div class="input-hints">
-                    <span class="min-hint">Min. Rp 10.000</span>
-                    <span class="max-hint">Maks. {{ formatCurrency(maxWithdraw) }}</span>
-                  </div>
-                  <div class="amount-hints">
-                    <button 
-                      v-for="pct in [25, 50, 75, 100]" 
-                      :key="pct"
-                      :class="{ active: withdrawAmount == Math.floor(maxWithdraw * pct / 100) }"
-                      @click="withdrawAmount = Math.floor(maxWithdraw * pct / 100)"
-                    >
-                      {{ pct }}%
-                    </button>
-                  </div>
-                </div>
-                
-                <!-- Summary -->
-                <div class="withdraw-summary">
-                  <div class="summary-row">
-                    <span>Jumlah Pencairan</span>
-                    <span>{{ formatCurrency(parseInt(withdrawAmount) || 0) }}</span>
-                  </div>
-                  <div class="summary-row">
-                    <span>Biaya Admin</span>
-                    <span class="fee">- {{ formatCurrency(5000) }}</span>
-                  </div>
-                  <div class="summary-row total">
-                    <span>Total Diterima</span>
-                    <span>{{ formatCurrency(Math.max(0, (parseInt(withdrawAmount) || 0) - 5000)) }}</span>
-                  </div>
-                </div>
+                <span class="min-hint">Min. {{ formatCurrency(platformFees.min_withdrawal) }}</span>
+                <span class="max-hint">Max. {{ formatShortCurrency(platformFees.max_withdrawal) }}</span>
+              </div>
+            </div>
+
+            <div class="amount-hints">
+              <button 
+                :class="{ active: parseInt(withdrawAmount) === 100000 }" 
+                @click="withdrawAmount = '100000'"
+              >
+                100rb
+              </button>
+              <button 
+                :class="{ active: parseInt(withdrawAmount) === 250000 }" 
+                @click="withdrawAmount = '250000'"
+              >
+                250rb
+              </button>
+              <button 
+                :class="{ active: parseInt(withdrawAmount) === 500000 }" 
+                @click="withdrawAmount = '500000'"
+              >
+                500rb
+              </button>
+              <button 
+                :class="{ active: parseInt(withdrawAmount) === 1000000 }" 
+                @click="withdrawAmount = '1000000'"
+              >
+                1jt
+              </button>
+            </div>
+            
+            <div class="withdraw-summary">
+              <div class="summary-row">
+                <span>Jumlah Penarikan</span>
+                <span>{{ formatCurrency(parseInt(withdrawAmount) || 0) }}</span>
+              </div>
+              <div class="summary-row">
+                <span>Biaya Admin</span>
+                <span class="fee">- {{ formatCurrency(withdrawMethod === 'ewallet' ? 2500 : platformFees.withdrawal_fee) }}</span>
+              </div>
+              <div class="summary-row total">
+                <span>Total Diterima</span>
+                <span>{{ formatCurrency(Math.max(0, (parseInt(withdrawAmount) || 0) - (withdrawMethod === 'ewallet' ? 2500 : platformFees.withdrawal_fee))) }}</span>
+              </div>
+            </div>
                 
                 <p v-if="withdrawError" class="error-text">{{ withdrawError }}</p>
                 
                 <button 
                   class="btn-withdraw"
-                  :disabled="withdrawing || !withdrawAmount || parseInt(withdrawAmount) < 10000 || !teacherBankInfo.bank_name"
+                  :disabled="withdrawing || !withdrawAmount || parseInt(withdrawAmount) < platformFees.min_withdrawal || parseInt(withdrawAmount) > platformFees.max_withdrawal || parseInt(withdrawAmount) > summary.withdrawableBalance || (!teacherBankInfo.bank_name && !teacherBankInfo.ewallet_type)"
                   @click="handleWithdraw"
                 >
                   <span v-if="withdrawing" class="loading-spinner-sm"></span>
@@ -758,8 +786,7 @@ async function handleWithdraw() {
 .main {
   flex: 1;
   padding: 32px;
-  max-width: 1200px;
-  margin: 0 auto;
+  width: 100%;
 }
 
 /* Header */
@@ -817,27 +844,7 @@ async function handleWithdraw() {
 
 @keyframes spin { to { transform: rotate(360deg); } }
 
-/* Stats Grid */
-.stats-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 16px;
-  margin-bottom: 24px;
-}
 
-.stats-grid.simplified {
-  grid-template-columns: repeat(3, 1fr);
-}
-
-.stat-card {
-  background: white;
-  border-radius: 16px;
-  padding: 20px;
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.06);
-}
 
 .stat-icon {
   width: 52px;
@@ -1288,8 +1295,8 @@ async function handleWithdraw() {
 .amount-input-wrapper input:focus { outline: none; }
 /* Hide number input spinners */
 .amount-input-wrapper input::-webkit-outer-spin-button,
-.amount-input-wrapper input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
-.amount-input-wrapper input[type=number] { -moz-appearance: textfield; }
+.amount-input-wrapper input::-webkit-inner-spin-button { -webkit-appearance: none; appearance: none; margin: 0; }
+.amount-input-wrapper input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 
 .input-hints {
   display: flex;
@@ -1412,11 +1419,17 @@ async function handleWithdraw() {
 @media (max-width: 768px) {
   .main { padding: 16px; }
   .page-header { flex-direction: column; gap: 16px; }
-  .stats-grid { grid-template-columns: 1fr; }
-  .form-row { grid-template-columns: 1fr; }
 }
 
-/* Payment Method Selector */
+/* Stats Grid */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 24px;
+  width: 100%;
+  margin-bottom: 24px;
+  align-items: stretch;
+}
 .payment-method-selector { margin-bottom: 20px; }
 .payment-method-selector label { display: block; font-size: 14px; font-weight: 600; color: #475569; margin-bottom: 10px; }
 .method-tabs { display: flex; gap: 10px; }
@@ -1425,6 +1438,58 @@ async function handleWithdraw() {
 .method-tab.active { border-color: #0d5782; background: #f0f9ff; color: #0d5782; }
 .method-tab:disabled { opacity: 0.5; cursor: not-allowed; }
 .method-tab svg { width: 20px; height: 20px; }
+
+/* Withdraw Layout */
+.withdraw-layout {
+  display: grid;
+  grid-template-columns: 350px 1fr;
+  gap: 24px;
+  align-items: stretch;
+}
+
+.panel-card.balance-card {
+  background: linear-gradient(135deg, #0d5782, #0284c7);
+  color: white;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  border: none;
+  min-height: 400px; /* Ensure substantial height */
+}
+
+.balance-header {
+  margin-bottom: auto;
+}
+
+.balance-info .balance-label {
+  color: rgba(255,255,255,0.8);
+  font-size: 14px;
+  font-weight: 500;
+  margin-bottom: 4px;
+}
+
+.balance-info .balance-value {
+  color: white;
+  font-size: 32px;
+  font-weight: 800;
+}
+
+.balance-note {
+  margin-top: 32px;
+  padding-top: 24px;
+  border-top: 1px solid rgba(255,255,255,0.2);
+  color: rgba(255,255,255,0.8);
+  font-size: 13px;
+}
+
+.rp-icon.lg {
+  background: rgba(255,255,255,0.2);
+  color: white;
+  width: 56px;
+  height: 56px;
+  font-size: 18px;
+  margin-bottom: 24px;
+}
 
 /* Selected Payment Card */
 .selected-payment-card { display: flex; align-items: center; gap: 14px; padding: 16px; border-radius: 12px; margin-bottom: 20px; }
@@ -1633,3 +1698,5 @@ async function handleWithdraw() {
 .withdraw-form { display: flex; flex-direction: column; }
 .withdraw-form .form-group { margin-bottom: 20px; }
 </style>
+@media (max-width: 1200px) { .stat-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 768px) { .stat-grid { grid-template-columns: 1fr; } }

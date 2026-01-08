@@ -39,17 +39,18 @@ async function fetchReviews() {
       return
     }
 
-    // Get reviews using les_place_id
+    // Get reviews using les_place_id (only visible ones - not flagged)
     const { data, error } = await supabase
       .from('reviews')
       .select(`
-        id, rating, comment, reply, replied_at, created_at,
+        id, rating, comment, reply, replied_at, created_at, is_visible,
         students (
           id,
           users (name, avatar_url)
         )
       `)
       .eq('les_place_id', place.id)
+      .neq('is_visible', false) // Only show visible reviews (null or true)
       .order('created_at', { ascending: false })
 
     if (error) {

@@ -1,5 +1,6 @@
 <script setup>
 import AdminSidebar from '@/components/AdminSidebar.vue'
+import StatCard from '@/components/StatCard.vue'
 import { ref, onMounted, computed } from 'vue'
 import { 
   getAdminRevenueStats, 
@@ -62,9 +63,13 @@ async function fetchData() {
       // FALLBACK: Calculate from bookings (source of truth)
       const { data: allBookings } = await supabase
         .from('bookings')
-        .select('payment_status, created_at, programs(price)')
+        .select('status, payment_status, created_at, programs(price)')
       
-      const completedBookings = (allBookings || []).filter(b => successStatuses.includes(b.payment_status))
+      const validStatuses = ['active', 'confirmed', 'completed']
+      const completedBookings = (allBookings || []).filter(b => 
+        successStatuses.includes(b.payment_status) && 
+        validStatuses.includes(b.status)
+      )
       
       const now = new Date()
       const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
@@ -99,8 +104,9 @@ async function fetchData() {
     // Generate chart data from bookings (last 6 months)
     const { data: chartBookings } = await supabase
       .from('bookings')
-      .select('payment_status, created_at, programs(price)')
+      .select('status, payment_status, created_at, programs(price)')
       .in('payment_status', successStatuses)
+      .in('status', ['active', 'confirmed', 'completed'])
     
     // Group by month
     const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des']
@@ -132,8 +138,9 @@ async function fetchData() {
     // Fetch recent revenue from bookings instead
     const { data: recentBookings } = await supabase
       .from('bookings')
-      .select('id, payment_status, created_at, programs(name, price, les_places(id, name))')
+      .select('id, status, payment_status, created_at, programs(name, price, les_places(id, name))')
       .in('payment_status', successStatuses)
+      .in('status', ['active', 'confirmed', 'completed'])
       .order('created_at', { ascending: false })
       .limit(10)
     
@@ -234,22 +241,19 @@ async function approveRefund(refund) {
   if (!confirm(`Setujui refund Rp ${formatCurrency(refund.amount)}?`)) return
   
   try {
-    await supabase
-      .from('refunds')
-      .update({ 
-        status: 'approved',
-        processed_at: new Date().toISOString()
-      })
-      .eq('id', refund.id)
+    const { processRefund } = await import('@/services/paymentService')
+    const result = await processRefund(refund.id)
     
-    await supabase
-      .from('transactions')
-      .update({ payment_status: 'refunded' })
-      .eq('id', refund.transaction_id)
+    if (!result.success) {
+      alert(`Refund ditolak: ${result.error}`)
+      return
+    }
     
+    alert('Refund berhasil disetujui!')
     await fetchData()
   } catch (err) {
     console.error('Error approving refund:', err)
+    alert('Terjadi kesalahan saat memproses refund')
   }
 }
 
@@ -342,55 +346,63 @@ function getSourceClass(source) {
       <div v-else class="finance-content">
         <!-- Stats Cards -->
         <section class="stats-grid">
-          <div class="stat-card">
-            <div class="stat-icon-box green">
-              <span class="currency-symbol">Rp</span>
-            </div>
-            <div class="stat-info">
-              <span class="stat-label">Total Pendapatan Platform</span>
-              <span class="stat-value">Rp {{ formatCurrency(stats.totalRevenue) }}</span>
-              <span class="stat-hint">Dari semua komisi & biaya</span>
-            </div>
-          </div>
+          <StatCard 
+              label="Total Pendapatan Platform" 
+              :value="`Rp ${formatCurrency(stats.totalRevenue)}`" 
+              icon-color="green"
+          >
+              <template #icon>
+                <span class="currency-symbol">Rp</span>
+              </template>
+              <template #extra>
+                <span class="stat-hint">Dari semua komisi & biaya</span>
+              </template>
+          </StatCard>
 
-          <div class="stat-card">
-            <div class="stat-icon-box blue">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/>
-              </svg>
-            </div>
-            <div class="stat-info">
-              <span class="stat-label">Pendapatan Bulan Ini</span>
-              <span class="stat-value">{{ formatCurrency(stats.monthRevenue) }}</span>
-              <span class="stat-hint">{{ new Date().toLocaleString('id-ID', { month: 'long', year: 'numeric' }) }}</span>
-            </div>
-          </div>
+          <StatCard 
+              label="Pendapatan Bulan Ini" 
+              :value="formatCurrency(stats.monthRevenue)" 
+              icon-color="blue"
+          >
+              <template #icon>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/>
+                </svg>
+              </template>
+              <template #extra>
+                <span class="stat-hint">{{ new Date().toLocaleString('id-ID', { month: 'long', year: 'numeric' }) }}</span>
+              </template>
+          </StatCard>
 
-          <div class="stat-card">
-            <div class="stat-icon-box orange">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
-              </svg>
-            </div>
-            <div class="stat-info">
-              <span class="stat-label">Pencairan Pending</span>
-              <span class="stat-value">{{ stats.pendingWithdrawals }}</span>
-              <span class="stat-hint">Menunggu diproses</span>
-            </div>
-          </div>
+          <StatCard 
+              label="Pencairan Pending" 
+              :value="stats.pendingWithdrawals" 
+              icon-color="orange"
+          >
+              <template #icon>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+                </svg>
+              </template>
+              <template #extra>
+                <span class="stat-hint">Menunggu diproses</span>
+              </template>
+          </StatCard>
 
-          <div class="stat-card">
-            <div class="stat-icon-box purple">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M3 3h18v18H3zM21 9H3M9 21V9"/>
-              </svg>
-            </div>
-            <div class="stat-info">
-              <span class="stat-label">Refund Pending</span>
-              <span class="stat-value">{{ stats.pendingRefunds }}</span>
-              <span class="stat-hint">Perlu ditinjau</span>
-            </div>
-          </div>
+          <StatCard 
+              label="Refund Pending" 
+              :value="stats.pendingRefunds" 
+              icon-color="purple"
+          >
+              <template #icon>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M3 3h18v18H3zM21 9H3M9 21V9"/>
+                </svg>
+              </template>
+              <template #extra>
+                <span class="stat-hint">Perlu ditinjau</span>
+              </template>
+          </StatCard>
         </section>
 
         <!-- Tabs -->
@@ -626,24 +638,18 @@ function getSourceClass(source) {
 .loading-state { display: flex; flex-direction: column; align-items: center; padding: 80px; color: #64748B; }
 .spinner { width: 40px; height: 40px; border: 3px solid #E2E8F0; border-top-color: #0A4568; border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 16px; }
 
-/* Stats Grid */
-.stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 24px; margin-bottom: 32px; }
-.stat-card { background: white; border-radius: 16px; padding: 24px; display: flex; align-items: flex-start; gap: 16px; border: 1px solid #E2E8F0; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); transition: transform 0.2s; }
-.stat-card:hover { transform: translateY(-2px); box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05); }
+/* Stats Cards - Compact Inline */
+.stats-grid { 
+  display: grid; 
+  grid-template-columns: repeat(4, 1fr); 
+  gap: 24px; 
+  margin-bottom: 32px; 
+  width: 100%;
+}
 
-.stat-icon-box { width: 56px; height: 56px; border-radius: 14px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.stat-icon-box svg { width: 26px; height: 26px; }
-.stat-icon-box.green { background: #F1F5F9; color: #0D5782; }
-.stat-icon-box.blue { background: #F1F5F9; color: #0D5782; }
-.stat-icon-box.orange { background: #F1F5F9; color: #0D5782; }
-.stat-icon-box.purple { background: #F1F5F9; color: #0D5782; }
+/* StatCard styling handled by component */
+.stat-hint { font-size: 11px; color: #64748B; margin-top: 4px; display: block; }
 
-.currency-symbol { font-size: 18px; font-weight: 800; color: currentColor; line-height: 1; }
-
-.stat-info { display: flex; flex-direction: column; }
-.stat-label { font-size: 13px; font-weight: 600; color: #64748B; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
-.stat-value { font-size: 20px; font-weight: 800; color: #1E293B; margin-bottom: 4px; }
-.stat-hint { font-size: 12px; color: #64748B; }
 
 /* Tabs */
 .tabs-container { margin-bottom: 20px; }
@@ -681,7 +687,7 @@ function getSourceClass(source) {
 
 /* Breakdown */
 .breakdown-list { display: flex; flex-direction: column; gap: 16px; }
-.breakdown-item { }
+
 .breakdown-info { display: flex; justify-content: space-between; margin-bottom: 6px; }
 .breakdown-label { font-size: 14px; color: #475569; }
 .breakdown-value { font-size: 14px; font-weight: 600; color: #1E293B; }
@@ -727,3 +733,5 @@ function getSourceClass(source) {
   .main-content { padding: 16px; }
 }
 </style>
+@media (max-width: 1200px) { .stats-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 768px) { .stats-grid { grid-template-columns: 1fr; } }

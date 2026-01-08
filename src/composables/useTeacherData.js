@@ -148,7 +148,7 @@ export function useTeacherData() {
                   program_id: program.id,
                   program_name: program.name,
                   day: dayIndex,
-                  dayName: day,
+                  dayName: translateDayName(day),
                   time: timeStr,
                   subject: program.subject || program.name,
                   class: program.level || 'Umum',
@@ -237,16 +237,25 @@ export function useTeacherData() {
       
       if (bookErr) throw bookErr
       
-      // Get grades and attendance for progress calculation
-      const studentList = []
+      // Deduplicate by student_id + program_id combination
+      // Same student with same program = show once (keep latest booking)
+      // Same student with different programs = show separately
       const studentMap = new Map()
       
-      bookingsData?.forEach(booking => {
+      // Sort bookings by created_at DESC to keep latest booking
+      const sortedBookings = [...(bookingsData || [])].sort((a, b) => 
+        new Date(b.created_at) - new Date(a.created_at)
+      )
+      
+      sortedBookings.forEach(booking => {
         if (booking.students?.users) {
-          const studentId = booking.students.id
-          if (!studentMap.has(studentId)) {
-            studentMap.set(studentId, {
-              id: studentId,
+          // Use student_id + program_id as unique key
+          const uniqueKey = `${booking.students.id}_${booking.program_id}`
+          
+          // Only add if not already exists (we keep the latest booking due to sort)
+          if (!studentMap.has(uniqueKey)) {
+            studentMap.set(uniqueKey, {
+              id: booking.students.id,
               user_id: booking.students.user_id,
               name: booking.students.users.name,
               email: booking.students.users.email,
@@ -259,7 +268,7 @@ export function useTeacherData() {
               join_date: new Date(booking.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }),
               status: (booking.status === 'active' || booking.status === 'confirmed') ? 'active' : 'inactive',
               les_place: lesPlace.value?.name || '-',
-              progress: 0, // Will be calculated from grades/attendance
+              progress: 0, // Will be calculated from material_progress
               booking_id: booking.id,
               program_id: booking.program_id,
               program: booking.programs
@@ -300,7 +309,23 @@ export function useTeacherData() {
           materialIds.length > 0 ? supabase.from('exercise_submissions').select('student_id, material_id, score').in('student_id', studentUserIds).in('material_id', materialIds).not('score', 'is', null) : { data: [] }
         ])
 
-        // 4. Process Scores for each student
+        // 4. Fetch all materials per program for progress calculation
+        const { data: allMaterials } = await supabase
+          .from('course_materials')
+          .select('id, program_id')
+          .in('program_id', programIds)
+          .eq('is_active', true)
+        
+        // Get student IDs (students.id, not user_id)
+        const studentIds = Array.from(studentMap.values()).map(s => s.id)
+        
+        // Fetch material_progress
+        const { data: materialProgress } = await supabase
+          .from('material_progress')
+          .select('student_id, material_id, is_completed')
+          .in('student_id', studentIds)
+
+        // 5. Process Scores and Progress for each student
         studentMap.forEach(student => {
           // Quiz Average
           const sAttempts = quizAttempts?.filter(a => a.student_id === student.user_id) || []
@@ -326,6 +351,23 @@ export function useTeacherData() {
              student.finalScore = final
           } else {
              student.finalScore = 0
+          }
+          
+          // Calculate Progress from material_progress
+          const programMaterials = allMaterials?.filter(m => m.program_id === student.program_id) || []
+          const totalMaterials = programMaterials.length
+          
+          if (totalMaterials > 0) {
+            const completedMaterials = programMaterials.filter(mat => {
+              const progress = materialProgress?.find(mp => 
+                mp.student_id === student.id && mp.material_id === mat.id
+              )
+              return progress?.is_completed === true
+            }).length
+            
+            student.progress = Math.round((completedMaterials / totalMaterials) * 100)
+          } else {
+            student.progress = 0
           }
         })
       }
@@ -552,6 +594,67 @@ export function useTeacherData() {
       console.error('Error saving attendance:', err)
       error.value = err.message
       return false
+    }
+  }
+
+  // Check which programs have attendance records for a given date
+  async function checkAttendanceByDate(sessionDate) {
+    if (!teacherProfile.value?.les_place_id) {
+      return {}
+    }
+    
+    try {
+      // Get programs for this les_place
+      const { data: programsData } = await supabase
+        .from('programs')
+        .select('id')
+        .eq('les_place_id', teacherProfile.value.les_place_id)
+        .eq('is_active', true)
+      
+      const programIds = programsData?.map(p => p.id) || []
+      
+      if (programIds.length === 0) return {}
+      
+      // Get bookings for these programs
+      const { data: bookingsData } = await supabase
+        .from('bookings')
+        .select('id, program_id')
+        .in('program_id', programIds)
+        .in('status', ['active', 'confirmed'])
+      
+      if (!bookingsData?.length) return {}
+      
+      const bookingIds = bookingsData.map(b => b.id)
+      
+      // Get attendance records for this date
+      const { data: attendanceData, error: attErr } = await supabase
+        .from('attendance')
+        .select('id, booking_id, status')
+        .in('booking_id', bookingIds)
+        .eq('session_date', sessionDate)
+      
+      if (attErr) throw attErr
+      
+      // Group by program_id to check which programs have attendance
+      const programStatusMap = {}
+      
+      attendanceData?.forEach(att => {
+        const booking = bookingsData.find(b => b.id === att.booking_id)
+        if (booking) {
+          if (!programStatusMap[booking.program_id]) {
+            programStatusMap[booking.program_id] = {
+              hasAttendance: true,
+              records: []
+            }
+          }
+          programStatusMap[booking.program_id].records.push(att)
+        }
+      })
+      
+      return programStatusMap
+    } catch (err) {
+      console.error('Error checking attendance:', err)
+      return {}
     }
   }
 
@@ -1201,6 +1304,7 @@ export function useTeacherData() {
     fetchTeacherStudents,
     fetchAttendanceSessions,
     saveAttendance,
+    checkAttendanceByDate,
     fetchTeacherMaterials,
     createMaterial,
     deleteMaterial,

@@ -30,11 +30,24 @@ const showProfileMenu = ref(false)
 const banners = ref([])
 const bannersLoading = ref(true)
 
+// ======== LOGGED-IN USER DATA ========
+const myClasses = ref([])
+const myClassesLoading = ref(true)
+const userStats = ref({ totalClasses: 0, averageProgress: 0, achievements: 0 })
+const recentActivities = ref([])
+const activitiesLoading = ref(true)
+
+// ======== GUEST DATA ========
+const platformStats = ref({ totalLesPlaces: 0, totalCities: 0, totalStudents: 0, totalTeachers: 0 })
+const statsLoading = ref(true)
+const testimonials = ref([])
+const testimonialsLoading = ref(true)
+
 // Default banners (fallback)
 const defaultBanners = [
-  { id: 1, image_url: 'https://images.unsplash.com/photo-1580582932707-520aed937b7b?w=1200', title: 'Selamat Datang di Mariles' },
-  { id: 2, image_url: 'https://images.unsplash.com/photo-1497633762265-9d179a990aa6?w=1200', title: 'Belajar Lebih Efektif' },
-  { id: 3, image_url: 'https://images.unsplash.com/photo-1523050854058-8df90110c9f1?w=1200', title: 'UTBK 2025 Segera Tiba!' },
+  { id: 1, image_url: 'https://images.unsplash.com/photo-1580582932707-520aed937b7b?w=1200', title: 'Selamat Datang di Mariles', link: '/register' },
+  { id: 2, image_url: 'https://images.unsplash.com/photo-1497633762265-9d179a990aa6?w=1200', title: 'Belajar Lebih Efektif', link: '/search' },
+  { id: 3, image_url: 'https://images.unsplash.com/photo-1523050854058-8df90110c9f1?w=1200', title: 'UTBK 2025 Segera Tiba!', link: '/search?q=UTBK' },
 ]
 
 // Use fetched banners or defaults
@@ -42,30 +55,21 @@ const promoSlides = computed(() => {
   return banners.value.length > 0 ? banners.value : defaultBanners
 })
 
-// Mata pelajaran penting untuk anak sekolah
-const importantSubjects = [
-  'Matematika', 'Bahasa Inggris', 'Bahasa Indonesia', 'Fisika', 
-  'Kimia', 'Biologi', 'IPA', 'IPS'
+// Mata pelajaran utama (tanpa jenjang)
+const simplifiedSubjects = [
+  { id: 'matematika', name: 'Matematika', keywords: ['matematika'] },
+  { id: 'bahasa-inggris', name: 'Bahasa Inggris', keywords: ['bahasa inggris', 'english'] },
+  { id: 'bahasa-indonesia', name: 'Bahasa Indonesia', keywords: ['bahasa indonesia'] },
+  { id: 'ipa', name: 'IPA', keywords: ['ipa', 'fisika', 'kimia', 'biologi'] },
+  { id: 'ips', name: 'IPS', keywords: ['ips', 'sejarah', 'geografi', 'ekonomi'] },
+  { id: 'komputer', name: 'Komputer', keywords: ['komputer', 'programming', 'coding'] }
 ]
 
 const categoryColors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#DDA0DD', '#98D8C8', '#F7DC6F']
 
-// Filter 8 kategori penting untuk guest
+// Kategori yang disederhanakan untuk guest
 const popularCategories = computed(() => {
-  if (!categories.value.length) return []
-  
-  const filtered = categories.value.filter(cat => 
-    importantSubjects.some(subj => cat.name.toLowerCase().includes(subj.toLowerCase()))
-  )
-  
-  // Sort berdasarkan urutan di importantSubjects
-  filtered.sort((a, b) => {
-    const indexA = importantSubjects.findIndex(s => a.name.toLowerCase().includes(s.toLowerCase()))
-    const indexB = importantSubjects.findIndex(s => b.name.toLowerCase().includes(s.toLowerCase()))
-    return indexA - indexB
-  })
-  
-  return filtered.slice(0, 8)
+  return simplifiedSubjects
 })
 
 // Les places yang ditampilkan (10 atau semua)
@@ -94,15 +98,288 @@ async function fetchBanners() {
   }
 }
 
+// ======== FETCH LOGGED-IN USER DATA ========
+import { useMyClass } from '@/composables/useMyClass'
+
+// ... existing imports
+
+const { 
+  fetchMaterials, 
+  fetchTests, 
+  fetchExercises, 
+  calculateCourseProgress,
+  materials,
+  tests,
+  exercises
+} = useMyClass()
+
+
+// ======== FETCH LOGGED-IN USER DATA ========
+async function fetchMyClasses() {
+  if (!authStore.isAuthenticated) return
+  myClassesLoading.value = true
+  try {
+    // Get student ID
+    const { data: studentData } = await supabase
+      .from('students')
+      .select('id')
+      .eq('user_id', authStore.user.id)
+      .single()
+    
+    if (!studentData) {
+      myClassesLoading.value = false
+      return
+    }
+
+    // Get enrolled classes
+    const { data: bookings } = await supabase
+      .from('bookings')
+      .select(`
+        id, status, created_at,
+        programs (
+          id, name, duration_months, schedule,
+          les_places (id, name, photos)
+        )
+      `)
+      .eq('student_id', studentData.id)
+      .in('status', ['active', 'confirmed', 'completed'])
+      .in('payment_status', ['paid', 'settlement', 'capture'])
+      .order('created_at', { ascending: false })
+      .limit(3)
+
+    // Process each class to get real progress and schedule
+    const processedClasses = await Promise.all((bookings || []).map(async booking => {
+      // 1. Calculate Real Progress
+      // We need to fetch data for this specific program to use calculateCourseProgress
+      // Note: useMyClass uses shared refs, so we need to be careful with parallelism if we want to use the composable's state.
+      // However, since we are just calculating, we can fetch into local vars or sequentially.
+      // To strictly follow the composable pattern without race conditions on the shared refs 'materials', 'tests', etc.,
+      // we should probably do this sequentially or instantiate the composable inside the loop if it was a factory (it's not).
+      // BUT `useMyClass` exports refs that are shared if created outside component? No, Vue composables usually create fresh refs per call unless defined outside.
+      // Let's check useMyClass definition.
+      // checked: export function useMyClass() { const materials = ref([]) ... } -> It creates NEW refs every time it's called.
+      // So we can instantiate it for each iteration!
+      
+      const { 
+        fetchMaterials, 
+        fetchTests, 
+        fetchExercises, 
+        calculateCourseProgress: calcProgress 
+      } = useMyClass()
+
+      if (booking.programs?.id) {
+        await Promise.all([
+          fetchMaterials(booking.programs.id, studentData.id),
+          fetchTests(booking.programs.id, studentData.id, authStore.user.id),
+          fetchExercises(booking.programs.id, studentData.id, authStore.user.id)
+        ])
+      }
+
+      const progress = calcProgress()
+
+      // 2. Check Schedule for Today
+      const todayScheduleCount = getTodayScheduleCount(booking.programs?.schedule)
+
+      return {
+        id: booking.id,
+        programName: booking.programs?.name || 'Program',
+        lesPlaceName: booking.programs?.les_places?.name || 'Tempat Les',
+        photo: booking.programs?.les_places?.photos?.[0] || null,
+        progress: progress,
+        status: booking.status,
+        todayScheduleCount: todayScheduleCount
+      }
+    }))
+
+    myClasses.value = processedClasses
+
+    // Calculate user stats
+    const { count: totalClasses } = await supabase
+      .from('bookings')
+      .select('id', { count: 'exact', head: true })
+      .eq('student_id', studentData.id)
+      .in('status', ['active', 'confirmed', 'completed'])
+      .in('payment_status', ['paid', 'settlement', 'capture'])
+
+    userStats.value = {
+      totalClasses: totalClasses || 0,
+      averageProgress: myClasses.value.length > 0 
+        ? Math.round(myClasses.value.reduce((sum, c) => sum + c.progress, 0) / myClasses.value.length)
+        : 0,
+      achievements: Math.floor((totalClasses || 0) * 1.5)
+    }
+  } catch (err) {
+    console.error('Error fetching my classes:', err)
+  } finally {
+    myClassesLoading.value = false
+  }
+}
+
+function getTodayScheduleCount(schedule) {
+  if (!schedule) return 0
+  
+  const today = new Date()
+  const daysID = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu']
+  const daysEN = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+  const dayIndex = today.getDay()
+  
+  const currentDayID = daysID[dayIndex]
+  const currentDayEN = daysEN[dayIndex]
+  
+  let count = 0
+
+  // 1. Array Format: [{ day: 'Senin', ... }, { day: 'Monday', ... }]
+  if (Array.isArray(schedule)) {
+    count = schedule.filter(s => {
+      if (!s.day) return false
+      const d = s.day.toLowerCase()
+      return d === currentDayID.toLowerCase() || d === currentDayEN.toLowerCase()
+    }).length
+  } 
+  // 2. Object Format: { "Senin": ..., "Monday": ..., "day": "Senin" }
+  else if (typeof schedule === 'object') {
+    // Check 'day' property if it exists (single schedule object)
+    if (schedule.day) {
+      const d = schedule.day.toLowerCase()
+      if (d === currentDayID.toLowerCase() || d === currentDayEN.toLowerCase()) {
+        count = 1
+      }
+    }
+    // Check keys (dictionary format: { "Senin": {...}, "kamis": {...} })
+    else {
+      // Check for ID keys
+      if (schedule[currentDayID] || schedule[currentDayID.toLowerCase()] || schedule[currentDayID.toUpperCase()]) count = 1
+      // Check for EN keys
+      if (schedule[currentDayEN] || schedule[currentDayEN.toLowerCase()] || schedule[currentDayEN.toUpperCase()]) count = 1
+    }
+  }
+
+  // Debug log
+  console.log('Checking schedule:', { schedule, dayID: currentDayID, dayEN: currentDayEN, count })
+
+  return count
+}
+
+
+async function fetchRecentActivities() {
+  if (!authStore.isAuthenticated) return
+  activitiesLoading.value = true
+  try {
+    const { data } = await supabase
+      .from('notifications')
+      .select('id, title, message, type, created_at, is_read')
+      .eq('user_id', authStore.user.id)
+      .order('created_at', { ascending: false })
+      .limit(5)
+
+    recentActivities.value = data || []
+  } catch (err) {
+    console.error('Error fetching activities:', err)
+  } finally {
+    activitiesLoading.value = false
+  }
+}
+
+// ======== FETCH GUEST DATA ========
+async function fetchPlatformStats() {
+  statsLoading.value = true
+  try {
+    // Count les places
+    const { count: lesCount } = await supabase
+      .from('les_places')
+      .select('id', { count: 'exact', head: true })
+
+    // Count unique cities
+    const { data: citiesData } = await supabase
+      .from('les_places')
+      .select('city')
+    const uniqueCities = new Set((citiesData || []).map(l => l.city).filter(Boolean))
+
+    // Count students
+    const { count: studentsCount } = await supabase
+      .from('students')
+      .select('id', { count: 'exact', head: true })
+
+    // Count teachers
+    const { count: teachersCount } = await supabase
+      .from('teachers')
+      .select('id', { count: 'exact', head: true })
+
+    platformStats.value = {
+      totalLesPlaces: lesCount || 0,
+      totalCities: uniqueCities.size || 0,
+      totalStudents: studentsCount || 0,
+      totalTeachers: teachersCount || 0
+    }
+  } catch (err) {
+    console.error('Error fetching platform stats:', err)
+  } finally {
+    statsLoading.value = false
+  }
+}
+
+async function fetchTestimonials() {
+  testimonialsLoading.value = true
+  try {
+    const { data } = await supabase
+      .from('reviews')
+      .select(`
+        id, rating, comment, created_at,
+        students (users (name)),
+        les_places (name)
+      `)
+      .eq('is_visible', true)
+      .gte('rating', 4)
+      .order('created_at', { ascending: false })
+      .limit(4)
+
+    testimonials.value = data || []
+  } catch (err) {
+    console.error('Error fetching testimonials:', err)
+    // Fallback: try without is_visible filter (column might not exist)
+    try {
+      const { data } = await supabase
+        .from('reviews')
+        .select(`
+          id, rating, comment, created_at,
+          students (users (name)),
+          les_places (name)
+        `)
+        .gte('rating', 4)
+        .order('created_at', { ascending: false })
+        .limit(4)
+      testimonials.value = data || []
+    } catch (e) {
+      testimonials.value = []
+    }
+  } finally {
+    testimonialsLoading.value = false
+  }
+}
+
 let slideInterval = null
 
 onMounted(async () => {
+  // Common data
   await Promise.all([
     fetchBanners(),
     fetchCategories(),
     fetchLesPlaces({ limit: 20 }),
     fetchProvinces()
   ])
+  
+  // Conditional data based on auth
+  if (authStore.isAuthenticated) {
+    await Promise.all([
+      fetchMyClasses(),
+      fetchRecentActivities()
+    ])
+  } else {
+    await Promise.all([
+      fetchPlatformStats(),
+      fetchTestimonials()
+    ])
+  }
   
   // Auto slide carousel
   slideInterval = setInterval(() => {
@@ -126,7 +403,9 @@ function onProvinceChange() {
 }
 
 function goToCategory(category) {
-  router.push({ path: '/search', query: { category: category.name } })
+  // Search by first keyword or name
+  const searchTerm = category.keywords?.[0] || category.name
+  router.push({ path: '/search', query: { q: searchTerm } })
 }
 
 function getImage(les) {
@@ -165,6 +444,30 @@ function getDisplayName() {
   if (authStore.user?.email) return authStore.user.email.split('@')[0]
   return 'User'
 }
+
+function formatTimeAgo(dateString) {
+  if (!dateString) return ''
+  const date = new Date(dateString)
+  const now = new Date()
+  const diffMs = now - date
+  const diffMins = Math.floor(diffMs / 60000)
+  const diffHours = Math.floor(diffMs / 3600000)
+  const diffDays = Math.floor(diffMs / 86400000)
+  
+  if (diffMins < 60) return `${diffMins} menit yang lalu`
+  if (diffHours < 24) return `${diffHours} jam yang lalu`
+  if (diffDays < 7) return `${diffDays} hari yang lalu`
+  return date.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })
+}
+
+const currentDate = computed(() => {
+  return new Date().toLocaleDateString('id-ID', { 
+    weekday: 'long', 
+    day: 'numeric', 
+    month: 'long', 
+    year: 'numeric' 
+  })
+})
 </script>
 
 <template>
@@ -175,58 +478,97 @@ function getDisplayName() {
 
     <!-- ========== CONTENT FOR LOGGED IN USER ========== -->
     <template v-if="authStore.isAuthenticated">
-      <!-- Carousel Section - Coverflow Style -->
-      <section class="carousel-section">
+      
+      <!-- 1. WELCOME SECTION (Standard Container, Pure White Text, Date) -->
+      <section class="welcome-section">
         <div class="container">
-          <div class="carousel-wrapper">
-            <button class="carousel-btn prev" @click="prevSlide">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
-            </button>
-            
-            <div class="carousel-container">
-              <div class="carousel-track">
-                <div 
-                  v-for="(slide, index) in promoSlides" 
-                  :key="slide.id" 
-                  class="carousel-slide"
-                  :class="{
-                    active: currentSlide === index,
-                    prev: currentSlide === index + 1 || (currentSlide === 0 && index === promoSlides.length - 1),
-                    next: currentSlide === index - 1 || (currentSlide === promoSlides.length - 1 && index === 0)
-                  }"
-                  @click="goToSlide(index)"
-                >
-                  <img :src="slide.image_url" :alt="slide.title">
-                  <div class="slide-content">
-                    <h3>{{ slide.title }}</h3>
-                  </div>
-                </div>
-              </div>
+          <div class="welcome-card">
+            <div class="welcome-text">
+              <h2>Selamat datang kembali, {{ getDisplayName() }}!</h2>
+              <p>Yuk lanjutkan belajar hari ini</p>
             </div>
-
-            <button class="carousel-btn next" @click="nextSlide">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
-            </button>
-          </div>
-
-          <div class="carousel-dots">
-            <button 
-              v-for="(slide, index) in promoSlides" 
-              :key="slide.id" 
-              class="dot" 
-              :class="{ active: currentSlide === index }"
-              @click="goToSlide(index)"
-            ></button>
+            <div class="welcome-right-content">
+              <span class="current-date">{{ currentDate }}</span>
+            </div>
           </div>
         </div>
       </section>
 
-      <!-- Les Cards Section -->
+      <!-- 2. KELAS SAYA SECTION -->
+      <section class="my-classes-section" v-if="myClasses.length > 0 || myClassesLoading">
+        <div class="container">
+          <div class="section-header-row">
+            <div class="section-header">
+              <h2 class="section-title">Lanjutkan Belajar</h2>
+              <p class="section-subtitle">Kelas yang sedang kamu ikuti</p>
+            </div>
+            <router-link to="/student/myclass" class="see-all-link">
+              Lihat Semua 
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+            </router-link>
+          </div>
+
+          <div v-if="myClassesLoading" class="loading-state">
+            <div class="loading-spinner"></div>
+          </div>
+
+          <div v-else class="my-classes-grid">
+            <div v-for="cls in myClasses" :key="cls.id" class="my-class-card">
+              <div class="class-photo">
+                <img v-if="cls.photo" :src="cls.photo" :alt="cls.programName">
+                <div v-else class="photo-placeholder">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+                  </svg>
+                </div>
+              </div>
+              <div class="class-info">
+                <div class="class-header-row">
+                  <h4>{{ cls.programName }}</h4>
+                  <span v-if="cls.todayScheduleCount > 0" class="today-schedule-badge">
+                    {{ cls.todayScheduleCount }} Jadwal Hari Ini
+                  </span>
+                </div>
+                <p class="class-place">{{ cls.lesPlaceName }}</p>
+                <div class="progress-container">
+                  <div class="progress-bar">
+                    <div class="progress-fill" :style="{ width: cls.progress + '%' }"></div>
+                  </div>
+                  <span class="progress-text">{{ cls.progress }}%</span>
+                </div>
+                <router-link 
+                  :to="`/student/myclass/${cls.id}`" 
+                  class="btn-continue"
+                >
+                  Lanjutkan
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+                </router-link>
+              </div>
+            </div>
+
+            <!-- Add new class card -->
+            <router-link to="/search" class="my-class-card add-card">
+              <div class="add-icon">+</div>
+              <p>Cari Kelas Baru</p>
+            </router-link>
+          </div>
+        </div>
+      </section>
+
+
+
+      <!-- 4. REKOMENDASI TEMPAT LES -->
       <section class="les-section">
         <div class="container">
-          <div class="section-header">
-            <h2 class="section-title">Rekomendasi Tempat Les</h2>
-            <p class="section-subtitle">Temukan tempat les terbaik untuk Anda</p>
+          <div class="section-header-row">
+            <div class="section-header">
+              <h2 class="section-title">Rekomendasi Untuk Kamu</h2>
+              <p class="section-subtitle">Berdasarkan minat dan lokasi kamu</p>
+            </div>
+            <router-link to="/search" class="see-all-link">
+              Lihat Semua 
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+            </router-link>
           </div>
 
           <div v-if="lesLoading" class="loading-state">
@@ -248,58 +590,86 @@ function getDisplayName() {
           </div>
         </div>
       </section>
+
+      <!-- 5. AKTIVITAS TERBARU -->
+      <section class="activities-section" v-if="recentActivities.length > 0">
+        <div class="container">
+          <div class="section-header">
+            <h2 class="section-title">Aktivitas Terbaru</h2>
+            <p class="section-subtitle">Update dari kelas kamu</p>
+          </div>
+
+          <div class="activities-list">
+            <div v-for="activity in recentActivities" :key="activity.id" class="activity-item" :class="{ unread: !activity.is_read }">
+              <div class="activity-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+                  <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+                </svg>
+              </div>
+              <div class="activity-content">
+                <h4>{{ activity.title }}</h4>
+                <p>{{ activity.message }}</p>
+                <span class="activity-time">{{ formatTimeAgo(activity.created_at) }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
     </template>
 
-    <!-- ========== CONTENT FOR GUEST (Same as logged in) ========== -->
+    <!-- ========== CONTENT FOR GUEST ========== -->
     <template v-else>
-      <!-- Carousel Section - Coverflow Style -->
-      <section class="carousel-section">
-        <div class="container">
-          <div class="carousel-wrapper">
-            <button class="carousel-btn prev" @click="prevSlide">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
-            </button>
-            
-            <div class="carousel-container">
-              <div class="carousel-track">
-                <div 
-                  v-for="(slide, index) in promoSlides" 
-                  :key="slide.id" 
-                  class="carousel-slide"
-                  :class="{
-                    active: currentSlide === index,
-                    prev: currentSlide === index + 1 || (currentSlide === 0 && index === promoSlides.length - 1),
-                    next: currentSlide === index - 1 || (currentSlide === promoSlides.length - 1 && index === 0)
-                  }"
-                  @click="goToSlide(index)"
-                >
-                  <img :src="slide.image_url" :alt="slide.title">
-                  <div class="slide-content">
-                    <h3>{{ slide.title }}</h3>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <button class="carousel-btn next" @click="nextSlide">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
-            </button>
-          </div>
-
-          <div class="carousel-dots">
-            <button 
+      
+      <!-- 1. HERO BANNER - FULL WIDTH, NO NAV BUTTONS -->
+      <section class="hero-banner-section">
+        <div class="hero-banner-wrapper">
+          <div class="banner-track">
+            <div 
               v-for="(slide, index) in promoSlides" 
               :key="slide.id" 
-              class="dot" 
-              :class="{ active: currentSlide === index }"
-              @click="goToSlide(index)"
-            ></button>
+              class="banner-slide"
+              :class="{ active: currentSlide === index, clickable: slide.link }"
+              @click="slide.link ? router.push(slide.link) : null"
+            >
+              <img :src="slide.image_url" :alt="slide.title">
+            </div>
+          </div>
+        </div>
+        
+        <div class="banner-dots">
+          <button 
+            v-for="(slide, index) in promoSlides" 
+            :key="slide.id" 
+            class="banner-dot" 
+            :class="{ active: currentSlide === index }"
+            @click="goToSlide(index)"
+          ></button>
+        </div>
+      </section>
+
+      <!-- 2. KATEGORI SECTION - No Icons, Text Only -->
+      <section class="kategori-section">
+        <div class="container">
+          <div class="kategori-row">
+            <button 
+              v-for="cat in popularCategories.slice(0, 6)" 
+              :key="cat.id" 
+              class="kategori-item"
+              @click="goToCategory(cat)"
+            >
+              <span class="kategori-name">{{ cat.name }}</span>
+            </button>
+            <router-link to="/search" class="kategori-item see-all">
+              <span class="kategori-name">Semua Kategori</span>
+            </router-link>
           </div>
         </div>
       </section>
 
-      <!-- Les Cards Section -->
-      <section class="les-section">
+      <!-- 3. PAKET POPULER (LES CARDS) - No Dropdown -->
+      <section class="paket-section">
         <div class="container">
           <div class="section-header">
             <h2 class="section-title">Rekomendasi Tempat Les</h2>
@@ -326,15 +696,56 @@ function getDisplayName() {
         </div>
       </section>
 
-      <!-- CTA Section for Guest -->
-      <CTASection 
-        title="Siap Memulai?" 
-        subtitle="Bergabung dengan ribuan siswa dan guru yang sudah merasakan manfaat Mariles"
-        primaryText="Daftar Sekarang"
-        primaryLink="/register"
-        secondaryText="Jelajahi Tempat Les"
-        secondaryLink="/search"
-      />
+      <!-- 4. STATISTIK PLATFORM -->
+      <section class="stats-section">
+        <div class="container">
+          <div class="stats-row">
+            <div class="stat-box">
+              <span class="stat-value">{{ platformStats.totalLesPlaces || '3' }}+</span>
+              <span class="stat-label">Tempat Les</span>
+            </div>
+            <div class="stat-box">
+              <span class="stat-value">{{ platformStats.totalCities || '1' }}+</span>
+              <span class="stat-label">Kota</span>
+            </div>
+            <div class="stat-box">
+              <span class="stat-value">{{ platformStats.totalStudents || '23' }}+</span>
+              <span class="stat-label">Siswa Aktif</span>
+            </div>
+            <div class="stat-box">
+              <span class="stat-value">{{ platformStats.totalTeachers || '4' }}+</span>
+              <span class="stat-label">Guru Ahli</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 5. TESTIMONI SISWA (jika ada) -->
+      <section class="testimoni-section" v-if="testimonials.length > 0">
+        <div class="container">
+          <div class="section-header">
+            <h2 class="section-title">Apa Kata Mereka?</h2>
+            <p class="section-subtitle">Testimoni dari siswa yang sudah bergabung</p>
+          </div>
+
+          <div class="testimoni-grid">
+            <div v-for="testi in testimonials" :key="testi.id" class="testimoni-card">
+              <div class="testimoni-rating">
+                <span v-for="n in 5" :key="n" class="star" :class="{ filled: n <= testi.rating }">&#9733;</span>
+              </div>
+              <p class="testimoni-text">"{{ testi.comment }}"</p>
+              <div class="testimoni-author">
+                <div class="author-avatar">{{ testi.students?.users?.name?.charAt(0) || 'A' }}</div>
+                <div class="author-info">
+                  <span class="author-name">{{ testi.students?.users?.name || 'Anonim' }}</span>
+                  <span class="author-place">{{ testi.les_places?.name || 'Tempat Les' }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
     </template>
 
     <!-- ========== FOOTER ========== -->
@@ -1222,6 +1633,32 @@ function getDisplayName() {
   margin-bottom: var(--spacing-md);
 }
 
+.section-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--spacing-lg);
+}
+
+.section-header-row .section-header {
+  text-align: left;
+  margin-bottom: 0;
+}
+
+.see-all-link {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--primary);
+  font-weight: 600;
+  font-size: var(--font-size-sm);
+}
+
+.see-all-link svg {
+  width: 16px;
+  height: 16px;
+}
+
 .section-title {
   font-size: var(--font-size-xl);
   font-weight: 700;
@@ -1247,5 +1684,811 @@ function getDisplayName() {
   text-align: center;
   padding: var(--spacing-3xl);
   color: var(--text-muted);
+}
+
+/* ========== WELCOME SECTION ========== */
+.welcome-section {
+  margin-top: 60px;
+  padding: 32px 0;
+  background: #0891b2;
+}
+
+.welcome-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 4px;
+}
+
+.welcome-text h2 {
+  font-size: 28px;
+  font-weight: 700;
+  color: #FFFFFF;
+  margin: 0 0 8px 0;
+}
+
+.welcome-text p {
+  font-size: 16px;
+  color: #FFFFFF;
+  margin: 0;
+  font-weight: 500;
+}
+
+.welcome-right-content {
+  display: flex;
+  align-items: center;
+}
+
+.current-date {
+  font-size: 18px;
+  font-weight: 600;
+  color: #FFFFFF;
+  background: rgba(255, 255, 255, 0.15);
+  padding: 10px 20px;
+  border-radius: 12px;
+  backdrop-filter: blur(4px);
+}
+
+@media (max-width: 768px) {
+  .welcome-card {
+    flex-direction: column;
+    text-align: center;
+    gap: 20px;
+  }
+}
+
+/* ========== MY CLASSES SECTION ========== */
+.my-classes-section {
+  padding: var(--spacing-2xl) 0;
+  background: white;
+}
+
+.my-classes-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: var(--spacing-lg);
+}
+
+.my-class-card {
+  background: white;
+  border-radius: var(--radius-xl);
+  overflow: hidden;
+  border: 1px solid var(--border-light);
+  box-shadow: var(--shadow-sm);
+  transition: all var(--transition-normal);
+}
+
+.my-class-card:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-lg);
+}
+
+.class-photo {
+  height: 120px;
+  overflow: hidden;
+  background: var(--background);
+}
+
+.class-photo img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.photo-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f0f4f8;
+}
+
+.photo-placeholder svg {
+  width: 48px;
+  height: 48px;
+  stroke: #94a3b8;
+}
+
+.class-info {
+  padding: var(--spacing-md);
+}
+
+
+.class-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.class-header-row h4 {
+  font-size: var(--font-size-base);
+  font-weight: 600;
+  color: var(--text);
+  margin: 0;
+  flex: 1;
+}
+
+.today-schedule-badge {
+  font-size: 10px;
+  font-weight: 600;
+  color: #d946ef;
+  background: #fdf4ff;
+  padding: 4px 8px;
+  border-radius: 99px;
+  border: 1px solid #f0abfc;
+  white-space: nowrap;
+}
+
+.class-place {
+  font-size: var(--font-size-sm);
+  color: var(--text-muted);
+  margin-bottom: var(--spacing-sm);
+}
+
+.progress-container {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  margin-bottom: var(--spacing-md);
+}
+
+.progress-bar {
+  flex: 1;
+  height: 6px;
+  background: var(--background);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #667eea, #764ba2);
+  border-radius: 3px;
+  transition: width 0.5s ease;
+}
+
+.progress-text {
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.btn-continue {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  width: 100%;
+  padding: var(--spacing-sm) var(--spacing-md);
+  background: var(--primary);
+  color: white;
+  border-radius: var(--radius-lg);
+  font-weight: 600;
+  font-size: var(--font-size-sm);
+  transition: background var(--transition-fast);
+}
+
+.btn-continue:hover {
+  background: var(--primary-dark);
+}
+
+.btn-continue svg {
+  width: 16px;
+  height: 16px;
+}
+
+.my-class-card.add-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 220px;
+  border: 2px dashed var(--border);
+  background: var(--background);
+  text-decoration: none;
+  color: var(--text-muted);
+  transition: all var(--transition-fast);
+}
+
+.my-class-card.add-card:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+  background: rgba(102, 126, 234, 0.05);
+}
+
+.add-icon {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background: var(--border-light);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 32px;
+  margin-bottom: var(--spacing-sm);
+}
+
+/* ========== CAROUSEL COMPACT ========== */
+.carousel-section.compact {
+  padding: var(--spacing-md) 0;
+}
+
+.carousel-section.compact .carousel-container {
+  height: 260px;
+}
+
+/* ========== ACTIVITIES SECTION ========== */
+.activities-section {
+  padding: var(--spacing-2xl) 0;
+  background: var(--background);
+}
+
+.activities-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.activity-item {
+  display: flex;
+  gap: var(--spacing-md);
+  padding: var(--spacing-md) var(--spacing-lg);
+  background: white;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-light);
+  transition: background var(--transition-fast);
+}
+
+.activity-item.unread {
+  background: #f0f7ff;
+  border-color: #c3dafe;
+}
+
+.activity-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-lg);
+  background: #fef3c7;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.activity-icon svg {
+  width: 20px;
+  height: 20px;
+  stroke: #d97706;
+}
+
+.activity-content h4 {
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 4px;
+}
+
+.activity-content p {
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+  margin-bottom: 4px;
+  line-height: 1.4;
+}
+
+.activity-time {
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+}
+
+/* ========== PLATFORM STATS SECTION ========== */
+.platform-stats-section {
+  padding: var(--spacing-xl) 0;
+  background: var(--primary);
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--spacing-lg);
+}
+
+.platform-stat-item {
+  text-align: center;
+  color: white;
+}
+
+.stat-number {
+  font-size: 36px;
+  font-weight: 800;
+  margin-bottom: 4px;
+}
+
+.stat-desc {
+  font-size: var(--font-size-sm);
+  opacity: 0.9;
+}
+
+@media (max-width: 768px) {
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .stat-number {
+    font-size: 28px;
+  }
+}
+
+/* ========== CATEGORIES SECTION ========== */
+.categories-section {
+  padding: var(--spacing-2xl) 0;
+  background: white;
+}
+
+.categories-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: var(--spacing-md);
+}
+
+.category-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-lg) var(--spacing-md);
+  background: white;
+  border: 2px solid var(--border-light);
+  border-radius: var(--radius-xl);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.category-card:hover {
+  border-color: var(--accent-color);
+  background: color-mix(in srgb, var(--accent-color) 10%, white);
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-md);
+}
+
+.category-icon {
+  font-size: 32px;
+}
+
+.category-name {
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--text);
+  text-align: center;
+}
+
+/* ========== TESTIMONIALS SECTION ========== */
+.testimonials-section {
+  padding: var(--spacing-2xl) 0;
+  background: var(--background);
+}
+
+.testimonials-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: var(--spacing-lg);
+}
+
+.testimonial-card {
+  background: white;
+  padding: var(--spacing-lg);
+  border-radius: var(--radius-xl);
+  border: 1px solid var(--border-light);
+  box-shadow: var(--shadow-sm);
+}
+
+.testimonial-rating {
+  margin-bottom: var(--spacing-sm);
+}
+
+.testimonial-rating .star {
+  color: #e0e0e0;
+  font-size: 18px;
+}
+
+.testimonial-rating .star.filled {
+  color: #f59e0b;
+}
+
+.testimonial-text {
+  font-size: var(--font-size-base);
+  color: var(--text);
+  line-height: 1.6;
+  margin-bottom: var(--spacing-md);
+  font-style: italic;
+}
+
+.testimonial-author {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.author-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--primary);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+}
+
+.author-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.author-name {
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--text);
+}
+
+.author-place {
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+}
+
+/* ========== HERO BANNER FULL WIDTH ========== */
+.hero-banner-section {
+  margin-top: 60px;
+  position: relative;
+  background: #e0e0e0;
+}
+
+.hero-banner-wrapper {
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+}
+
+.banner-track {
+  position: relative;
+  width: 100%;
+}
+
+.banner-slide {
+  display: none;
+  width: 100%;
+}
+
+.banner-slide.active {
+  display: block;
+}
+
+.banner-slide img {
+  width: 100%;
+  height: auto;
+  max-height: 420px;
+  object-fit: cover;
+}
+
+.banner-nav {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 10;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.95);
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  transition: all 0.2s;
+}
+
+.banner-nav:hover {
+  background: var(--primary);
+  color: white;
+}
+
+.banner-nav svg {
+  width: 24px;
+  height: 24px;
+}
+
+.banner-nav.prev {
+  left: 20px;
+}
+
+.banner-nav.next {
+  right: 20px;
+}
+
+.banner-dots {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  padding: 16px 0;
+  background: white;
+}
+
+.banner-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: none;
+  background: #d0d0d0;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.banner-dot.active {
+  background: var(--primary);
+  width: 24px;
+  border-radius: 5px;
+}
+
+/* ========== KATEGORI SECTION ========== */
+.kategori-section {
+  padding: 20px 0;
+  background: white;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.kategori-row {
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.kategori-item {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px 24px;
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: 24px;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-decoration: none;
+  color: inherit;
+}
+
+.kategori-item:hover {
+  border-color: var(--primary);
+  background: #f0f7ff;
+  color: var(--primary);
+}
+
+.kategori-item.see-all {
+  background: #f5f5f5;
+  border-color: #d0d0d0;
+}
+
+.kategori-item.see-all:hover {
+  background: #e8e8e8;
+  border-color: #999;
+  color: var(--text);
+}
+
+.kategori-name {
+  font-size: 14px;
+  font-weight: 500;
+  color: inherit;
+  white-space: nowrap;
+}
+
+/* ========== PAKET SECTION ========== */
+.paket-section {
+  padding: 32px 0;
+  background: white;
+}
+
+.section-header-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.section-header-left .section-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text);
+  margin: 0;
+}
+
+.level-select {
+  padding: 8px 16px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  background: white;
+  cursor: pointer;
+}
+
+.level-select:focus {
+  outline: none;
+  border-color: var(--primary);
+}
+
+/* ========== STATS SECTION ========== */
+.stats-section {
+  padding: 48px 0;
+  background: #f0f7ff;
+}
+
+.stats-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 32px;
+}
+
+.stat-box {
+  text-align: center;
+}
+
+.stat-value {
+  display: block;
+  font-size: 42px;
+  font-weight: 800;
+  color: var(--primary);
+  margin-bottom: 4px;
+}
+
+.stat-label {
+  font-size: 15px;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+@media (max-width: 768px) {
+  .stats-row {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 24px;
+  }
+  .stat-value {
+    font-size: 32px;
+  }
+}
+
+/* ========== TESTIMONI SECTION ========== */
+.testimoni-section {
+  padding: 48px 0;
+  background: white;
+}
+
+.testimoni-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 24px;
+}
+
+.testimoni-card {
+  background: #fafafa;
+  padding: 24px;
+  border-radius: 16px;
+  border: 1px solid var(--border-light);
+}
+
+.testimoni-rating {
+  margin-bottom: 12px;
+}
+
+.testimoni-rating .star {
+  color: #e0e0e0;
+  font-size: 18px;
+}
+
+.testimoni-rating .star.filled {
+  color: #f59e0b;
+}
+
+.testimoni-text {
+  font-size: 15px;
+  color: var(--text);
+  line-height: 1.6;
+  margin-bottom: 16px;
+  font-style: italic;
+}
+
+.testimoni-author {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* ========== CTA SECTION ========== */
+.cta-section {
+  padding: 64px 0;
+  background: #1e293b;
+}
+
+.cta-row {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 32px;
+}
+
+.cta-box {
+  padding: 40px;
+  border-radius: 20px;
+  text-align: center;
+}
+
+.cta-box.student {
+  background: #0891b2;
+  color: white;
+}
+
+.cta-box.owner {
+  background: #0891b2;
+  color: white;
+}
+
+.cta-box h3 {
+  font-size: 22px;
+  font-weight: 700;
+  margin-bottom: 12px;
+}
+
+.cta-box p {
+  opacity: 0.9;
+  margin-bottom: 24px;
+  line-height: 1.6;
+  font-size: 15px;
+}
+
+.btn-cta {
+  display: inline-block;
+  padding: 14px 32px;
+  border-radius: 999px;
+  font-weight: 600;
+  font-size: 15px;
+  transition: all 0.2s;
+  text-decoration: none;
+  background: transparent;
+  color: white;
+  border: 2px solid white;
+}
+
+.btn-cta:hover {
+  background: white;
+  color: #0891b2;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+}
+
+@media (max-width: 768px) {
+  .cta-row {
+    grid-template-columns: 1fr;
+  }
+  .cta-box {
+    padding: 32px;
+  }
+  .kategori-row {
+    gap: 16px;
+  }
+  .kategori-item {
+    min-width: 80px;
+    padding: 8px 12px;
+  }
+  .kategori-icon {
+    width: 40px;
+    height: 40px;
+  }
+}
+/* Cursor Pointer for Clickable Banners */
+.banner-slide.clickable {
+  cursor: pointer;
 }
 </style>

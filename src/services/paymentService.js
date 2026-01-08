@@ -14,6 +14,7 @@
 import { supabase } from '@/lib/supabase'
 import MIDTRANS_CONFIG, { generateOrderId, openSnapPayment } from '@/lib/midtrans'
 import { usePlatformSettings } from '@/composables/usePlatformSettings'
+import { getAvailableBalance, isInHoldPeriod, isWithinRefundWindow } from './balanceService'
 
 // ============================================================
 // PLATFORM SETTINGS HELPER
@@ -158,12 +159,16 @@ export async function createPayment({
       throw new Error(snapData?.error || 'Gagal membuat snap token')
     }
 
-    // 3. Update transaction with snap token
+    // 3. Update transaction with snap token and hold period fields
+    const now = new Date()
     await supabase
       .from('transactions')
       .update({
         snap_token: snapData.token,
-        snap_redirect_url: snapData.redirect_url
+        snap_redirect_url: snapData.redirect_url,
+        hold_until: new Date(now.getTime() + 31 * 24 * 60 * 60 * 1000).toISOString(),
+        refund_deadline: new Date(now.getTime() + 90 * 24 * 60 * 60 * 1000).toISOString(),
+        lock_status: 'active'
       })
       .eq('id', transaction.id)
 
@@ -769,10 +774,10 @@ export async function requestRefund({
   reason = ''
 }) {
   try {
-    // Get transaction details
+    // Get transaction details with refund window info
     const { data: txn, error: txnError } = await supabase
       .from('transactions')
-      .select('id, amount, payment_status, student_id, les_place_id')
+      .select('id, amount, payment_status, student_id, les_place_id, refund_deadline, hold_until, created_at')
       .eq('id', transactionId)
       .single()
 
@@ -783,6 +788,14 @@ export async function requestRefund({
     // Validate student owns this transaction
     if (txn.student_id !== studentId) {
       return { success: false, error: 'Anda tidak memiliki akses ke transaksi ini' }
+    }
+
+    // Check refund window (90 days) - with fallback to created_at if refund_deadline is null
+    if (!isWithinRefundWindow(txn.refund_deadline, txn.created_at)) {
+      return { 
+        success: false, 
+        error: 'Window refund sudah habis. Refund hanya dapat diajukan dalam 90 hari setelah pembayaran.' 
+      }
     }
 
     // Check if already refunded or pending refund
@@ -826,17 +839,32 @@ export async function requestRefund({
 }
 
 /**
- * Process refund (Admin only)
+ * Process refund with hold period and window validation (Admin only)
  * @param {string} refundId - Refund ID
- * @param {string} action - 'approve' or 'reject'
- * @param {string} adminNote - Optional admin note
+ * @returns {Promise<Object>} Result with success status
  */
-export async function processRefund(refundId, action, adminNote = '') {
+export async function processRefund(refundId) {
   try {
-    // Get refund details
+    // Get refund with transaction details
     const { data: refund, error: refundError } = await supabase
       .from('refunds')
-      .select('*, transactions(id, student_id, amount, les_place_id, les_places(owner_id))')
+      .select(`
+        *,
+        transactions (
+          id,
+          amount,
+          net_amount,
+          platform_fee,
+          hold_until,
+          refund_deadline,
+          created_at,
+          lock_status,
+          les_place_id,
+          les_places (
+            owner_id
+          )
+        )
+      `)
       .eq('id', refundId)
       .single()
 
@@ -848,72 +876,114 @@ export async function processRefund(refundId, action, adminNote = '') {
       return { success: false, error: 'Refund sudah diproses sebelumnya' }
     }
 
-    if (action === 'approve') {
-      // Update refund status
-      await supabase
-        .from('refunds')
-        .update({
-          status: 'approved',
-          admin_note: adminNote,
-          processed_at: new Date().toISOString()
-        })
-        .eq('id', refundId)
+    const txn = refund.transactions
 
-      // Update transaction status
-      await supabase
-        .from('transactions')
-        .update({ payment_status: 'refunded' })
-        .eq('id', refund.transaction_id)
-
-      // Deduct from owner's balance (if they already received it)
-      const ownerId = refund.transactions?.les_places?.owner_id
-      if (ownerId) {
-        const { data: balance } = await supabase
-          .from('balances')
-          .select('available_balance, total_balance')
-          .eq('user_id', ownerId)
-          .single()
-
-        if (balance) {
-          await supabase
-            .from('balances')
-            .update({
-              total_balance: Math.max(0, balance.total_balance - refund.amount),
-              available_balance: Math.max(0, balance.available_balance - refund.amount),
-              updated_at: new Date().toISOString()
-            })
-            .eq('user_id', ownerId)
-        }
-      }
-
-      return {
-        success: true,
-        message: 'Refund berhasil disetujui. Dana akan dikembalikan ke siswa.'
-      }
-
-    } else if (action === 'reject') {
+    // Check 1: Refund window validity (90 days) - with fallback to created_at
+    if (!isWithinRefundWindow(txn.refund_deadline, txn.created_at)) {
+      // Auto-reject expired refunds
       await supabase
         .from('refunds')
         .update({
           status: 'rejected',
-          admin_note: adminNote,
+          admin_note: 'Window refund sudah lewat (>90 hari)',
           processed_at: new Date().toISOString()
         })
         .eq('id', refundId)
-
-      return {
-        success: true,
-        message: 'Refund ditolak.'
+      
+      return { 
+        success: false, 
+        error: 'Refund window sudah lewat. Maksimal 90 hari setelah pembayaran.' 
       }
     }
 
-    return { success: false, error: 'Aksi tidak valid' }
+    // Check 2: Hold period status
+    const inHoldPeriod = isInHoldPeriod(txn.hold_until)
+
+    if (!inHoldPeriod) {
+      // After hold period - must check owner balance
+      const ownerId = txn.les_places?.owner_id
+      if (!ownerId) {
+        return { success: false, error: 'Owner tidak ditemukan' }
+      }
+
+      const availableBalance = await getAvailableBalance(ownerId, txn.les_place_id)
+      
+      if (availableBalance < txn.net_amount) {
+        // Insufficient balance - reject refund
+        await supabase
+          .from('refunds')
+          .update({
+            status: 'rejected',
+            admin_note: `Saldo owner tidak mencukupi (tersedia: Rp ${availableBalance}, dibutuhkan: Rp ${txn.net_amount})`,
+            processed_at: new Date().toISOString()
+          })
+          .eq('id', refundId)
+        
+        return { 
+          success: false, 
+          error: 'Saldo tempat les tidak mencukupi. Dana telah ditarik setelah hold period selesai.' 
+        }
+      }
+    }
+
+    // Process approved refund
+    const ownerId = txn.les_places?.owner_id
+
+    // 1. Deduct owner balance (net_amount = 90%)
+    if (ownerId) {
+      const { data: ownerBalance } = await supabase
+        .from('balances')
+        .select('available_balance, total_balance')
+        .eq('user_id', ownerId)
+        .eq('les_place_id', txn.les_place_id)
+        .single()
+
+      if (ownerBalance) {
+        await supabase
+          .from('balances')
+          .update({
+            total_balance: Math.max(0, ownerBalance. total_balance - txn.net_amount),
+            available_balance: Math.max(0, ownerBalance.available_balance - txn.net_amount),
+            updated_at: new Date().toISOString()
+          })
+          .eq('user_id', ownerId)
+          .eq('les_place_id', txn.les_place_id)
+      }
+    }
+
+    // 2. Deduct admin platform fee (10%)
+    // TODO: Implement platform balance deduction if tracked
+
+    // 3. Update transaction lock status
+    await supabase
+      .from('transactions')
+      .update({ 
+        lock_status: 'refunded',
+        payment_status: 'refunded'
+      })
+      .eq('id', txn.id)
+
+    // 4. Update refund status
+    await supabase
+      .from('refunds')
+      .update({ 
+        status: 'approved',
+        admin_note: inHoldPeriod ? 'Disetujui (dalam hold period)' : 'Disetujui (setelah hold period)',
+        processed_at: new Date().toISOString()
+      })
+      .eq('id', refundId)
+
+    return { 
+      success: true,
+      message: 'Refund berhasil disetujui'
+    }
 
   } catch (error) {
     console.error('Process refund error:', error)
     return { success: false, error: error.message }
   }
 }
+
 
 /**
  * Get refund history for a user

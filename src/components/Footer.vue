@@ -1,9 +1,24 @@
+<script setup>
+import { ref, onMounted } from 'vue'
+import { usePlatformSettings } from '@/composables/usePlatformSettings'
+
+const { getPlatformInfo } = usePlatformSettings()
+const platformName = ref('Mariles')
+
+onMounted(async () => {
+  const info = await getPlatformInfo()
+  if (info?.platform_name) {
+    platformName.value = info.platform_name
+  }
+})
+</script>
+
 <template>
   <footer class="footer">
     <div class="container">
       <div class="footer-top">
         <div class="footer-brand">
-          <span class="footer-logo">Mariles</span>
+          <span class="footer-logo">{{ platformName }}</span>
           <p class="footer-desc">Platform terpercaya untuk menemukan tempat les berkualitas di seluruh Indonesia.</p>
           <div class="footer-social">
             <a href="#" aria-label="Facebook">
@@ -22,26 +37,26 @@
         </div>
         <div class="footer-links-grid">
           <div class="footer-links">
-            <h4>Untuk Siswa</h4>
+            <h4>Pentru Pelajar</h4>
             <ul>
-              <li><router-link to="/search">Cari Tempat Les</router-link></li>
+              <li><router-link to="/search">Cari Kursus</router-link></li>
               <li><router-link to="/how-it-works">Cara Kerja</router-link></li>
               <li><router-link to="/register">Daftar Akun</router-link></li>
             </ul>
           </div>
           <div class="footer-links">
-            <h4>Untuk Guru</h4>
+            <h4>Untuk Pengajar</h4>
             <ul>
-              <li><router-link to="/teacher-guide">Panduan Guru</router-link></li>
-              <li><router-link to="/register">Daftar Sebagai Guru</router-link></li>
+              <li><router-link to="/teacher-guide">Panduan Pengajar</router-link></li>
+              <li><router-link to="/register">Daftar Sebagai Pengajar</router-link></li>
               <li><router-link to="/how-it-works">Cara Mengajar</router-link></li>
             </ul>
           </div>
           <div class="footer-links">
-            <h4>Untuk Pemilik Les</h4>
+            <h4>Untuk Mitra</h4>
             <ul>
-              <li><router-link to="/partner-guide">Panduan Partner</router-link></li>
-              <li><router-link to="/register">Daftarkan Tempat Les</router-link></li>
+              <li><router-link to="/partner-guide">Panduan Mitra</router-link></li>
+              <li><router-link to="/register">Daftarkan Lembaga</router-link></li>
               <li><router-link to="/how-it-works">Cara Kerja Platform</router-link></li>
             </ul>
           </div>
@@ -65,7 +80,7 @@
         </div>
       </div>
       <div class="footer-bottom">
-        <p>&copy; 2025 Mariles. All rights reserved.</p>
+        <p>&copy; {{ new Date().getFullYear() }} {{ platformName }}. All rights reserved.</p>
         <div class="footer-bottom-links">
           <router-link to="/privacy-policy">Privasi</router-link>
           <router-link to="/terms">Ketentuan</router-link>

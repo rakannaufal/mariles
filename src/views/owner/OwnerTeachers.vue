@@ -1,5 +1,6 @@
 <script setup>
-import { ref, onMounted, computed, watch } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
+import StatCard from '@/components/StatCard.vue'
 import { useAuthStore } from '@/stores/auth'
 import { supabase } from '@/lib/supabase'
 
@@ -319,25 +320,27 @@ function calculateAge(birthDate) {
       </header>
       
       <!-- Stats Overview -->
+      <!-- Stats Overview -->
       <div class="stats-overview">
-        <div class="stat-card">
-          <div class="stat-icon primary">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-          </div>
-          <div class="stat-info">
-            <span class="stat-value">{{ totalTeachers }}</span>
-            <span class="stat-label">Total Guru</span>
-          </div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-icon success">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
-          </div>
-          <div class="stat-info">
-            <span class="stat-value">{{ totalActive }}</span>
-            <span class="stat-label">Guru Aktif</span>
-          </div>
-        </div>
+        <StatCard 
+            label="Total Guru" 
+            :value="totalTeachers" 
+            icon-color="blue"
+        >
+            <template #icon>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            </template>
+        </StatCard>
+
+        <StatCard 
+            label="Guru Aktif" 
+            :value="totalActive" 
+            icon-color="green"
+        >
+            <template #icon>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+            </template>
+        </StatCard>
       </div>
 
       <!-- Search & Filters -->
@@ -594,17 +597,15 @@ function calculateAge(birthDate) {
 .header-desc{color:var(--text-muted);font-size:var(--font-size-sm)}
 .btn-icon{width:18px;height:18px;margin-right:8px}
 
-/* Stats Overview */
-.stats-overview{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:var(--spacing-md);margin-bottom:var(--spacing-xl)}
-.stat-card{background:white;padding:var(--spacing-lg);border-radius:var(--radius-xl);display:flex;align-items:center;gap:var(--spacing-md);box-shadow:var(--shadow-sm)}
-.stat-icon{width:48px;height:48px;border-radius:var(--radius-lg);display:flex;align-items:center;justify-content:center}
-.stat-icon.primary{background:#eff6ff;color:var(--primary)}
-.stat-icon.success{background:#f0fdf4;color:var(--success)}
-.stat-icon.warning{background:#fffbeb;color:var(--warning)}
-.stat-icon svg{width:26px;height:26px}
-.stat-info{display:flex;flex-direction:column}
-.stat-value{font-size:20px;font-weight:700;color:var(--text)}
-.stat-label{font-size:13px;color:var(--text-muted)}
+/* Stats Overview - Compact Inline */
+.stats-overview { 
+  display: grid; 
+  grid-template-columns: repeat(2, 1fr); 
+  gap: 24px; 
+  margin-bottom: 24px; 
+  width: 100%;
+}
+/* StatCard styling is now handled by the component, we only need layout for the container */
 
 /* Toolbar */
 .toolbar{margin-bottom:var(--spacing-lg)}
@@ -883,3 +884,4 @@ input:checked + .slider:before {
 
 @media(max-width:768px){.dashboard{flex-direction:column}.main{padding:var(--spacing-md)}.detail-header-profile{flex-direction:column;text-align:center}.detail-grid{grid-template-columns:1fr}}
 </style>
+@media (max-width: 768px) { .stats-overview { grid-template-columns: 1fr; } }

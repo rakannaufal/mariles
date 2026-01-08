@@ -2,6 +2,7 @@
 import { ref, onMounted, computed } from 'vue'
 import { supabase } from '@/lib/supabase'
 import AdminSidebar from '@/components/AdminSidebar.vue'
+import StatCard from '@/components/StatCard.vue'
 
 // State
 const loading = ref(true)
@@ -198,79 +199,79 @@ onMounted(fetchAnalytics)
       <template v-else>
         <!-- Stats Cards -->
         <div class="stats-grid">
-          <div class="stat-card">
-            <div class="stat-icon users">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/>
-                <path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/>
-              </svg>
-            </div>
-            <div class="stat-info">
-              <span class="stat-value">{{ stats.totalUsers.toLocaleString() }}</span>
-              <span class="stat-label">Total Pengguna</span>
-            </div>
-          </div>
+          <StatCard 
+              label="Total Pengguna" 
+              :value="stats.totalUsers.toLocaleString()" 
+              icon-color="blue"
+          >
+              <template #icon>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/>
+                  <path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/>
+                </svg>
+              </template>
+          </StatCard>
 
-          <div class="stat-card">
-            <div class="stat-icon places">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>
-              </svg>
-            </div>
-            <div class="stat-info">
-              <span class="stat-value">{{ stats.totalLesPlaces.toLocaleString() }}</span>
-              <span class="stat-label">Tempat Les</span>
-            </div>
-          </div>
+          <StatCard 
+              label="Tempat Les" 
+              :value="stats.totalLesPlaces.toLocaleString()" 
+              icon-color="purple"
+          >
+              <template #icon>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>
+                </svg>
+              </template>
+          </StatCard>
 
-          <div class="stat-card">
-            <div class="stat-icon bookings">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/>
-                <line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
-              </svg>
-            </div>
-            <div class="stat-info">
-              <span class="stat-value">{{ stats.totalBookings.toLocaleString() }}</span>
-              <span class="stat-label">Total Booking</span>
-            </div>
-          </div>
+          <StatCard 
+              label="Total Booking" 
+              :value="stats.totalBookings.toLocaleString()" 
+              icon-color="orange"
+          >
+              <template #icon>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/>
+                  <line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+                </svg>
+              </template>
+          </StatCard>
 
-          <div class="stat-card">
-            <div class="stat-icon revenue">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/>
-              </svg>
-            </div>
-            <div class="stat-info">
-              <span class="stat-value">{{ formatCurrency(stats.totalRevenue) }}</span>
-              <span class="stat-label">Total Pendapatan</span>
-            </div>
-          </div>
+          <StatCard 
+              label="Total Pendapatan" 
+              :value="formatCurrency(stats.totalRevenue)" 
+              icon-color="green"
+          >
+              <template #icon>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/>
+                </svg>
+              </template>
+          </StatCard>
 
-          <div class="stat-card">
-            <div class="stat-icon pending">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
-              </svg>
-            </div>
-            <div class="stat-info">
-              <span class="stat-value">{{ stats.pendingVerifications }}</span>
-              <span class="stat-label">Menunggu Verifikasi</span>
-            </div>
-          </div>
+          <StatCard 
+              label="Menunggu Verifikasi" 
+              :value="stats.pendingVerifications" 
+              icon-color="orange"
+          >
+              <template #icon>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+                </svg>
+              </template>
+          </StatCard>
 
-          <div class="stat-card">
-            <div class="stat-icon students">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/>
-              </svg>
-            </div>
-            <div class="stat-info">
-              <span class="stat-value">{{ stats.activeStudents.toLocaleString() }}</span>
-              <span class="stat-label">Total Siswa</span>
-            </div>
-          </div>
+          <StatCard 
+              label="Total Siswa" 
+              :value="stats.activeStudents.toLocaleString()" 
+              icon-color="blue"
+          >
+              <template #icon>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/>
+                </svg>
+              </template>
+          </StatCard>
         </div>
 
         <!-- Charts Section -->
@@ -370,25 +371,22 @@ onMounted(fetchAnalytics)
 .spinner { width: 40px; height: 40px; border: 3px solid #e2e8f0; border-top-color: #0d5782; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 16px; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
-.stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; margin-bottom: 24px; }
-.stat-card { background: white; border-radius: 16px; padding: 20px; display: flex; align-items: center; gap: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
-.stat-icon { width: 52px; height: 52px; border-radius: 14px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.stat-icon svg { width: 26px; height: 26px; }
-.stat-icon.users { background: #F1F5F9; color: #0D5782; }
-.stat-icon.places { background: #F1F5F9; color: #0D5782; }
-.stat-icon.bookings { background: #F1F5F9; color: #0D5782; }
-.stat-icon.revenue { background: #F1F5F9; color: #0D5782; }
-.stat-icon.pending { background: #F1F5F9; color: #0D5782; }
-.stat-icon.students { background: #F1F5F9; color: #0D5782; }
-.stat-info { display: flex; flex-direction: column; }
-.stat-value { font-size: 20px; font-weight: 700; color: #1e293b; }
-.stat-label { font-size: 13px; color: #64748b; }
+
+.stats-grid { 
+  display: grid; 
+  grid-template-columns: repeat(4, 1fr); 
+  gap: 24px; 
+  margin-bottom: 24px; 
+  width: 100%;
+}
+
+/* StatCard styling handled by component */
 
 .charts-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 20px; margin-bottom: 24px; }
 .chart-card { background: white; border-radius: 16px; padding: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
 .chart-card h3 { font-size: 16px; font-weight: 700; margin: 0 0 20px; }
 
-.simple-chart { }
+
 .chart-bars { display: flex; justify-content: space-around; align-items: flex-end; height: 180px; gap: 16px; padding: 0 10px; }
 .chart-bar-group { display: flex; flex-direction: column; align-items: center; flex: 1; }
 .bar-wrapper { display: flex; gap: 4px; align-items: flex-end; height: 150px; }

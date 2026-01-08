@@ -1,5 +1,6 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
+import StatCard from '@/components/StatCard.vue'
 import { useRoute } from 'vue-router'
 import { useTeacherData } from '@/composables/useTeacherData'
 
@@ -134,59 +135,60 @@ onMounted(async () => {
 
       <div v-else>
         <!-- Main Stats -->
+        <!-- Main Stats -->
         <section class="main-stats">
-          <div class="stat-card primary">
-            <div class="stat-icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <rect x="3" y="4" width="18" height="18" rx="2"/>
-                <line x1="3" y1="10" x2="21" y2="10"/>
-              </svg>
-            </div>
-            <div class="stat-info">
-              <span class="stat-value">{{ stats.totalClasses || 0 }}</span>
-              <span class="stat-label">Total Kelas</span>
-            </div>
-          </div>
+          <StatCard 
+              label="Total Kelas" 
+              :value="stats.totalClasses || 0" 
+              icon-color="blue"
+          >
+              <template #icon>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="3" y="4" width="18" height="18" rx="2"/>
+                  <line x1="3" y1="10" x2="21" y2="10"/>
+                </svg>
+              </template>
+          </StatCard>
           
-          <div class="stat-card orange">
-            <div class="stat-icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
-              </svg>
-            </div>
-            <div class="stat-info">
-              <span class="stat-value">{{ (stats.averageRating || 0).toFixed(1) }}</span>
-              <span class="stat-label">Rating Rata-rata</span>
-            </div>
-          </div>
+          <StatCard 
+              label="Rating Rata-rata" 
+              :value="(stats.averageRating || 0).toFixed(1)" 
+              icon-color="orange"
+          >
+              <template #icon>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+                </svg>
+              </template>
+          </StatCard>
           
-          <div class="stat-card green">
-            <div class="stat-icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
-                <polyline points="22 4 12 14.01 9 11.01"/>
-              </svg>
-            </div>
-            <div class="stat-info">
-              <span class="stat-value">{{ stats.attendanceRate || 0 }}%</span>
-              <span class="stat-label">Kehadiran</span>
-            </div>
-          </div>
+          <StatCard 
+              label="Kehadiran" 
+              :value="(stats.attendanceRate || 0) + '%'" 
+              icon-color="green"
+          >
+              <template #icon>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                  <polyline points="22 4 12 14.01 9 11.01"/>
+                </svg>
+              </template>
+          </StatCard>
           
-          <div class="stat-card purple">
-            <div class="stat-icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
-                <circle cx="9" cy="7" r="4"/>
-                <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
-                <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
-              </svg>
-            </div>
-            <div class="stat-info">
-              <span class="stat-value">{{ stats.totalStudents || 0 }}</span>
-              <span class="stat-label">Total Siswa</span>
-            </div>
-          </div>
+          <StatCard 
+              label="Total Siswa" 
+              :value="stats.totalStudents || 0" 
+              icon-color="purple"
+          >
+              <template #icon>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                  <circle cx="9" cy="7" r="4"/>
+                  <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+                  <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                </svg>
+              </template>
+          </StatCard>
         </section>
 
         <!-- Achievements -->
@@ -425,52 +427,15 @@ onMounted(async () => {
 
 @keyframes spin { to { transform: rotate(360deg); } }
 
-/* Main Stats */
+/* Main Stats - Compact Inline */
 .main-stats {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 16px;
+  gap: 24px;
   margin-bottom: 24px;
+  width: 100%;
 }
-
-.stat-card {
-  background: white;
-  border-radius: 16px;
-  padding: 24px;
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.06);
-}
-
-.stat-card.highlight {
-  background: linear-gradient(135deg, #0d5782, #1e40af);
-  color: white;
-  flex-direction: column;
-  text-align: center;
-  padding: 20px;
-}
-
-.stat-icon {
-  width: 52px;
-  height: 52px;
-  border-radius: 14px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.stat-icon svg { width: 26px; height: 26px; }
-
-.stat-card.primary .stat-icon { background: #F1F5F9; color: #0D5782; }
-.stat-card.green .stat-icon { background: #F1F5F9; color: #0D5782; }
-.stat-card.purple .stat-icon { background: #F1F5F9; color: #0D5782; }
-.stat-card.orange .stat-icon { background: #F1F5F9; color: #0D5782; }
-
-.stat-info { display: flex; flex-direction: column; }
-.stat-value { font-size: 20px; font-weight: 700; color: #1e293b; }
-.stat-label { font-size: 13px; color: #64748b; }
-.stat-card.highlight .stat-label { color: rgba(255,255,255,0.8); }
+/* StatCard styling handled by component */
 
 /* Rating Circle */
 .rating-circle {
@@ -778,3 +743,5 @@ onMounted(async () => {
   .achievements-grid { flex-direction: column; }
 }
 </style>
+@media (max-width: 1200px) { .main-stats { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 768px) { .main-stats { grid-template-columns: 1fr; } }

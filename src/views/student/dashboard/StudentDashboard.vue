@@ -3,7 +3,9 @@ import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useStudentData } from '@/composables/useStudentData'
+
 import { useChat } from '@/composables/useChat'
+import StatCard from '@/components/StatCard.vue'
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -77,46 +79,57 @@ function getStatusText(status) {
 
       <!-- Stats -->
       <section class="stats-grid">
-        <div class="stat-card">
-          <div class="stat-icon-box green">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
-          </div>
-          <div class="stat-info">
-            <span class="stat-label">Kelas Aktif</span>
-            <span class="stat-value">{{ stats.active_classes }}</span>
-            <span class="stat-hint">Program yang diikuti</span>
-          </div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-icon-box orange">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-          </div>
-          <div class="stat-info">
-            <span class="stat-label">Menunggu</span>
-            <span class="stat-value">{{ stats.pending_bookings }}</span>
-            <span class="stat-hint">Perlu pembayaran</span>
-          </div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-icon-box blue">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
-          </div>
-          <div class="stat-info">
-            <span class="stat-label">Selesai</span>
-            <span class="stat-value">{{ stats.completed_classes }}</span>
-            <span class="stat-hint">Program selesai</span>
-          </div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-icon-box red">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
-          </div>
-          <div class="stat-info">
-            <span class="stat-label">Favorit</span>
-            <span class="stat-value">{{ stats.favorites_count }}</span>
-            <span class="stat-hint">Tempat les favorit</span>
-          </div>
-        </div>
+        <StatCard 
+            label="Kelas Aktif" 
+            :value="stats.active_classes" 
+            icon-color="green"
+        >
+            <template #icon>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+            </template>
+            <template #extra>
+              <span class="stat-hint">Program yang diikuti</span>
+            </template>
+        </StatCard>
+
+        <StatCard 
+            label="Menunggu" 
+            :value="stats.pending_bookings" 
+            icon-color="orange"
+        >
+            <template #icon>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            </template>
+            <template #extra>
+              <span class="stat-hint">Perlu pembayaran</span>
+            </template>
+        </StatCard>
+
+        <StatCard 
+            label="Selesai" 
+            :value="stats.completed_classes" 
+            icon-color="blue"
+        >
+            <template #icon>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+            </template>
+            <template #extra>
+              <span class="stat-hint">Program selesai</span>
+            </template>
+        </StatCard>
+
+        <StatCard 
+            label="Favorit" 
+            :value="stats.favorites_count" 
+            icon-color="red"
+        >
+            <template #icon>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+            </template>
+            <template #extra>
+              <span class="stat-hint">Tempat les favorit</span>
+            </template>
+        </StatCard>
       </section>
 
       <div v-if="loading" class="loading-state">
@@ -276,19 +289,17 @@ function getStatusText(status) {
 .btn-cta:hover{background:var(--primary);transform:translateY(-2px)}
 .btn-cta svg{width:18px;height:18px}
 
-.stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:20px;margin-bottom:28px}
-.stat-card{background:white;padding:24px;border-radius:16px;display:flex;align-items:flex-start;gap:16px;border:1px solid #E2E8F0;box-shadow:0 4px 6px -1px rgba(0,0,0,0.05);transition:transform 0.2s}
-.stat-card:hover{transform:translateY(-2px);box-shadow:0 10px 15px -3px rgba(0,0,0,0.05)}
-.stat-icon-box{width:56px;height:56px;border-radius:14px;display:flex;align-items:center;justify-content:center;flex-shrink:0;background:#F1F5F9;color:#0D5782}
-.stat-icon-box svg{width:26px;height:26px}
-.stat-icon-box.green{background:#F1F5F9;color:#0D5782}
-.stat-icon-box.orange{background:#F1F5F9;color:#0D5782}
-.stat-icon-box.blue{background:#F1F5F9;color:#0D5782}
-.stat-icon-box.red{background:#F1F5F9;color:#0D5782}
-.stat-info{display:flex;flex-direction:column}
-.stat-label{font-size:13px;font-weight:600;color:#64748B;margin-bottom:4px;text-transform:uppercase;letter-spacing:0.5px}
-.stat-value{font-size:22px;font-weight:800;color:#1E293B;margin-bottom:4px}
-.stat-hint{font-size:12px;color:#64748B}
+
+.stats-grid { 
+  display: grid; 
+  grid-template-columns: repeat(4, 1fr); 
+  gap: 24px; 
+  margin-bottom: 28px; 
+  width: 100%;
+}
+
+/* StatCard styling handled by component */
+.stat-hint { font-size: 11px; margin-top: 4px; display: block; }
 
 .loading-state{display:flex;justify-content:center;padding:60px}
 .loading-spinner{width:40px;height:40px;border:3px solid var(--border);border-top-color:var(--primary);border-radius:50%;animation:spin 1s linear infinite}
@@ -365,3 +376,5 @@ function getStatusText(status) {
 @media(max-width:1024px){.stats-grid{grid-template-columns:repeat(2,1fr)}.content-grid{grid-template-columns:1fr}.favorites-grid{grid-template-columns:repeat(2,1fr)}.teachers-grid{grid-template-columns:1fr}}
 @media(max-width:768px){.header{flex-direction:column;text-align:center;gap:16px}.stats-grid{grid-template-columns:1fr 1fr}.favorites-grid{grid-template-columns:1fr}.teacher-card{flex-wrap:wrap}.chat-teacher-btn{width:100%;justify-content:center;margin-top:8px}}
 </style>
+@media (max-width: 1200px) { .stats-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 768px) { .stats-grid { grid-template-columns: 1fr; } }

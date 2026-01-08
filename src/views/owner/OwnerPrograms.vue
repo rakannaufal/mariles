@@ -844,7 +844,7 @@ function getScheduleDays(schedule) {
 
 /* Programs Grid */
 .programs-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(380px,1fr));gap:var(--spacing-lg)}
-.program-card{background:white;border-radius:var(--radius-xl);padding:var(--spacing-lg);box-shadow:var(--shadow-sm);transition:all var(--transition-fast)}
+.program-card{display:flex;flex-direction:column;height:100%;background:white;border-radius:var(--radius-xl);padding:var(--spacing-lg);box-shadow:var(--shadow-sm);transition:all var(--transition-fast)}
 .program-card:hover{box-shadow:var(--shadow-md)}
 .program-card.inactive{opacity:0.6}
 
@@ -861,7 +861,7 @@ function getScheduleDays(schedule) {
 .action-btn.danger:hover{background:#fef2f2}
 .action-btn.danger:hover svg{color:#dc2626}
 
-.program-desc{color:var(--text-secondary);font-size:var(--font-size-sm);margin-bottom:var(--spacing-md);line-height:1.5}
+.program-desc{color:var(--text-secondary);font-size:var(--font-size-sm);margin-bottom:var(--spacing-md);line-height:1.5;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
 
 .program-stats{display:flex;flex-wrap:wrap;gap:var(--spacing-md);margin-bottom:var(--spacing-md)}
 .stat{display:flex;align-items:center;gap:var(--spacing-xs);font-size:var(--font-size-sm);color:var(--text-secondary)}
@@ -874,7 +874,7 @@ function getScheduleDays(schedule) {
 .schedule-day{color:var(--text)}
 .schedule-time{color:var(--text-muted)}
 
-.program-footer{border-top:1px solid var(--border);padding-top:var(--spacing-md)}
+.program-footer{margin-top:auto;border-top:1px solid var(--border);padding-top:var(--spacing-md)}
 .price-tag{background:linear-gradient(135deg,var(--secondary) 0%,var(--primary) 100%);color:white;padding:var(--spacing-md);border-radius:var(--radius-lg);display:flex;justify-content:space-between;align-items:center}
 .price-label{font-size:var(--font-size-sm);opacity:0.9}
 .price-value{font-size:var(--font-size-lg);font-weight:700}

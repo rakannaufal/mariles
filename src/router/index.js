@@ -276,6 +276,11 @@ const routes = [
         component: () => import('@/views/teacher/TeacherStudents.vue')
       },
       { 
+        path: 'student-management', 
+        name: 'owner-student-management', 
+        component: () => import('@/views/teacher/TeacherStudentManagement.vue')
+      },
+      { 
         path: 'attendance', 
         name: 'owner-attendance', 
         component: () => import('@/views/teacher/TeacherAttendance.vue')
@@ -323,6 +328,11 @@ const routes = [
         path: 'students', 
         name: 'teacher-students', 
         component: () => import('@/views/teacher/TeacherStudents.vue')
+      },
+      { 
+        path: 'student-management', 
+        name: 'teacher-student-management', 
+        component: () => import('@/views/teacher/TeacherStudentManagement.vue')
       },
       { 
         path: 'attendance', 

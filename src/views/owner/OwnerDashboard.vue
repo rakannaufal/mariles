@@ -6,15 +6,16 @@ import { ref, onMounted } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { supabase } from '@/lib/supabase'
 
+import StatCard from '@/components/StatCard.vue'
+
 const authStore = useAuthStore()
 const loading = ref(true)
 
 // Stats
 const stats = ref({
-  totalLes: { value: 0, trend: '-', trendUp: true },
-  totalStudents: { value: 0, trend: '-', trendUp: true },
-  activeClasses: { value: 0, trend: '-', trendUp: true },
   totalRevenue: { value: 0, trend: '-', trendUp: true },
+  totalStudents: { value: 0, trend: '-', trendUp: true },
+  totalPrograms: { value: 0, trend: '-', trendUp: true },
   averageRating: { value: 0, trend: '-', trendUp: true }
 })
 
@@ -95,11 +96,13 @@ async function fetchDashboardData() {
           
           studentCount = count || 0
 
-          // Get All Paid Bookings (For Revenue)
+          // Get All Paid Bookings (For Revenue) - Only from ACTIVE/CONFIRMED bookings
+          // IMPORTANT: Terminated/cancelled bookings should NOT count as revenue
           const { data: bookings } = await supabase
             .from('bookings')
             .select('created_at, program_id, programs(name, price)')
             .in('program_id', ownerProgramIds)
+            .in('status', ['active', 'confirmed'])  // Only active bookings
             .in('payment_status', ['paid', 'settlement', 'capture'])
             .order('created_at', { ascending: true })
           
@@ -290,59 +293,47 @@ function getStatusText(status) {
       </div>
 
       <div v-else class="dashboard-grid">
-        <!-- 1. Summary Cards Row -->
+        <!-- 1. Stats Cards -->
         <section class="summary-cards">
-            <div class="card stat-card">
-                <div class="icon-wrapper blue">
+            <StatCard 
+                label="Total Pendapatan" 
+                :value="formatCurrency(stats.totalRevenue.value)"
+                icon-color="blue"
+            >
+                <template #icon>
                     <span style="font-weight: 700; font-size: 1.2rem;">Rp</span>
-                </div>
-                <div class="stat-content">
-                    <span class="label">Total Pendapatan</span>
-                    <h3 class="value">{{ formatCurrency(stats.totalRevenue.value) }}</h3>
-                    <span class="trend" :class="stats.totalRevenue.trendUp ? 'up' : 'down'">
-                        {{ stats.totalRevenue.trend }} <span class="muted" v-if="stats.totalRevenue.trend !== '-'">total</span>
-                    </span>
-                </div>
-            </div>
+                </template>
+            </StatCard>
 
-            <div class="card stat-card">
-               <div class="icon-wrapper green">
+            <StatCard 
+                label="Siswa Aktif" 
+                :value="stats.totalStudents.value"
+                icon-color="green"
+            >
+                <template #icon>
                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-               </div>
-               <div class="stat-content">
-                   <span class="label">Siswa Aktif</span>
-                   <h3 class="value">{{ stats.totalStudents.value }}</h3>
-                    <span class="trend" :class="stats.totalStudents.trendUp ? 'up' : 'down'">
-                        {{ stats.totalStudents.trend }} <span class="muted" v-if="stats.totalStudents.trend !== '-'">minggu ini</span>
-                    </span>
-               </div>
-           </div>
+                </template>
+            </StatCard>
 
-           <div class="card stat-card">
-               <div class="icon-wrapper purple">
+            <StatCard 
+                label="Total Program" 
+                :value="stats.totalPrograms?.value || 0"
+                icon-color="purple"
+            >
+                 <template #icon>
                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
-               </div>
-               <div class="stat-content">
-                   <span class="label">Total Program</span>
-                   <h3 class="value">{{ stats.totalPrograms?.value || 0 }}</h3>
-                   <span class="trend neutral">
-                        {{ stats.totalPrograms?.trend || '-' }}
-                    </span>
-               </div>
-           </div>
+                 </template>
+            </StatCard>
            
-           <div class="card stat-card">
-               <div class="icon-wrapper orange">
+            <StatCard 
+                label="Rating Rata-rata" 
+                :value="stats.averageRating.value"
+                icon-color="orange"
+            >
+                <template #icon>
                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-               </div>
-               <div class="stat-content">
-                   <span class="label">Rating Rata-rata</span>
-                   <h3 class="value">{{ stats.averageRating.value }}</h3>
-                   <span class="trend up">
-                        {{ stats.averageRating.trend }} <span class="muted" v-if="stats.averageRating.trend !== '-'">dari kemarin</span>
-                    </span>
-               </div>
-           </div>
+                </template>
+            </StatCard>
         </section>
 
         <!-- 2. Charts Section -->

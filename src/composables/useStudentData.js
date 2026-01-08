@@ -60,7 +60,7 @@ export function useStudentData() {
         .select(`
           *,
           programs (
-            id, name, subject, price,
+            id, name, subject, price, les_place_id,
             les_places (id, name, photos, city, address)
           ),
           payments (id, transaction_status, gross_amount, created_at),

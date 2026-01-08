@@ -1,5 +1,6 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
+import StatCard from '@/components/StatCard.vue'
 import { useAuthStore } from '@/stores/auth'
 import { useTeacherData } from '@/composables/useTeacherData'
 
@@ -195,70 +196,75 @@ const currentDate = computed(() => {
           <router-link to="/teacher/profile" class="alert-btn">Lengkapi Profil →</router-link>
         </div>
         <!-- Stats Overview Cards -->
+        <!-- Stats Overview Cards -->
         <section class="stats-section">
-          <div class="stat-card primary">
-            <div class="stat-icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
-                <circle cx="9" cy="7" r="4"/>
-                <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
-                <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
-              </svg>
-            </div>
-            <div class="stat-content">
-              <span class="stat-value">{{ stats.totalStudents }}</span>
-              <span class="stat-label">Total Siswa</span>
-            </div>
-            <div class="stat-trend up">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/>
-                <polyline points="17 6 23 6 23 12"/>
-              </svg>
-            </div>
-          </div>
+          <StatCard 
+              label="Total Siswa" 
+              :value="stats.totalStudents" 
+              icon-color="blue"
+          >
+              <template #icon>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                  <circle cx="9" cy="7" r="4"/>
+                  <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+                  <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                </svg>
+              </template>
+              <template #extra>
+                <div class="stat-trend up">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/>
+                    <polyline points="17 6 23 6 23 12"/>
+                  </svg>
+                </div>
+              </template>
+          </StatCard>
           
-          <div class="stat-card success">
-            <div class="stat-icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <rect x="3" y="4" width="18" height="18" rx="2"/>
-                <line x1="16" y1="2" x2="16" y2="6"/>
-                <line x1="8" y1="2" x2="8" y2="6"/>
-                <line x1="3" y1="10" x2="21" y2="10"/>
-              </svg>
-            </div>
-            <div class="stat-content">
-              <span class="stat-value">{{ stats.classesToday }}</span>
-              <span class="stat-label">Kelas Hari Ini</span>
-            </div>
-          </div>
+          <StatCard 
+              label="Kelas Hari Ini" 
+              :value="stats.classesToday" 
+              icon-color="green"
+          >
+              <template #icon>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="3" y="4" width="18" height="18" rx="2"/>
+                  <line x1="16" y1="2" x2="16" y2="6"/>
+                  <line x1="8" y1="2" x2="8" y2="6"/>
+                  <line x1="3" y1="10" x2="21" y2="10"/>
+                </svg>
+              </template>
+          </StatCard>
           
-          <div class="stat-card warning">
-            <div class="stat-icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
-                <polyline points="22 4 12 14.01 9 11.01"/>
-              </svg>
-            </div>
-            <div class="stat-content">
-              <span class="stat-value">{{ stats.attendanceRate }}%</span>
-              <span class="stat-label">Tingkat Kehadiran</span>
-            </div>
-          </div>
+          <StatCard 
+              label="Tingkat Kehadiran" 
+              :value="stats.attendanceRate + '%'" 
+              icon-color="yellow"
+          >
+              <template #icon>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                  <polyline points="22 4 12 14.01 9 11.01"/>
+                </svg>
+              </template>
+          </StatCard>
           
-          <div class="stat-card info">
-            <div class="stat-icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
-              </svg>
-            </div>
-            <div class="stat-content">
-              <span class="stat-value">{{ stats.averageRating || '0' }}</span>
-              <span class="stat-label">Rating</span>
-            </div>
-            <div class="rating-stars" v-if="stats.averageRating">
-              <span v-for="i in 5" :key="i" :class="{ filled: i <= Math.round(stats.averageRating) }">★</span>
-            </div>
-          </div>
+          <StatCard 
+              label="Rating" 
+              :value="stats.averageRating || '0'" 
+              icon-color="purple"
+          >
+              <template #icon>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+                </svg>
+              </template>
+              <template #extra>
+                <div class="rating-stars" v-if="stats.averageRating">
+                  <span v-for="i in 5" :key="i" :class="{ filled: i <= Math.round(stats.averageRating) }">★</span>
+                </div>
+              </template>
+          </StatCard>
         </section>
 
         <!-- Main Content Grid -->
@@ -598,51 +604,15 @@ const currentDate = computed(() => {
 @keyframes spin { to { transform: rotate(360deg); } }
 
 /* Stats Section */
+/* Dashboard Stat Cards - Compact Inline */
 .stats-section {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 20px;
-  margin-bottom: 28px;
+  gap: 24px;
+  margin-bottom: 32px;
+  width: 100%;
 }
-
-.stat-card {
-  background: white;
-  border-radius: 16px;
-  padding: 24px;
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-  border: 1px solid #e2e8f0;
-  position: relative;
-  overflow: hidden;
-  transition: transform 0.2s, box-shadow 0.2s;
-}
-
-.stat-card:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
-}
-
-.stat-card.primary { }
-.stat-card.success { }
-.stat-card.warning { }
-.stat-card.info { }
-
-.stat-icon {
-  width: 56px;
-  height: 56px;
-  border-radius: 14px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-.stat-card.primary .stat-icon { background: #F1F5F9; color: #0D5782; }
-.stat-card.success .stat-icon { background: #F1F5F9; color: #0D5782; }
-.stat-card.warning .stat-icon { background: #F1F5F9; color: #0D5782; }
-.stat-card.info .stat-icon { background: #F1F5F9; color: #0D5782; }
+/* StatCard styling handled by component */
 
 .stat-icon svg { width: 26px; height: 26px; }
 
@@ -1194,3 +1164,5 @@ const currentDate = computed(() => {
   .action-buttons { grid-template-columns: 1fr; }
 }
 </style>
+@media (max-width: 1200px) { .stats { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 768px) { .stats { grid-template-columns: 1fr; } }

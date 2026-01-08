@@ -1,9 +1,12 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, watch, onMounted, computed } from 'vue'
+import StatCard from '@/components/StatCard.vue'
 import { useAuthStore } from '@/stores/auth'
 import { supabase } from '@/lib/supabase'
 import { requestWithdrawal, processWithdrawal, getUserBalance, getWithdrawalHistory } from '@/services/paymentService'
 import { exportFinanceReport } from '@/services/exportService'
+import { usePlatformSettings } from '@/composables/usePlatformSettings'
+const { getSetting } = usePlatformSettings()
 
 const authStore = useAuthStore()
 
@@ -43,6 +46,11 @@ const withdrawAmount = ref('')
 const withdrawMethod = ref('bank') // 'bank' or 'ewallet'
 const withdrawing = ref(false)
 const withdrawError = ref('')
+const platformFees = ref({
+  withdrawal_fee: 5000,
+  min_withdrawal: 50000,
+  max_withdrawal: 10000000
+})
 
 // Owner Bank Info from Profile
 const ownerBankInfo = ref({
@@ -95,6 +103,10 @@ const tabs = computed(() => {
 
 onMounted(async () => {
   await fetchData()
+  const fees = await getSetting('platform_fees')
+  if (fees) {
+    platformFees.value = fees
+  }
 })
 
 async function fetchData() {
@@ -167,8 +179,17 @@ async function fetchData() {
       }))
 
       // Calculate summary from bookings (source of truth)
-      const completedBookings = (bookingsData || []).filter(b => successStatuses.includes(b.payment_status))
-      const pendingBookings = (bookingsData || []).filter(b => b.payment_status === 'pending' || b.payment_status === 'unpaid')
+      // IMPORTANT: Only count bookings that are active/confirmed AND have successful payment
+      // Terminated/cancelled bookings should NOT count as revenue
+      const validStatuses = ['active', 'confirmed']
+      const completedBookings = (bookingsData || []).filter(b => 
+        successStatuses.includes(b.payment_status) && 
+        validStatuses.includes(b.status)
+      )
+      const pendingBookings = (bookingsData || []).filter(b => 
+        (b.payment_status === 'pending' || b.payment_status === 'unpaid') &&
+        validStatuses.includes(b.status)
+      )
       
       const now = new Date()
       const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
@@ -622,6 +643,19 @@ const filteredTransactions = computed(() => {
   return transactions.value
 })
 
+const transactionCounts = computed(() => {
+  const successStatuses = ['completed', 'paid', 'settlement', 'capture']
+  const pendingStatuses = ['pending', 'unpaid']
+  const failedStatuses = ['failed', 'cancelled', 'expire']
+
+  const all = transactions.value.length
+  const completed = transactions.value.filter(t => successStatuses.includes(t.payment_status)).length
+  const pending = transactions.value.filter(t => pendingStatuses.includes(t.payment_status)).length
+  const failed = transactions.value.filter(t => failedStatuses.includes(t.payment_status)).length
+
+  return { all, completed, pending, failed }
+})
+
 // Computed: Available Balance = Total Income - Teacher Payments - Withdrawals
 const availableBalance = computed(() => {
   const totalIncome = summary.value.totalIncome || 0
@@ -641,8 +675,8 @@ async function handleWithdraw() {
   withdrawError.value = ''
   const amount = parseInt(withdrawAmount.value)
   
-  if (!amount || amount < 10000) {
-    withdrawError.value = 'Minimal pencairan Rp 10.000'
+  if (!amount || amount < platformFees.value.min_withdrawal) {
+    withdrawError.value = `Minimal pencairan ${formatCurrency(platformFees.value.min_withdrawal)}`
     return
   }
   
@@ -680,8 +714,11 @@ async function handleWithdraw() {
       withdrawals.value.unshift({
         id: Date.now().toString(),
         amount,
-        fee: 5000,
-        net_amount: amount - 5000,
+      withdrawals.value.unshift({
+        id: Date.now().toString(),
+        amount,
+        fee: platformFees.value.withdrawal_fee,
+        net_amount: amount - platformFees.value.withdrawal_fee,
         status: 'processing',
         requested_date: new Date().toISOString(),
         completed_date: null,
@@ -776,7 +813,8 @@ async function handleWithdraw() {
 
       <div v-else class="content">
         <!-- Summary Cards -->
-        <div class="summary-grid">
+        <!-- Financial Summary Cards -->
+        <div class="financial-summary">
           <div class="summary-card highlight">
             <div class="card-icon balance">
               <span style="font-weight: 800; font-size: 20px;">Rp</span>
@@ -785,34 +823,6 @@ async function handleWithdraw() {
               <span class="card-label">Saldo Tersedia</span>
               <span class="card-value success">{{ formatCurrency(availableBalance) }}</span>
               <span class="card-hint">Setelah potongan platform 10% & gaji guru</span>
-            </div>
-          </div>
-          
-          <div class="summary-card">
-            <div class="card-icon monthly">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
-                <line x1="16" y1="2" x2="16" y2="6"/>
-                <line x1="8" y1="2" x2="8" y2="6"/>
-                <line x1="3" y1="10" x2="21" y2="10"/>
-              </svg>
-            </div>
-            <div class="card-info">
-              <span class="card-label">Bulan Ini</span>
-              <span class="card-value">{{ formatCurrency(summary.monthlyIncome) }}</span>
-            </div>
-          </div>
-          
-          <div class="summary-card">
-            <div class="card-icon pending">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <circle cx="12" cy="12" r="10"/>
-                <polyline points="12 6 12 12 16 14"/>
-              </svg>
-            </div>
-            <div class="card-info">
-              <span class="card-label">Pending</span>
-              <span class="card-value">{{ formatCurrency(summary.pendingIncome) }}</span>
             </div>
           </div>
           
@@ -831,6 +841,57 @@ async function handleWithdraw() {
               <span class="card-value">{{ formatCurrency(summary.totalPaidToTeachers) }}</span>
             </div>
           </div>
+        </div>
+
+        <!-- Stats Cards (Filter) -->
+        <div class="stats-row">
+          <StatCard 
+              label="Semua Transaksi" 
+              :value="transactionCounts.all" 
+              icon-color="blue"
+              :active="statusFilter === ''"
+              @click="statusFilter = ''"
+          >
+              <template #icon>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
+              </template>
+          </StatCard>
+          
+          <StatCard 
+              label="Selesai" 
+              :value="transactionCounts.completed" 
+              icon-color="green"
+              :active="statusFilter === 'completed'"
+              @click="statusFilter = 'completed'"
+          >
+              <template #icon>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+              </template>
+          </StatCard>
+          
+          <StatCard 
+              label="Menunggu" 
+              :value="transactionCounts.pending" 
+              icon-color="yellow"
+              :active="statusFilter === 'pending'"
+              @click="statusFilter = 'pending'"
+          >
+              <template #icon>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+              </template>
+          </StatCard>
+          
+          <StatCard 
+              label="Gagal" 
+              :value="transactionCounts.failed" 
+              icon-color="red"
+              :active="statusFilter === 'failed'"
+              @click="statusFilter = 'failed'"
+          >
+              <template #icon>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+              </template>
+          </StatCard>
         </div>
 
         <!-- Tabs -->
@@ -1397,8 +1458,23 @@ async function handleWithdraw() {
 .loading-spinner { width: 40px; height: 40px; border: 3px solid #e2e8f0; border-top-color: #0a4568; border-radius: 50%; animation: spin 1s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
+/* Financial Summary */
+.financial-summary { 
+  display: grid; 
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); 
+  gap: 24px; 
+  margin-bottom: 24px; 
+}
+.stats-row { 
+  display: grid; 
+  grid-template-columns: repeat(4, 1fr); 
+  gap: 24px; 
+  margin-bottom: 24px; 
+  width: 100%;
+}
+
 /* Summary Cards */
-.summary-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
+.summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 16px; margin-bottom: 24px; }
 .summary-card { background: white; border-radius: 12px; padding: 20px; display: flex; align-items: center; gap: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
 .card-icon { width: 56px; height: 56px; border-radius: 14px; display: flex; align-items: center; justify-content: center; }
 .card-icon svg { width: 26px; height: 26px; }
@@ -1516,9 +1592,16 @@ async function handleWithdraw() {
 .btn-setup { display: inline-block; padding: 8px 16px; background: #d97706; color: white; border-radius: 8px; font-size: 13px; font-weight: 600; text-decoration: none; }
 .btn-setup:hover { background: #b45309; }
 
-@media (max-width: 1200px) { .summary-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 1200px) {
+  .summary-grid { grid-template-columns: repeat(2, 1fr); }
+  .financial-summary { grid-template-columns: repeat(1, 1fr); }
+  .stats-row { grid-template-columns: repeat(2, 1fr); }
+}
 @media (max-width: 768px) { 
   .summary-grid { grid-template-columns: 1fr; } 
+  .financial-summary { grid-template-columns: 1fr; }
+  .stats-row { grid-template-columns: 1fr; }
+  .panel-grid { grid-template-columns: 1fr; }
   .panel-grid { grid-template-columns: 1fr; }
   .panel-card.full { grid-column: span 1; }
   .tabs { overflow-x: auto; }

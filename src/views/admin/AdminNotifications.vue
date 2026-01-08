@@ -146,7 +146,11 @@ function getTypeInfo(type) {
     announcement: { label: 'Pengumuman', class: 'blue' },
     promo: { label: 'Promo', class: 'green' },
     maintenance: { label: 'Maintenance', class: 'orange' },
-    update: { label: 'Update', class: 'purple' }
+    update: { label: 'Update', class: 'purple' },
+    verification_approved: { label: 'Verifikasi Disetujui', class: 'green' },
+    verification_rejected: { label: 'Verifikasi Ditolak', class: 'orange' },
+    place_unhidden: { label: 'Tempat Les Ditampilkan', class: 'blue' },
+    place_hidden: { label: 'Tempat Les Disembunyikan', class: 'orange' }
   }
   return types[type] || { label: type, class: 'gray' }
 }
