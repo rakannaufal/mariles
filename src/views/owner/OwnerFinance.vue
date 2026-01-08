@@ -711,9 +711,7 @@ async function handleWithdraw() {
       // Simulate withdraw for dummy mode
       await new Promise(resolve => setTimeout(resolve, 1500))
       lesPlace.value.balance -= amount
-      withdrawals.value.unshift({
-        id: Date.now().toString(),
-        amount,
+
       withdrawals.value.unshift({
         id: Date.now().toString(),
         amount,
