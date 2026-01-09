@@ -55,21 +55,31 @@ const promoSlides = computed(() => {
   return banners.value.length > 0 ? banners.value : defaultBanners
 })
 
-// Mata pelajaran utama (tanpa jenjang)
-const simplifiedSubjects = [
-  { id: 'matematika', name: 'Matematika', keywords: ['matematika'] },
-  { id: 'bahasa-inggris', name: 'Bahasa Inggris', keywords: ['bahasa inggris', 'english'] },
-  { id: 'bahasa-indonesia', name: 'Bahasa Indonesia', keywords: ['bahasa indonesia'] },
-  { id: 'ipa', name: 'IPA', keywords: ['ipa', 'fisika', 'kimia', 'biologi'] },
-  { id: 'ips', name: 'IPS', keywords: ['ips', 'sejarah', 'geografi', 'ekonomi'] },
-  { id: 'komputer', name: 'Komputer', keywords: ['komputer', 'programming', 'coding'] }
-]
+// Kategori utama yang akan ditampilkan di homepage
+const mainCategoryNames = ['Matematika', 'Bahasa Inggris', 'Fisika', 'Kimia', 'UTBK/SBMPTN', 'Pemrograman']
 
 const categoryColors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#DDA0DD', '#98D8C8', '#F7DC6F']
 
-// Kategori yang disederhanakan untuk guest
+// Kategori populer dari database (6 kategori utama)
 const popularCategories = computed(() => {
-  return simplifiedSubjects
+  // Filter kategori yang ada di mainCategoryNames
+  const filtered = categories.value.filter(c => mainCategoryNames.includes(c.name))
+  
+  // Jika data dari database belum ada, gunakan fallback
+  if (filtered.length === 0) {
+    return mainCategoryNames.map((name, idx) => ({
+      id: `fallback-${idx}`,
+      name: name,
+      keywords: [name.toLowerCase()]
+    }))
+  }
+  
+  // Map ke format yang dibutuhkan
+  return filtered.slice(0, 6).map(c => ({
+    id: c.id,
+    name: c.name,
+    keywords: [c.name.toLowerCase()]
+  }))
 })
 
 // Les places yang ditampilkan (10 atau semua)

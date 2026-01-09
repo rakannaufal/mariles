@@ -2,6 +2,7 @@
 import { ref, onMounted, computed } from 'vue'
 import { supabase } from '@/lib/supabase'
 import { useAuthStore } from '@/stores/auth'
+import { useCategories } from '@/composables/useCategories'
 import Navbar from '@/components/Navbar.vue'
 
 const authStore = useAuthStore()
@@ -10,14 +11,13 @@ const authStore = useAuthStore()
 const loading = ref(true)
 const posts = ref([])
 
-// Extended Categories
-const categories = ref([
-  'Matematika', 'Fisika', 'Kimia', 'Biologi', 
-  'B. Inggris', 'B. Indonesia', 'Ekonomi', 'Sejarah', 
-  'Geografi', 'Sosiologi', 'Coding', 'Teknologi', 
-  'Seni', 'Musik', 'Olahraga', 'Agama', 
-  'UTBK', 'CPNS', 'Tips Belajar', 'Lainnya'
-])
+// Menggunakan kategori dari database
+const { categories: dbCategories, fetchCategories: loadCategories } = useCategories()
+
+// Computed untuk mendapatkan nama kategori
+const categories = computed(() => 
+  dbCategories.value.map(c => c.name)
+)
 
 const selectedCategory = ref('')
 const searchQuery = ref('')
@@ -368,7 +368,10 @@ function getInitials(name) {
 
 const isLoggedIn = computed(() => !!authStore.user)
 
-onMounted(fetchPosts)
+onMounted(async () => {
+  await loadCategories()
+  await fetchPosts()
+})
 </script>
 
 <template>

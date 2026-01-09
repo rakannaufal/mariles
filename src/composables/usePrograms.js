@@ -7,6 +7,58 @@ export function usePrograms() {
   const loading = ref(false)
   const error = ref(null)
 
+  // Fetch ALL active programs with les_place info (for smart search)
+  async function fetchAllPrograms() {
+    loading.value = true
+    error.value = null
+
+    try {
+      const { data, error: err } = await supabase
+        .from('programs')
+        .select(`
+          id,
+          name,
+          description,
+          level,
+          category_id,
+          category_name,
+          duration_months,
+          sessions_per_week,
+          session_duration_minutes,
+          price,
+          price_type,
+          capacity,
+          class_type,
+          is_active,
+          created_at,
+          les_places!inner(
+            id,
+            name,
+            type,
+            city,
+            province,
+            rating,
+            total_reviews,
+            photos
+          ),
+          categories(
+            id,
+            name
+          )
+        `)
+        .eq('is_active', true)
+        .order('created_at', { ascending: false })
+
+      if (err) throw err
+      programs.value = data || []
+    } catch (err) {
+      error.value = err.message
+      console.error('Error fetching all programs:', err)
+    } finally {
+      loading.value = false
+    }
+  }
+
   // Fetch programs by les place ID
   async function fetchProgramsByLesPlace(lesPlaceId) {
     loading.value = true
@@ -103,9 +155,11 @@ export function usePrograms() {
     program,
     loading,
     error,
+    fetchAllPrograms,
     fetchProgramsByLesPlace,
     createProgram,
     updateProgram,
     deleteProgram
   }
 }
+

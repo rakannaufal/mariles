@@ -3,10 +3,10 @@ import { ref, onMounted, onUnmounted, computed, watch } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { supabase } from '@/lib/supabase'
 import { levelOptions, getLevelLabel, getLevelColor } from '@/utils/badgeUtils'
+import { useCategories } from '@/composables/useCategories'
 
 const authStore = useAuthStore()
 const programs = ref([])
-const categories = ref([])
 const lesPlace = ref(null)
 const owner = ref(null)
 const loading = ref(true)
@@ -19,98 +19,19 @@ const showCustomCategory = ref(false)
 const categorySearch = ref('')
 const showCategoryDropdown = ref(false)
 
-// Daftar kategori akademik lengkap (SD-SMA, Kuliah)
-const academicCategories = [
-  // Mata Pelajaran Umum (SD-SMA)
-  'Matematika',
-  'Bahasa Indonesia',
-  'Bahasa Inggris',
-  'IPA',
-  'IPS',
-  'Fisika',
-  'Kimia',
-  'Biologi',
-  'Ekonomi',
-  'Geografi',
-  'Sosiologi',
-  'Sejarah',
-  'PKN',
-  'Agama Islam',
-  'Agama Kristen',
-  'Agama Katolik',
-  'Agama Hindu',
-  'Agama Buddha',
-  'Seni Budaya',
-  'Prakarya',
-  'PJOK',
-  'TIK/Informatika',
-  // Bahasa Asing
-  'Bahasa Mandarin',
-  'Bahasa Jepang',
-  'Bahasa Korea',
-  'Bahasa Jerman',
-  'Bahasa Prancis',
-  'Bahasa Arab',
-  // Persiapan Ujian
-  'UTBK/SBMPTN',
-  'TOEFL',
-  'IELTS',
-  'SAT',
-  // Mata Kuliah Umum
-  'Kalkulus',
-  'Statistika',
-  'Fisika Dasar',
-  'Kimia Dasar',
-  'Biologi Umum',
-  'Akuntansi',
-  'Manajemen',
-  'Ekonomi Mikro',
-  'Ekonomi Makro',
-  'Hukum',
-  'Psikologi',
-  'Sosiologi Umum',
-  'Filsafat',
-  // Teknik & Sains
-  'Pemrograman',
-  'Algoritma',
-  'Struktur Data',
-  'Basis Data',
-  'Jaringan Komputer',
-  'Matematika Teknik',
-  'Mekanika',
-  'Termodinamika',
-  'Elektronika',
-  // Kesehatan
-  'Anatomi',
-  'Fisiologi',
-  'Farmakologi',
-  'Biokimia',
-  // Bisnis & Ekonomi
-  'Akuntansi Dasar',
-  'Akuntansi Keuangan',
-  'Manajemen Keuangan',
-  'Manajemen Pemasaran',
-  'Manajemen SDM',
-  'Perpajakan',
-  // Bahasa & Komunikasi
-  'Bahasa Inggris Akademik',
-  'Public Speaking',
-  'Academic Writing',
-  // Lainnya Akademik
-  'Calistung',
-  'Mengaji/Iqra',
-  'Olimpiade Matematika',
-  'Olimpiade Fisika',
-  'Olimpiade Kimia',
-  'Olimpiade Biologi',
-  'Olimpiade Informatika'
-]
+// Menggunakan kategori dari database
+const { categories: dbCategories, fetchCategories: loadDbCategories } = useCategories()
+
+// Computed untuk mendapatkan nama kategori dari database
+const academicCategories = computed(() => 
+  dbCategories.value.map(c => c.name)
+)
 
 // Filtered categories based on search
 const filteredCategories = computed(() => {
   const search = categorySearch.value.toLowerCase()
-  if (!search) return academicCategories
-  return academicCategories.filter(cat => cat.toLowerCase().includes(search))
+  if (!search) return academicCategories.value
+  return academicCategories.value.filter(cat => cat.toLowerCase().includes(search))
 })
 
 // Form data
@@ -200,7 +121,7 @@ function handleClickOutside(e) {
 onMounted(async () => {
   document.addEventListener('click', handleClickOutside)
   await fetchOwnerAndLesPlace()
-  await fetchCategories()
+  await loadDbCategories()
   await fetchPrograms()
 })
 
@@ -232,19 +153,7 @@ async function fetchOwnerAndLesPlace() {
   }
 }
 
-async function fetchCategories() {
-  try {
-    const { data } = await supabase
-      .from('categories')
-      .select('id, name')
-      .eq('is_active', true)
-      .order('name')
-    
-    categories.value = data || []
-  } catch (err) {
-    console.error('Error fetching categories:', err)
-  }
-}
+
 
 async function fetchPrograms() {
   loading.value = true
@@ -381,12 +290,28 @@ function selectCategory(catName) {
   form.value.category_name = catName
   categorySearch.value = catName
   showCategoryDropdown.value = false
+  
+  // Langsung cari dan simpan category_id dari dbCategories
+  const foundCat = dbCategories.value.find(c => c.name === catName)
+  if (foundCat) {
+    form.value.category_id = foundCat.id
+  }
 }
 
 function useCustomCategory() {
   if (categorySearch.value.trim()) {
     form.value.category_name = categorySearch.value.trim()
     showCategoryDropdown.value = false
+    
+    // Cari apakah custom category ada di database
+    const foundCat = dbCategories.value.find(c => 
+      c.name.toLowerCase() === categorySearch.value.trim().toLowerCase()
+    )
+    if (foundCat) {
+      form.value.category_id = foundCat.id
+    } else {
+      form.value.category_id = null // Kategori baru, akan dicari saat save
+    }
   }
 }
 
@@ -407,9 +332,11 @@ async function saveProgram() {
   message.value = { type: '', text: '' }
   
   try {
-    // Cari category_id dari nama kategori yang dipilih
-    let categoryId = null
-    if (form.value.category_name) {
+    // Gunakan category_id yang sudah tersimpan, atau cari dari nama jika belum ada
+    let categoryId = form.value.category_id || null
+    
+    // Jika category_id belum ada tapi ada category_name, coba lookup
+    if (!categoryId && form.value.category_name) {
       const { data: catData } = await supabase
         .from('categories')
         .select('id')
@@ -426,7 +353,8 @@ async function saveProgram() {
       name: form.value.name,
       description: form.value.description,
       level: form.value.level,
-      category_id: categoryId, // gunakan category_id hasil lookup
+      category_id: categoryId,
+      category_name: form.value.category_name || null, // Simpan nama kategori
       duration_months: form.value.duration_months,
       sessions_per_week: form.value.sessions_per_week,
       session_duration_minutes: form.value.session_duration_minutes,

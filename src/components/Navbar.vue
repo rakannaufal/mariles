@@ -82,43 +82,60 @@ function goToNotifications() {
   router.push(`/${authStore.userRole}/notifications`)
 }
 
-// Group categories by type
+// Group categories by type - HANYA MATA PELAJARAN POPULER
 const groupedCategories = computed(() => {
+  // Daftar kategori populer yang akan ditampilkan di navbar
+  const popularAkademik = ['matematika', 'fisika', 'kimia', 'biologi', 'ipa', 'ips', 'ekonomi', 'geografi', 'sejarah', 'sosiologi']
+  const popularBahasa = ['bahasa indonesia', 'bahasa inggris', 'bahasa mandarin', 'bahasa jepang', 'bahasa korea', 'bahasa arab']
+  // Persiapan ujian untuk anak sekolah saja
+  const popularUjian = ['utbk', 'sbmptn', 'olimpiade']
+  // Mata Kuliah - kata kunci unik tanpa duplikat
+  const popularKuliah = ['kalkulus', 'statistika', 'pemrograman', 'algoritma', 'basis data']
+  // Track nama yang sudah ditambahkan untuk hindari duplikat
+  const addedNames = new Set()
+  
   const groups = {
-    'Akademik': [],
+    'Mata Pelajaran': [],
     'Bahasa': [],
-    'Seni & Musik': [],
-    'Teknologi': [],
-    'Olahraga': [],
-    'Lainnya': []
+    'Persiapan Ujian': [],
+    'Mata Kuliah': []
   }
   
   categories.value.forEach(cat => {
     const name = cat.name.toLowerCase()
-    if (name.includes('matematika') || name.includes('fisika') || name.includes('kimia') || 
-        name.includes('biologi') || name.includes('ipa') || name.includes('ips') || 
-        name.includes('sejarah') || name.includes('ekonomi')) {
-      groups['Akademik'].push(cat)
-    } else if (name.includes('bahasa') || name.includes('english') || name.includes('mandarin') || 
-               name.includes('jepang') || name.includes('korea') || name.includes('arab')) {
+    
+    // Skip jika sudah ada (hindari duplikat)
+    if (addedNames.has(name)) return
+    
+    // Mata Pelajaran Sekolah (SD-SMA) - exclude mata kuliah universitas
+    if (popularAkademik.some(p => name.includes(p)) && 
+        !name.includes('umum') && !name.includes('dasar') && 
+        !name.includes('mikro') && !name.includes('makro')) {
+      groups['Mata Pelajaran'].push(cat)
+      addedNames.add(name)
+    }
+    // Bahasa
+    else if (popularBahasa.some(p => name.includes(p))) {
       groups['Bahasa'].push(cat)
-    } else if (name.includes('musik') || name.includes('piano') || name.includes('gitar') || 
-               name.includes('biola') || name.includes('vokal') || name.includes('seni') || 
-               name.includes('lukis') || name.includes('tari')) {
-      groups['Seni & Musik'].push(cat)
-    } else if (name.includes('komputer') || name.includes('programming') || name.includes('coding') || 
-               name.includes('web') || name.includes('teknologi') || name.includes('it')) {
-      groups['Teknologi'].push(cat)
-    } else if (name.includes('olahraga') || name.includes('renang') || name.includes('basket') || 
-               name.includes('futsal') || name.includes('badminton') || name.includes('sepak')) {
-      groups['Olahraga'].push(cat)
-    } else {
-      groups['Lainnya'].push(cat)
+      addedNames.add(name)
+    }
+    // Persiapan Ujian untuk anak sekolah (UTBK, Olimpiade)
+    else if (popularUjian.some(p => name.includes(p))) {
+      groups['Persiapan Ujian'].push(cat)
+      addedNames.add(name)
+    }
+    // Mata Kuliah Universitas - hanya kata kunci spesifik
+    else if (popularKuliah.some(p => name.includes(p)) && 
+             !name.includes('keuangan') && !name.includes('biaya')) {
+      groups['Mata Kuliah'].push(cat)
+      addedNames.add(name)
     }
   })
   
-  // Return only groups that have categories
-  return Object.entries(groups).filter(([, cats]) => cats.length > 0)
+  // Return only groups that have categories, limit each group to 5 items
+  return Object.entries(groups)
+    .filter(([, cats]) => cats.length > 0)
+    .map(([name, cats]) => [name, cats.slice(0, 5)])
 })
 
 // Quick access categories (show first few from each group)

@@ -1,17 +1,20 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useLesPlaces } from '@/composables/useLesPlaces'
 import { useCategories } from '@/composables/useCategories'
+import { usePrograms } from '@/composables/usePrograms'
 import { useIndonesiaLocation } from '@/composables/useIndonesiaLocation'
 import Navbar from '@/components/Navbar.vue'
 import LesCard from '@/components/LesCard.vue'
+import ProgramCard from '@/components/ProgramCard.vue'
 import Footer from '@/components/Footer.vue'
 
 const route = useRoute()
 const router = useRouter()
 const { lesPlaces, loading, fetchLesPlaces } = useLesPlaces()
 const { categories, fetchCategories } = useCategories()
+const { programs: allPrograms, loading: programsLoading, fetchAllPrograms } = usePrograms()
 const { provinces, cities, loadingProvinces, loadingCities, fetchProvinces, fetchCities, formatCityName } = useIndonesiaLocation()
 
 // Pending filter values (not applied yet)
@@ -137,9 +140,69 @@ const hasFilterChanges = computed(() => {
     selectedEducation.value !== appliedFilters.value.education
 })
 
-onMounted(async () => {
-  await Promise.all([fetchCategories(), fetchLesPlaces(), fetchProvinces()])
+// Smart Search: detect if query matches category name
+const isSmartSearchCategory = computed(() => {
+  const q = appliedFilters.value.searchQuery?.toLowerCase().trim()
+  if (!q) return false
+  return categories.value.some(cat => 
+    cat.name.toLowerCase().includes(q) || q.includes(cat.name.toLowerCase())
+  )
 })
+
+// Filter programs based on search query
+const filteredPrograms = computed(() => {
+  const q = appliedFilters.value.searchQuery?.toLowerCase().trim()
+  if (!q) return []
+  
+  let results = allPrograms.value.filter(p => {
+    const programName = p.name?.toLowerCase() || ''
+    const categoryName = (p.categories?.name || p.category_name || '').toLowerCase()
+    const lesPlaceName = p.les_places?.name?.toLowerCase() || ''
+    const description = p.description?.toLowerCase() || ''
+    
+    return programName.includes(q) || 
+           categoryName.includes(q) || 
+           lesPlaceName.includes(q) ||
+           description.includes(q)
+  })
+  
+  // Apply sorting
+  if (sortBy.value === 'rating') {
+    results.sort((a, b) => (b.les_places?.rating || 0) - (a.les_places?.rating || 0))
+  } else if (sortBy.value === 'price_low') {
+    results.sort((a, b) => (a.price || 0) - (b.price || 0))
+  } else if (sortBy.value === 'price_high') {
+    results.sort((a, b) => (b.price || 0) - (a.price || 0))
+  } else if (sortBy.value === 'newest') {
+    results.sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+  } else {
+    // popular - sort by les place rating as proxy
+    results.sort((a, b) => (b.les_places?.rating || 0) - (a.les_places?.rating || 0))
+  }
+  
+  return results
+})
+
+// Show programs section if query matches category or has program results
+const showProgramsSection = computed(() => {
+  return filteredPrograms.value.length > 0 && appliedFilters.value.searchQuery
+})
+
+onMounted(async () => {
+  await Promise.all([fetchCategories(), fetchLesPlaces(), fetchAllPrograms(), fetchProvinces()])
+})
+
+// Watch for route query changes (from navbar search)
+watch(() => route.query, (newQuery) => {
+  if (newQuery.q !== undefined) {
+    searchQuery.value = newQuery.q || ''
+    appliedFilters.value.searchQuery = newQuery.q || ''
+  }
+  if (newQuery.category !== undefined) {
+    selectedCategory.value = newQuery.category || ''
+    appliedFilters.value.category = newQuery.category || ''
+  }
+}, { immediate: false })
 
 function onProvinceChange() {
   selectedCity.value = ''
@@ -264,7 +327,8 @@ function clearFilters() {
               </button>
               <div class="results-info">
                 <h2>Hasil Pencarian</h2>
-                <span>{{ filteredResults.length }} tempat les</span>
+                <span v-if="showProgramsSection">{{ filteredPrograms.length }} program, {{ filteredResults.length }} tempat les</span>
+                <span v-else>{{ filteredResults.length }} tempat les</span>
               </div>
             </div>
             <div class="sort-wrapper">
@@ -279,20 +343,41 @@ function clearFilters() {
             </div>
           </div>
 
-          <div v-if="loading" class="loading-state">
+          <div v-if="loading || programsLoading" class="loading-state">
             <div class="loading-spinner"></div>
             <p>Memuat...</p>
           </div>
 
-          <div v-else-if="filteredResults.length" class="results-grid">
-            <LesCard v-for="les in filteredResults" :key="les.id" :les-place="les" />
-          </div>
+          <template v-else>
+            <!-- Smart Search: Programs Section (if query matches category) -->
+            <div v-if="showProgramsSection" class="results-section">
+              <div class="section-header">
+                <h3> Program yang cocok</h3>
+                <span class="section-count">{{ filteredPrograms.length }} program</span>
+              </div>
+              <div class="results-grid programs-grid">
+                <ProgramCard v-for="program in filteredPrograms.slice(0, 8)" :key="program.id" :program="program" />
+              </div>
+            </div>
 
-          <div v-else class="empty-state">
-            <h3>Tidak ada hasil</h3>
-            <p>Coba ubah filter pencarian</p>
-            <button class="btn-primary" @click="clearFilters">Reset Filter</button>
-          </div>
+            <!-- Les Places Section -->
+            <div v-if="filteredResults.length" class="results-section">
+              <div v-if="showProgramsSection" class="section-header">
+                <h3> Tempat Les terkait</h3>
+                <span class="section-count">{{ filteredResults.length }} tempat les</span>
+              </div>
+              <div class="results-grid">
+                <LesCard v-for="les in filteredResults" :key="les.id" :les-place="les" />
+              </div>
+            </div>
+
+            <!-- Empty State -->
+            <div v-if="!filteredResults.length && !filteredPrograms.length" class="empty-state">
+              <h3>Tidak ada hasil</h3>
+              <p>Coba ubah filter pencarian</p>
+              <button class="btn-primary" @click="clearFilters">Reset Filter</button>
+            </div>
+          </template>
         </div>
       </div>
     </main>
@@ -351,6 +436,14 @@ function clearFilters() {
 @keyframes spin { to { transform: rotate(360deg); } }
 
 .results-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; }
+
+/* Smart Search Sections */
+.results-section { margin-bottom: 32px; }
+.section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; padding-bottom: 12px; border-bottom: 2px solid #E2E8F0; }
+.section-header h3 { font-size: 18px; font-weight: 700; color: #1E293B; margin: 0; }
+.section-count { font-size: 14px; color: #64748B; font-weight: 500; }
+.programs-grid { grid-template-columns: repeat(4, 1fr); }
+
 .empty-state { text-align: center; padding: 80px 20px; background: white; border-radius: 16px; }
 .empty-state h3 { font-size: 18px; margin-bottom: 8px; }
 .empty-state p { color: #64748b; margin-bottom: 20px; }
