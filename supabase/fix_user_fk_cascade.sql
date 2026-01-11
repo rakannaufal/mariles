@@ -1,8 +1,17 @@
--- EXHAUSTIVE Migration to fix 409 Conflict on User Deletion
+-- EXHAUSTIVE Migration to fix 409 Conflict on User Deletion in Bahasa Indonesia Context
 -- Ensures all Foreign Keys pointing to 'users' have ON DELETE CASCADE or SET NULL
--- Updated to exclude potentially missing tables (voucher_usage, etc.)
+-- Updated to include public.users -> auth.users cascading
 
 BEGIN;
+
+-- ===========================
+-- 0. PUBLIC.USERS LINK (CRITICAL)
+-- ===========================
+-- Ensure public.users deletes when auth.users is deleted
+ALTER TABLE public.users DROP CONSTRAINT IF EXISTS users_id_fkey;
+ALTER TABLE public.users ADD CONSTRAINT users_id_fkey 
+    FOREIGN KEY (id) REFERENCES auth.users(id) ON DELETE CASCADE;
+
 
 -- ===========================
 -- BASIC USER RELATIONS
@@ -73,13 +82,6 @@ ALTER TABLE refunds ADD CONSTRAINT refunds_student_id_fkey
     FOREIGN KEY (student_id) REFERENCES users(id) ON DELETE CASCADE;
 
 -- 12. VOUCHER_USAGE (REMOVED - Might not exist yet)
--- DO $$ 
--- BEGIN 
---     IF EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename  = 'voucher_usage') THEN
---         ALTER TABLE voucher_usage DROP CONSTRAINT IF EXISTS voucher_usage_user_id_fkey;
---         ALTER TABLE voucher_usage ADD CONSTRAINT voucher_usage_user_id_fkey FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE;
---     END IF;
--- END $$;
 
 
 -- ===========================
@@ -136,17 +138,6 @@ ALTER TABLE quizzes ADD CONSTRAINT quizzes_teacher_id_fkey
 ALTER TABLE quiz_attempts DROP CONSTRAINT IF EXISTS quiz_attempts_student_id_fkey;
 ALTER TABLE quiz_attempts ADD CONSTRAINT quiz_attempts_student_id_fkey
     FOREIGN KEY (student_id) REFERENCES users(id) ON DELETE CASCADE;
-
--- 19. ACTIVITY_LOGS (REMOVED - Might not exist yet)
--- DO $$ 
--- BEGIN 
---     IF EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename  = 'activity_logs') THEN
---         ALTER TABLE activity_logs DROP CONSTRAINT IF EXISTS activity_logs_user_id_fkey;
---         ALTER TABLE activity_logs ADD CONSTRAINT activity_logs_user_id_fkey FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL;
---     END IF;
--- END $$;
-
--- 20. PLATFORM_SETTINGS (REMOVED - Might not exist yet)
 
 
 COMMIT;

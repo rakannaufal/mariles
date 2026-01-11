@@ -21,7 +21,7 @@ serve(async (req) => {
     // 1. Initialize Client with User Auth Context
     const authHeader = req.headers.get('Authorization')
     if (!authHeader) {
-      throw new Error('Missing Authorization header')
+      throw new Error('Header otorisasi tidak ditemukan')
     }
 
     const supabaseClient = createClient(
@@ -34,12 +34,10 @@ serve(async (req) => {
     const { data: { user }, error: authError } = await supabaseClient.auth.getUser()
     
     if (authError || !user) {
-      throw new Error('Unauthorized: Invalid session')
+      throw new Error('Tidak terotorisasi: Sesi tidak valid')
     }
 
     // 3. Verify Admin Role (Strict Check)
-    // Query public.users using the same client (respecting RLS)
-    // If Admin RLS is set up correctly, this should work.
     const { data: userData, error: userError } = await supabaseClient
       .from('users')
       .select('role')
@@ -48,11 +46,11 @@ serve(async (req) => {
 
     if (userError) {
        console.error('Error fetching user role:', userError)
-       throw new Error('Failed to verify user role')
+       throw new Error('Gagal memverifikasi peran pengguna')
     }
 
     if (userData?.role !== 'admin') {
-      throw new Error(`Forbidden: Role '${userData?.role}' cannot delete users`)
+      throw new Error(`Dilarang: Peran '${userData?.role}' tidak dapat menghapus pengguna`)
     }
 
     // 4. Initialize Admin Client (Service Role)
@@ -65,11 +63,11 @@ serve(async (req) => {
     const { user_id } = await req.json()
 
     if (!user_id) {
-      throw new Error('Missing user_id in request body')
+      throw new Error('User ID tidak ditemukan dalam permintaan')
     }
 
     if (user_id === user.id) {
-        throw new Error('Cannot delete your own account')
+        throw new Error('Tidak dapat menghapus akun Anda sendiri')
     }
 
     console.log(`Attempting to delete user: ${user_id}`)
@@ -78,12 +76,10 @@ serve(async (req) => {
     const { error: deleteAuthError } = await supabaseAdmin.auth.admin.deleteUser(user_id)
 
     if (deleteAuthError) {
-      // If user not found in Auth, it might be a zombie record in public.users
       console.warn('Auth deletion error (ignorable if user not in auth):', deleteAuthError)
     }
 
     // 7. Force Delete from Public Users (Cleanup)
-    // This handles cases where Auth delete didn't cascade or user only exists in public
     const { error: deletePublicError } = await supabaseAdmin
       .from('users')
       .delete()
@@ -91,11 +87,11 @@ serve(async (req) => {
 
     if (deletePublicError) {
       console.error('Public table deletion error:', deletePublicError)
-      throw new Error(`Failed to delete from database: ${deletePublicError.message}`)
+      throw new Error(`Gagal menghapus dari database: ${deletePublicError.message}`)
     }
 
     return new Response(
-      JSON.stringify({ success: true, message: 'User deleted successfully' }),
+      JSON.stringify({ success: true, message: 'Pengguna berhasil dihapus' }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 200,
