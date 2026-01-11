@@ -48,7 +48,7 @@ export function useStudentData() {
     return student.value
   }
   
-  // Fetch bookings
+  // Fetch bookings (excludes refunded bookings - those should not appear in active list)
   async function fetchBookings() {
     loading.value = true
     try {
@@ -67,15 +67,45 @@ export function useStudentData() {
           transactions (id, amount, payment_status, created_at)
         `)
         .eq('student_id', sid)
+        // .neq('status', 'refunded') // REMOVED: Include refunded to show them correctly in list
         .order('created_at', { ascending: false })
       
+      // Fetch approved refunds for defensive check
+      const { data: approvedRefunds } = await supabase
+        .from('refunds')
+        .select('transaction_id, transactions(booking_id, program_id)')
+        .eq('student_id', authStore.user?.id) 
+        .eq('status', 'approved')
+
+      const refundedBookingIds = new Set()
+      const refundedProgramIds = new Set()
+      
+      if (approvedRefunds) {
+        approvedRefunds.forEach(r => {
+          if (r.transactions?.booking_id) refundedBookingIds.add(r.transactions.booking_id)
+          if (r.transactions?.program_id) refundedProgramIds.add(r.transactions.program_id)
+        })
+      }
+
       if (data) {
         bookings.value = data.map(b => {
           const latestTx = b.transactions?.sort((a, b) => new Date(b.created_at) - new Date(a.created_at))?.[0]
           const actualAmount = latestTx?.amount || null
           
+          // FORCE OVERRIDE STATUS IF REFUNDED
+          let finalStatus = b.status
+          let finalPaymentStatus = b.payment_status
+          const isRefunded = refundedBookingIds.has(b.id) || (b.programs?.id && refundedProgramIds.has(b.programs.id))
+          
+          if (isRefunded) {
+             finalStatus = 'refunded'
+             finalPaymentStatus = 'refunded'
+          }
+
           return {
             ...b,
+            status: finalStatus, // Use override status
+            payment_status: finalPaymentStatus,
             program: {
               ...b.programs,
               les_place: b.programs?.les_places
@@ -177,7 +207,8 @@ export function useStudentData() {
         active_classes: bookingsData.filter(b => b.status === 'active' || b.status === 'confirmed').length,
         pending_bookings: bookingsData.filter(b => b.status === 'pending').length,
         completed_classes: bookingsData.filter(b => b.status === 'completed').length,
-        total_bookings: bookingsData.length,
+        refunded_classes: bookingsData.filter(b => b.status === 'refunded').length,
+        total_bookings: bookingsData.filter(b => b.status !== 'refunded').length, // Exclude refunded from total
         favorites_count: favData?.length || 0
       }
     }

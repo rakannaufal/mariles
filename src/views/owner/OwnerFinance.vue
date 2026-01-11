@@ -3,7 +3,7 @@ import { ref, watch, onMounted, computed } from 'vue'
 import StatCard from '@/components/StatCard.vue'
 import { useAuthStore } from '@/stores/auth'
 import { supabase } from '@/lib/supabase'
-import { requestWithdrawal, processWithdrawal, getUserBalance, getWithdrawalHistory } from '@/services/paymentService'
+import { requestWithdrawal, processWithdrawal, getUserBalance, getWithdrawalHistory, recalculateOwnerBalance } from '@/services/paymentService'
 import { exportFinanceReport } from '@/services/exportService'
 import { usePlatformSettings } from '@/composables/usePlatformSettings'
 const { getSetting } = usePlatformSettings()
@@ -27,7 +27,9 @@ const summary = ref({
   monthlyIncome: 0,
   pendingIncome: 0,
   totalPaidToTeachers: 0,
-  pendingTeacherPayments: 0
+  totalPaidToTeachers: 0,
+  pendingTeacherPayments: 0,
+  totalWithdrawals: 0
 })
 
 // Les Place Info
@@ -46,11 +48,26 @@ const withdrawAmount = ref('')
 const withdrawMethod = ref('bank') // 'bank' or 'ewallet'
 const withdrawing = ref(false)
 const withdrawError = ref('')
+const showWithdrawConfirmModal = ref(false)
+const withdrawConfirmData = ref(null)
+
 const platformFees = ref({
   withdrawal_fee: 5000,
   min_withdrawal: 50000,
   max_withdrawal: 10000000
 })
+
+// Toast State
+const showToast = ref(false)
+const toastMessage = ref('')
+const toastType = ref('success')
+
+function toast(msg, type = 'success') {
+  toastMessage.value = msg
+  toastType.value = type
+  showToast.value = true
+  setTimeout(() => showToast.value = false, 3000)
+}
 
 // Owner Bank Info from Profile
 const ownerBankInfo = ref({
@@ -250,6 +267,20 @@ async function fetchData() {
         }
       }
       
+      // Fetch Owner Withdrawals (History)
+      const { data: ownerWithdrawals } = await supabase
+        .from('withdrawals')
+        .select('*')
+        .eq('user_id', authStore.user.id)
+        .order('created_at', { ascending: false })
+      
+      withdrawals.value = ownerWithdrawals || []
+      
+      // Calculate total succcess/pending for summary
+      summary.value.totalWithdrawals = (ownerWithdrawals || [])
+        .filter(w => ['completed', 'processing', 'pending'].includes(w.status))
+        .reduce((sum, w) => sum + (w.amount || 0), 0)
+
       // Fetch teachers for teacher payments tab (only for non-private owners)
       if (!lesPlace.value.is_private) {
         await fetchTeachers()
@@ -325,7 +356,7 @@ function payTeacher() {
     return
   }
   
-  if (amount > lesPlace.value.balance) {
+  if (amount > availableBalance.value) {
     paymentError.value = 'Saldo tidak mencukupi'
     return
   }
@@ -614,7 +645,8 @@ function getStatusLabel(status) {
     completed: 'Selesai',
     pending: 'Menunggu',
     failed: 'Gagal',
-    processing: 'Diproses',
+    processing: 'Menunggu', // Unified processing/pending
+    rejected: 'Gagal',
     // Original booking statuses
     paid: 'Selesai',
     settlement: 'Selesai',
@@ -660,8 +692,10 @@ const transactionCounts = computed(() => {
 const availableBalance = computed(() => {
   const totalIncome = summary.value.totalIncome || 0
   const paidToTeachers = summary.value.totalPaidToTeachers || 0
-  // Available balance should exclude money already paid to teachers
-  return totalIncome - paidToTeachers
+  const totalWithdrawals = summary.value.totalWithdrawals || 0
+  
+  // Available balance should exclude money already paid to teachers AND previous withdrawals
+  return totalIncome - paidToTeachers - totalWithdrawals
 })
 
 // Computed: Withdrawable balance (same as available balance)
@@ -673,116 +707,118 @@ const maxWithdraw = computed(() => availableBalance.value)
 
 async function handleWithdraw() {
   withdrawError.value = ''
-  const amount = parseInt(withdrawAmount.value)
+  // Handle formatted number if using a mask, or simple number
+  let rawAmount = withdrawAmount.value.toString().replace(/\./g, '')
+  const amount = parseInt(rawAmount)
   
   if (!amount || amount < platformFees.value.min_withdrawal) {
     withdrawError.value = `Minimal pencairan ${formatCurrency(platformFees.value.min_withdrawal)}`
     return
   }
   
-  if (!withdrawBank.value) {
-    withdrawError.value = 'Pilih bank tujuan'
-    return
+  // Validate destination based on method
+  let destination = null
+  let account = null
+  let holder = null
+  
+  if (withdrawMethod.value === 'bank') {
+     if (!ownerBankInfo.value.bank_name) {
+        withdrawError.value = 'Anda belum mengatur rekening Bank di Profil'
+        return
+     }
+     destination = ownerBankInfo.value.bank_name
+     account = ownerBankInfo.value.bank_account
+     holder = ownerBankInfo.value.bank_holder
+  } else {
+     if (!ownerBankInfo.value.ewallet_type) {
+        withdrawError.value = 'Anda belum mengatur E-Wallet di Profil'
+        return
+     }
+     destination = ownerBankInfo.value.ewallet_type
+     account = ownerBankInfo.value.ewallet_number
+     holder = authStore.user.name 
   }
   
-  if (!withdrawAccountNumber.value || withdrawAccountNumber.value.length < 5) {
-    withdrawError.value = 'Masukkan nomor rekening yang valid'
-    return
+  console.log('DEBUG WITHDRAW:', { 
+      inputAmount: amount, 
+      withdrawable: withdrawableBalance.value, 
+      available: availableBalance.value
+  })
+
+  // Ensure parsing is correct
+  if (isNaN(amount)) {
+      withdrawError.value = 'Jumlah tidak valid'
+      return
   }
-  
-  if (!withdrawAccountHolder.value) {
-    withdrawError.value = 'Masukkan nama pemilik rekening'
-    return
-  }
-  
+
   if (amount > withdrawableBalance.value) {
-    if (!lesPlace.value.is_private) {
-      withdrawError.value = 'Saldo tidak cukup. Pastikan sisa saldo cukup untuk membayar gaji guru.'
-    } else {
-      withdrawError.value = 'Saldo tidak mencukupi'
-    }
-    return
+     console.error('Validation failed: Amount > Withdrawable', amount, withdrawableBalance.value)
+     withdrawError.value = 'Saldo tidak mencukupi'
+     return
   }
+  
+  // Show Confirm Modal
+  withdrawConfirmData.value = {
+    amount,
+    fee: platformFees.value.withdrawal_fee,
+    net_amount: amount - platformFees.value.withdrawal_fee,
+    method: withdrawMethod.value,
+    destination,
+    account,
+    holder
+  }
+  showWithdrawConfirmModal.value = true
+}
+
+async function confirmWithdraw() {
+  if (!withdrawConfirmData.value) return
   
   withdrawing.value = true
-  
-  try {
-    if (USE_DUMMY) {
-      // Simulate withdraw for dummy mode
-      await new Promise(resolve => setTimeout(resolve, 1500))
-      lesPlace.value.balance -= amount
+  showWithdrawConfirmModal.value = false 
+  withdrawError.value = ''
 
-      withdrawals.value.unshift({
-        id: Date.now().toString(),
-        amount,
-        fee: platformFees.value.withdrawal_fee,
-        net_amount: amount - platformFees.value.withdrawal_fee,
-        status: 'processing',
-        requested_date: new Date().toISOString(),
-        completed_date: null,
-        bank_name: withdrawBank.value.toUpperCase(),
-        bank_account: '***' + withdrawAccountNumber.value.slice(-4),
-        bank_holder: withdrawAccountHolder.value,
-        iris_reference_key: `IRIS-SIM-${Date.now()}`
-      })
+  try {
+      // Sync balance logic to ensure balance row exists in DB
+      await recalculateOwnerBalance(authStore.user.id, lesPlace.value.id)
+
+      const data = withdrawConfirmData.value
       
-      // Simulate Iris processing
-      setTimeout(() => {
-        if (withdrawals.value[0]) {
-          withdrawals.value[0].status = 'completed'
-          withdrawals.value[0].completed_date = new Date().toISOString()
-        }
-      }, 3000)
-      
-      // Reset form
-      withdrawAmount.value = ''
-      withdrawBank.value = ''
-      withdrawAccountNumber.value = ''
-      withdrawAccountHolder.value = ''
-      
-    } else {
-      // Real withdrawal via paymentService
       const result = await requestWithdrawal({
         userId: authStore.user.id,
         lesPlaceId: lesPlace.value.id,
-        amount: amount,
-        bankName: withdrawBank.value,
-        bankAccount: withdrawAccountNumber.value,
-        bankHolder: withdrawAccountHolder.value
+        amount: data.amount,
+        bankName: data.destination,
+        bankAccount: data.account,
+        bankHolder: data.holder
       })
       
       if (!result.success) {
-        withdrawError.value = result.error || 'Gagal memproses pencairan'
-        return
+         throw new Error(result.error || 'Gagal memproses pencairan')
       }
       
-      // Trigger Iris processing
-      if (result.withdrawal?.id) {
-        const irisResult = await processWithdrawal(result.withdrawal.id)
-        if (!irisResult.success) {
-          console.warn('Iris processing warning:', irisResult.error)
-          // Don't fail - withdrawal is created, Iris will retry
-        }
-      }
+      // Request submitted successfully. Status is 'pending'. 
+      // Admin will manually process it.
       
-      // Refresh data and reset form
-      await fetchData()
+      toast('Permintaan pencairan berhasil dikirim', 'success')
       withdrawAmount.value = ''
-      withdrawBank.value = ''
-      withdrawAccountNumber.value = ''
-      withdrawAccountHolder.value = ''
-    }
+      await fetchData()
+      
   } catch (err) {
-    console.error('Withdraw error:', err)
-    withdrawError.value = 'Terjadi kesalahan. Silakan coba lagi.'
+     console.error('Withdraw error:', err)
+     withdrawError.value = err.message
+     toast(err.message, 'error')
   } finally {
-    withdrawing.value = false
+     withdrawing.value = false
+     withdrawConfirmData.value = null
   }
 }
 </script>
 
 <template>
   <div class="dashboard">
+    <Transition name="slide">
+      <div v-if="showToast" :class="['toast', toastType]">{{ toastMessage }}</div>
+    </Transition>
 
     <main class="main">
       <header class="header">
@@ -1237,16 +1273,31 @@ async function handleWithdraw() {
                       <th>Jumlah</th>
                       <th>Bank</th>
                       <th>Status</th>
-                      <th>Selesai</th>
                     </tr>
                   </thead>
                   <tbody>
                     <tr v-for="wd in withdrawals" :key="wd.id">
-                      <td>{{ formatDate(wd.requested_date) }}</td>
+                      <td>
+                        <div class="date-stacked">
+                          <span class="date-main">{{ formatDate(wd.created_at) }}</span>
+                          <span class="date-sub">{{ new Date(wd.created_at).toLocaleTimeString('id-ID', {hour: '2-digit', minute:'2-digit'}) }}</span>
+                        </div>
+                      </td>
                       <td class="amount-cell">{{ formatCurrency(wd.amount) }}</td>
-                      <td>{{ wd.bank_name }} - {{ wd.bank_account }}</td>
-                      <td><span class="status-badge" :class="getStatusClass(wd.status)">{{ getStatusLabel(wd.status) }}</span></td>
-                      <td>{{ formatDate(wd.completed_date) }}</td>
+                      <td>
+                        <div class="bank-details-stacked">
+                          <span class="bank-name">{{ wd.bank_name || wd.ewallet_type || '-' }}</span>
+                          <span class="bank-acc">{{ wd.bank_account || wd.ewallet_number }}</span>
+                          <span class="bank-holder">{{ wd.bank_holder }}</span>
+                        </div>
+                      </td>
+                      <td>
+                        <div class="status-badge-wrapper">
+                          <span class="status-badge" :class="getStatusClass(wd.status)">{{ getStatusLabel(wd.status) }}</span>
+                          <span v-if="wd.status === 'completed'" class="status-date">{{ formatDate(wd.completed_at) }}</span>
+                          <span v-if="wd.status === 'rejected'" class="status-reason">Alasan: {{ wd.notes }}</span>
+                        </div>
+                      </td>
                     </tr>
                   </tbody>
                 </table>
@@ -1289,7 +1340,7 @@ async function handleWithdraw() {
           
           <div class="balance-info">
             <span>Saldo Tersedia:</span>
-            <strong>{{ formatCurrency(lesPlace.balance) }}</strong>
+            <strong>{{ formatCurrency(availableBalance) }}</strong>
           </div>
           
           <div v-if="paymentError" class="alert alert-error">{{ paymentError }}</div>
@@ -1436,6 +1487,57 @@ async function handleWithdraw() {
           <button class="btn btn-danger-solid" @click="confirmDeletePayment" :disabled="deleting">
             <span v-if="deleting" class="loading-spinner-sm"></span>
             {{ deleting ? 'Menghapus...' : 'Ya, Hapus' }}
+          </button>
+        </div>
+      </div>
+    </div>
+    <!-- Withdrawal Confirmation Modal -->
+    <div v-if="showWithdrawConfirmModal" class="modal-overlay">
+      <div class="modal confirm-modal">
+        <div class="modal-header">
+          <h3>Konfirmasi Pencairan</h3>
+          <button class="modal-close" @click="showWithdrawConfirmModal = false">&times;</button>
+        </div>
+        <div class="modal-body">
+          <div class="confirm-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+            </svg>
+          </div>
+          <p class="confirm-text">Mohon periksa detail pencairan Anda</p>
+          
+          <div class="confirm-details">
+            <div class="confirm-row">
+              <span class="confirm-label">Metode</span>
+              <span class="confirm-value" style="text-transform: capitalize">{{ withdrawConfirmData?.method }}</span>
+            </div>
+            <div class="confirm-row">
+              <span class="confirm-label">Tujuan</span>
+              <div style="text-align: right">
+                <span class="confirm-value" style="display: block">{{ withdrawConfirmData?.destination }}</span>
+                <span style="font-size: 11px; color: #64748b; display: block">{{ withdrawConfirmData?.account }}</span>
+                <span style="font-size: 11px; color: #64748b; display: block">{{ withdrawConfirmData?.holder }}</span>
+              </div>
+            </div>
+            <div class="confirm-row">
+              <span class="confirm-label">Jumlah</span>
+              <span class="confirm-value">{{ formatCurrency(withdrawConfirmData?.amount) }}</span>
+            </div>
+            <div class="confirm-row">
+              <span class="confirm-label">Biaya Admin</span>
+              <span class="confirm-value text-warning">- {{ formatCurrency(withdrawConfirmData?.fee) }}</span>
+            </div>
+            <div class="confirm-row highlight">
+              <span class="confirm-label">Total Diterima</span>
+              <span class="confirm-value amount">{{ formatCurrency(withdrawConfirmData?.net_amount) }}</span>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-outline" @click="showWithdrawConfirmModal = false">Periksa Lagi</button>
+          <button class="btn btn-primary" @click="confirmWithdraw" :disabled="withdrawing">
+            <span v-if="withdrawing" class="loading-spinner-sm"></span>
+            {{ withdrawing ? 'Memproses...' : 'Ya, Cairkan' }}
           </button>
         </div>
       </div>
@@ -1695,6 +1797,22 @@ async function handleWithdraw() {
 /* Teacher Grid & Cards */
 .teacher-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
 .teacher-card { background: #f8fafc; border-radius: 12px; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+
+/* Date Stacked */
+.date-stacked { display: flex; flex-direction: column; gap: 2px; }
+.date-main { font-weight: 600; font-size: 14px; color: #1e293b; }
+.date-sub { font-size: 11px; color: #64748b; }
+
+/* Bank Details Stacked */
+.bank-details-stacked { display: flex; flex-direction: column; gap: 1px; }
+.bank-name { font-weight: 600; font-size: 13px; color: #1e293b; text-transform: uppercase; }
+.bank-acc { font-family: monospace; font-size: 13px; color: #334155; letter-spacing: 0.5px; }
+.bank-holder { font-size: 11px; color: #64748b; font-style: italic; }
+
+/* Status Wrapper */
+.status-badge-wrapper { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
+.status-date { font-size: 11px; color: #16a34a; font-weight: 600; display: block; margin-top: 2px; }
+.status-reason { font-size: 11px; color: #dc2626; font-style: italic; display: block; max-width: 200px; line-height: 1.2; }
 .teacher-info { display: flex; align-items: center; gap: 12px; }
 .teacher-avatar { width: 44px; height: 44px; border-radius: 50%; background: linear-gradient(135deg, #0a4568, #1e6b99); color: white; display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 600; }
 .teacher-avatar.large { width: 60px; height: 60px; font-size: 24px; }
@@ -1763,4 +1881,42 @@ async function handleWithdraw() {
 .btn-danger-solid { background: #dc2626; color: white; border: none; }
 .btn-danger-solid:hover { background: #b91c1c; }
 .btn-danger-solid:disabled { background: #fca5a5; }
+/* Toast Notifications */
+.toast {
+  position: fixed;
+  top: 24px;
+  right: 24px;
+  padding: 16px 24px;
+  border-radius: 12px;
+  font-weight: 600;
+  z-index: 9999;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: white;
+}
+
+.toast.success {
+  background: #ecfdf5;
+  color: #059669;
+  border: 1px solid #a7f3d0;
+}
+
+.toast.error {
+  background: #fef2f2;
+  color: #dc2626;
+  border: 1px solid #fecaca;
+}
+
+.slide-enter-active,
+.slide-leave-active {
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.slide-enter-from,
+.slide-leave-to {
+  transform: translateX(100%);
+  opacity: 0;
+}
 </style>

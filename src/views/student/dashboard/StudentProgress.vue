@@ -35,9 +35,32 @@ async function buildLesPlacesWithProgress() {
   
   const studentId = studentData?.id
   
+  // Fetch approved refunds explicitly to filter strictly
+  const { data: approvedRefunds } = await supabase
+    .from('refunds')
+    .select('transaction_id, transactions(booking_id, program_id)')
+    .eq('student_id', userId) 
+    .eq('status', 'approved')
+
+  const refundedIds = new Set()
+  const refundedProgIds = new Set()
+  if (approvedRefunds) {
+    approvedRefunds.forEach(r => {
+      if (r.transactions?.booking_id) refundedIds.add(r.transactions.booking_id)
+      if (r.transactions?.program_id) refundedProgIds.add(r.transactions.program_id)
+    })
+  }
+  
+  const activeBookings = bookings.value.filter(b => 
+    ['confirmed', 'active', 'completed'].includes(b.status) &&
+    !refundedIds.has(b.id) &&
+    !(b.program?.id && refundedProgIds.has(b.program.id))
+  )
+  /*
   const activeBookings = bookings.value.filter(b => 
     ['confirmed', 'active', 'completed'].includes(b.status)
   )
+  */
   
   if (!activeBookings.length) {
     lesPlaces.value = []

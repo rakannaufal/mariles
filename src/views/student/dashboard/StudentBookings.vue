@@ -40,7 +40,8 @@ function getStatusClass(status) {
     pending: 'warning',
     completed: 'info',
     cancelled: 'error',
-    rejected: 'error'
+    rejected: 'error',
+    refunded: 'error' // Refunded status = error/red styling
   }
   return classes[status] || 'info'
 }
@@ -52,7 +53,8 @@ function getStatusText(status) {
     pending: 'Menunggu',
     completed: 'Selesai',
     cancelled: 'Dibatalkan',
-    rejected: 'Ditolak'
+    rejected: 'Ditolak',
+    refunded: 'Direfund' // Added refunded status text
   }
   return texts[status] || status
 }
@@ -508,7 +510,7 @@ function isPaymentExpired(createdAt) {
                   <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect><line x1="1" y1="10" x2="23" y2="10"></line></svg>
                   {{ processingPayment === booking.id ? 'Memproses...' : 'Lanjutkan Pembayaran' }}
                 </button>
-                <button class="btn-ghost" @click="openDetailModal(booking)">
+                <button v-if="booking.status !== 'refunded'" class="btn-ghost" @click="openDetailModal(booking)">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
                   Detail
                 </button>

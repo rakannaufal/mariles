@@ -38,11 +38,35 @@ const handleLoginSuccess = async (user) => {
       
       // If this is a registration attempt, we MUST ensure profile data (like les_places) is created
       // The trigger creates public.users and simple role entries, but misses complex data like les_places
-      if (isRegistrationAttempt) {
-        status.value = `Menyiapkan profil ${getRoleLabel(roleToUse)}...`
-        // Force isNewUser true to trigger the profile checks/creation below
-        isNewUser = true 
+      
+      // If roles match, treat as login unless we suspect incomplete profile
+      if (isRegistrationAttempt && pendingRole === existingUser.role) {
+         status.value = `Selamat datang kembali, ${existingUser.name || userName}!`
+      } else if (isRegistrationAttempt && pendingRole !== existingUser.role) {
+        // Role mismatch on registration = Role Upgrade/Check
+        console.log(`User intent to change role from ${existingUser.role} to ${pendingRole}`)
+        
+        status.value = `Mengupdate profil ke ${getRoleLabel(pendingRole)}...`
+        
+        // Call RPC to upgrade role
+        const { data: upgradeResult, error: upgradeError } = await supabase.rpc('upgrade_user_role', {
+          target_user_id: user.id,
+          new_role: pendingRole,
+          new_owner_type: pendingOwnerType
+        })
+        
+        if (upgradeError) {
+          console.error('Failed to upgrade role:', upgradeError)
+          // Fallback to existing role if upgrade fails
+          roleToUse = existingUser.role 
+          error.value = 'Gagal memperbarui role akun. Masuk sebagai role lama.'
+        } else {
+           console.log('Role upgrade success:', upgradeResult)
+           roleToUse = pendingRole
+           isNewUser = true // Treat as new to ensure extra profile setup if needed
+        }
       } else {
+        // Standard login
         status.value = `Selamat datang kembali, ${existingUser.name || userName}!`
       }
     } else {

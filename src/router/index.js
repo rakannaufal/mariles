@@ -526,9 +526,14 @@ router.beforeEach(async (to, from, next) => {
     // If user is logged in
     if (user) {
       const role = await getUserRole(user.id);
+      
+      // RESTRICT HOMEPAGE for Owner/Teacher/Admin
+      // User requested that Owner/Teacher cannot access homepage, redirect to dashboard
+      if (to.path === '/' && role !== 'student') {
+         return next({ name: `${role}-dashboard` });
+      }
 
-      // HANYA redirect dari halaman auth (login/register), BUKAN semua halaman public
-      // Ini memungkinkan Owner/Teacher tetap bisa melihat Landing Page, FAQ, About, dll
+      // HANYA redirect dari halaman auth (login/register)
       if (
         (role === "owner" || role === "teacher" || role === "admin") &&
         to.meta.authPage

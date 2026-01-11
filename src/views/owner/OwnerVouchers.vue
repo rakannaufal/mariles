@@ -42,6 +42,18 @@ onMounted(async () => {
   }
 })
 
+// Toast State
+const showToast = ref(false)
+const toastMessage = ref('')
+const toastType = ref('success')
+
+function toast(msg, type = 'success') {
+  toastMessage.value = msg
+  toastType.value = type
+  showToast.value = true
+  setTimeout(() => showToast.value = false, 3000)
+}
+
 // Computed
 const filteredVouchers = computed(() => {
   let result = vouchers.value
@@ -182,6 +194,7 @@ async function handleSubmit() {
     if (modalMode.value === 'create') {
       const { error: err } = await supabase.from('vouchers').insert(payload)
       if (err) throw err
+      toast('Voucher berhasil dibuat!', 'success')
     } else {
       // Security check: ensure we only update our own voucher
       const { error: err } = await supabase
@@ -191,12 +204,14 @@ async function handleSubmit() {
         .eq('les_place_id', lesPlaceId.value) 
         
       if (err) throw err
+      toast('Voucher berhasil diperbarui!', 'success')
     }
 
     showModal.value = false
     fetchVouchers()
   } catch (err) {
     error.value = err.message
+    toast(err.message, 'error')
   } finally {
     submitting.value = false
   }
@@ -214,9 +229,10 @@ async function deleteVoucher(id) {
 
     if (err) throw err
     fetchVouchers()
+    toast('Voucher berhasil dihapus', 'success')
   } catch (err) {
     console.error('Error deleting voucher:', err)
-    alert('Gagal menghapus voucher')
+    toast('Gagal menghapus voucher', 'error')
   }
 }
 
@@ -230,8 +246,10 @@ async function toggleStatus(voucher) {
     
     if (err) throw err
     voucher.is_active = !voucher.is_active
+    toast(voucher.is_active ? 'Voucher diaktifkan' : 'Voucher dinonaktifkan', 'success')
   } catch (err) {
     console.error('Error updating status:', err)
+    toast('Gagal mengubah status', 'error')
   }
 }
 
@@ -265,6 +283,9 @@ function getVoucherStatus(voucher) {
 
 <template>
   <div class="owner-layout">
+    <Transition name="slide">
+      <div v-if="showToast" :class="['toast', toastType]">{{ toastMessage }}</div>
+    </Transition>
     
     <main class="main-content">
       <header class="page-header">
@@ -272,7 +293,7 @@ function getVoucherStatus(voucher) {
           <h1>Voucher Saya</h1>
           <p>Kelola kode promo untuk siswa Anda</p>
         </div>
-        <button class="btn btn-primary" @click="openCreateModal">
+        <button class="btn-create" @click="openCreateModal">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <line x1="12" y1="5" x2="12" y2="19"></line>
             <line x1="5" y1="12" x2="19" y2="12"></line>
@@ -281,7 +302,6 @@ function getVoucherStatus(voucher) {
         </button>
       </header>
 
-      <!-- Stats Cards -->
       <!-- Stats Cards -->
       <div class="stats-grid">
         <StatCard 
@@ -323,21 +343,34 @@ function getVoucherStatus(voucher) {
         </StatCard>
       </div>
 
-       <!-- Filters -->
-       <div class="filters-bar">
-        <div class="search-wrap">
+       <!-- Filters and Actions -->
+       <div class="table-controls">
+        <!-- Search -->
+        <div class="search-box">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <circle cx="11" cy="11" r="8"></circle>
             <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
           </svg>
-          <input v-model="searchQuery" type="text" placeholder="Cari kode voucher..." class="search-input">
+          <input v-model="searchQuery" type="text" placeholder="Cari kode, deskripsi..." class="search-input">
         </div>
-        <select v-model="filterStatus" class="filter-select">
-          <option value="all">Semua Status</option>
-          <option value="active">Aktif</option>
-          <option value="inactive">Non-aktif</option>
-          <option value="expired">Berakhir</option>
-        </select>
+
+        <!-- Filter Tabs -->
+        <div class="filter-tabs">
+          <button 
+            v-for="opt in [
+              { label: 'Semua', value: 'all' },
+              { label: 'Aktif', value: 'active' },
+              { label: 'Non-aktif', value: 'inactive' },
+              { label: 'Berakhir', value: 'expired' }
+            ]" 
+            :key="opt.value"
+            class="tab-pill"
+            :class="{ active: filterStatus === opt.value }"
+            @click="filterStatus = opt.value"
+          >
+            {{ opt.label }}
+          </button>
+        </div>
       </div>
 
       <div v-if="loading" class="loading-state">
@@ -549,6 +582,9 @@ function getVoucherStatus(voucher) {
   padding: 32px;
   width: 100%;
   overflow-y: auto;
+  max-width: 1200px;
+  margin-right: auto; /* Align left (remove margin-left auto) */
+  box-sizing: border-box; /* Ensure padding doesn't overflow width */
 }
 
 @media (max-width: 1024px) {
@@ -585,55 +621,164 @@ function getVoucherStatus(voucher) {
 }
 /* StatCard styling handled by component */
 
-/* Filters */
-.filters-bar {
+/* Table Controls / Filter Bar REVAMPED */
+.table-controls {
   display: flex;
-  gap: 16px;
-  margin-bottom: 24px;
+  justify-content: space-between; /* Search Left, Filters Right */
+  align-items: center;
+  gap: 24px;
+  
+  margin-bottom: 32px;
   background: white;
-  padding: 16px;
-  border-radius: 12px;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+  padding: 12px;
+  border-radius: 20px;
+  box-shadow: 0 4px 20px -2px rgba(0,0,0,0.05);
+  border: 1px solid rgba(0,0,0,0.02);
+  width: 100%;
 }
 
-.search-wrap {
-  flex: 1;
+/* 1. Search Box */
+.search-box {
   position: relative;
+  width: 100%;
+  max-width: 320px; /* Limit width */
 }
 
-.search-wrap svg {
+.search-box svg {
   position: absolute;
-  left: 14px;
+  left: 16px;
   top: 50%;
   transform: translateY(-50%);
   width: 20px;
   height: 20px;
-  color: var(--text-secondary);
+  color: #9ca3af;
+  pointer-events: none;
 }
 
 .search-input {
   width: 100%;
-  padding: 12px 12px 12px 48px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
+  padding: 12px 16px 12px 48px;
+  background: #f3f4f6;
+  border: 2px solid transparent;
+  border-radius: 14px;
   font-size: 14px;
-  transition: all 0.2s;
+  font-weight: 500;
+  color: var(--text);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .search-input:focus {
   outline: none;
+  background: white;
   border-color: var(--primary);
-  box-shadow: 0 0 0 3px var(--primary-light);
+  box-shadow: 0 0 0 4px var(--primary-light, rgba(59,130,246,0.1));
 }
 
-.filter-select {
-  padding: 0 20px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: white;
-  font-size: 14px;
-  min-width: 180px;
+.search-input::placeholder {
+  color: #9ca3af;
+  font-weight: 400;
+}
+
+/* 2. Filter Tabs - Segmented Style */
+.filter-tabs {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 4px;
+  background: #f3f4f6;
+  padding: 4px;
+  border-radius: 14px;
+  width: fit-content;
+  margin: 0; /* No auto margin, let flex handle it */
+}
+
+.tab-pill {
+  padding: 8px 20px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #6b7280;
+  background: transparent;
+  border: none;
   cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.tab-pill:hover {
+  color: var(--text);
+  background: rgba(255,255,255,0.6);
+}
+
+.tab-pill.active {
+  background: white;
+  color: var(--primary);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+  transform: scale(1.02);
+}
+
+/* 3. Action Button (Used in Header) */
+.btn-create {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  
+  height: 46px; 
+  padding: 0 24px;
+  
+  background: var(--primary);
+  color: white;
+  border: none;
+  border-radius: 14px;
+  
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.btn-create:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 16px rgba(37, 99, 235, 0.3);
+}
+
+.btn-create:active {
+  transform: translateY(0);
+}
+
+.btn-create svg {
+  width: 20px;
+  height: 20px;
+}
+
+/* Responsive Handling */
+@media (max-width: 1024px) {
+  .table-controls {
+    flex-direction: column; /* Stack properly */
+    align-items: stretch;
+    gap: 16px;
+    height: auto;
+    padding: 16px;
+  }
+  
+  .search-box {
+    max-width: 100%;
+  }
+  
+  .filter-tabs {
+    width: 100%;
+    justify-content: space-between;
+    overflow-x: auto;
+  }
+  
+  .tab-pill {
+    flex: 1;
+    text-align: center;
+  }
 }
 
 /* Voucher Cards */
@@ -1083,4 +1228,43 @@ function getVoucherStatus(voucher) {
 
 input:checked + .slider { background-color: var(--primary); }
 input:checked + .slider:before { transform: translateX(20px); }
+
+/* Toast Notifications */
+.toast {
+  position: fixed;
+  top: 24px;
+  right: 24px;
+  padding: 16px 24px;
+  border-radius: 12px;
+  font-weight: 600;
+  z-index: 9999;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: white;
+}
+
+.toast.success {
+  background: #ecfdf5;
+  color: #059669;
+  border: 1px solid #a7f3d0;
+}
+
+.toast.error {
+  background: #fef2f2;
+  color: #dc2626;
+  border: 1px solid #fecaca;
+}
+
+.slide-enter-active,
+.slide-leave-active {
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.slide-enter-from,
+.slide-leave-to {
+  transform: translateX(100%);
+  opacity: 0;
+}
 </style>

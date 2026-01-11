@@ -4,6 +4,7 @@ import StatCard from '@/components/StatCard.vue'
 import { useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { usePlatformSettings } from '@/composables/usePlatformSettings'
+import { supabase } from '@/lib/supabase'
 const { getSetting } = usePlatformSettings()
 
 
@@ -48,6 +49,22 @@ const withdrawMethod = ref('bank') // 'bank' or 'ewallet'
 const withdrawing = ref(false)
 const withdrawError = ref('')
 const withdrawSuccess = ref(false)
+
+// Toast State
+const showToast = ref(false)
+const toastMessage = ref('')
+const toastType = ref('success') // 'success' or 'error'
+
+function toast(msg, type = 'success') {
+  toastMessage.value = msg
+  toastType.value = type
+  showToast.value = true
+  setTimeout(() => showToast.value = false, 3000)
+}
+
+// Confirm Modal State
+const showWithdrawConfirmModal = ref(false)
+const withdrawConfirmData = ref(null)
 
 // Teacher Bank Info from Profile
 const teacherBankInfo = ref({
@@ -124,12 +141,22 @@ async function fetchData() {
       return paidDate.getMonth() === now.getMonth() && paidDate.getFullYear() === now.getFullYear()
     }) || []
     
+    // Calculate withdrawals
+    const { data: teacherWithdrawals } = await supabase
+        .from('withdrawals')
+        .select('amount')
+        .eq('user_id', authStore.user.id)
+        .neq('status', 'rejected') 
+        .neq('status', 'failed')
+    
+    const totalWithdrawals = (teacherWithdrawals || []).reduce((sum, w) => sum + w.amount, 0)
+    
     summary.value = {
       totalEarnings: completed.reduce((sum, p) => sum + p.amount, 0),
       monthlyEarnings: thisMonth.reduce((sum, p) => sum + p.amount, 0),
       pendingPayments: pending.reduce((sum, p) => sum + p.amount, 0),
-      // Saldo dapat dicairkan = total diterima (completed payments)
-      withdrawableBalance: completed.reduce((sum, p) => sum + p.amount, 0),
+      // Saldo dapat dicairkan = Total Diterima - Total Ditarik
+      withdrawableBalance: completed.reduce((sum, p) => sum + p.amount, 0) - totalWithdrawals,
       lastPayment: completed.length ? completed[0].paid_date : null,
       totalSessions: completed.length,
       bonusCount: bonuses.length
@@ -140,7 +167,7 @@ async function fetchData() {
       .from('teachers')
       .select('bank_name, bank_account, bank_holder, ewallet_type, ewallet_number')
       .eq('user_id', authStore.user.id)
-      .single()
+      .maybeSingle()
     
     if (teacherData) {
       teacherBankInfo.value = {
@@ -150,12 +177,17 @@ async function fetchData() {
         ewallet_type: teacherData.ewallet_type || '',
         ewallet_number: teacherData.ewallet_number || ''
       }
+      
+      console.log('Teacher Bank Info Loaded:', teacherBankInfo.value) // Debug log
+
       // Set default method based on what's available
       if (teacherData.bank_name && teacherData.bank_account) {
         withdrawMethod.value = 'bank'
       } else if (teacherData.ewallet_type && teacherData.ewallet_number) {
         withdrawMethod.value = 'ewallet'
       }
+    } else {
+       console.warn('No teacher profile found for user_id:', authStore.user.id)
     }
     
     // Fetch teacher's withdrawal history
@@ -262,35 +294,55 @@ const maxWithdraw = computed(() => summary.value.withdrawableBalance || 0)
 async function handleWithdraw() {
   withdrawError.value = ''
   withdrawSuccess.value = false
+  
+  if (!withdrawAmount.value) {
+    withdrawError.value = 'Masukkan jumlah pencairan'
+    return
+  }
+  
   const amount = parseInt(withdrawAmount.value)
-  
-  // Get fee based on method
-  const fee = withdrawMethod.value === 'ewallet' ? 2500 : 5000
-  
-  if (!amount || amount < 10000) {
-    withdrawError.value = 'Minimal pencairan Rp 10.000'
+  if (amount < platformFees.value.min_withdrawal) {
+    withdrawError.value = `Minimal pencairan Rp ${formatCurrency(platformFees.value.min_withdrawal)}`
     return
   }
   
-  // Check if payment method is set up
-  if (withdrawMethod.value === 'bank' && !teacherBankInfo.value.bank_name) {
-    withdrawError.value = 'Anda belum mengatur rekening bank. Atur di Profil.'
-    return
-  }
-  
-  if (withdrawMethod.value === 'ewallet' && !teacherBankInfo.value.ewallet_type) {
-    withdrawError.value = 'Anda belum mengatur e-wallet. Atur di Profil.'
-    return
-  }
-  
-  if (amount > maxWithdraw.value) {
+  if (amount > summary.value.withdrawableBalance) {
     withdrawError.value = 'Saldo tidak mencukupi'
     return
   }
   
-  withdrawing.value = true
+  // Auto-detect payment method: prefer bank, fallback to e-wallet
+  const useBank = teacherBankInfo.value.bank_name
+  const useEwallet = teacherBankInfo.value.ewallet_type
+  
+  if (!useBank && !useEwallet) {
+    withdrawError.value = 'Anda belum mengatur metode pembayaran. Atur di Profil.'
+    return
+  }
+
+  // Calculate Fee
+  const fee = withdrawMethod.value === 'ewallet' ? 2500 : platformFees.value.withdrawal_fee
+  
+  // Prepare Confirmation Data
+  withdrawConfirmData.value = {
+    amount: amount,
+    fee: fee,
+    netAmount: Math.max(0, amount - fee),
+    bankInfo: teacherBankInfo.value
+  }
+  
+  showWithdrawConfirmModal.value = true
+}
+
+async function confirmWithdraw() {
+  if (!withdrawConfirmData.value) return
   
   try {
+    withdrawing.value = true
+    showWithdrawConfirmModal.value = false
+    
+    const { amount, fee, netAmount } = withdrawConfirmData.value
+
     // Get teacher's les_place_id
     const { data: teacherData } = await supabase
       .from('teachers')
@@ -298,18 +350,9 @@ async function handleWithdraw() {
       .eq('user_id', authStore.user.id)
       .single()
     
-    // Auto-detect payment method: prefer bank, fallback to e-wallet
+    // Determine Bank Details
     let bankName, bankAccount, bankHolder
-    const useBank = teacherBankInfo.value.bank_name
-    const useEwallet = teacherBankInfo.value.ewallet_type
-    
-    if (!useBank && !useEwallet) {
-      withdrawError.value = 'Anda belum mengatur metode pembayaran. Atur di Profil.'
-      withdrawing.value = false
-      return
-    }
-    
-    if (useBank) {
+    if (teacherBankInfo.value.bank_name) {
       bankName = teacherBankInfo.value.bank_name
       bankAccount = teacherBankInfo.value.bank_account
       bankHolder = teacherBankInfo.value.bank_holder
@@ -319,51 +362,43 @@ async function handleWithdraw() {
       bankHolder = teacherBankInfo.value.bank_holder || ''
     }
     
-    // Insert to withdrawals table
-    const { data: newWithdrawal, error } = await supabase
-      .from('withdrawals')
-      .insert({
-        user_id: authStore.user.id,
-        les_place_id: teacherData?.les_place_id || null,
-        amount: amount,
-        fee: fee,
-        net_amount: amount - fee,
-        bank_name: bankName,
-        bank_account: bankAccount,
-        bank_holder: bankHolder,
-        status: 'completed',
-        requester_type: 'teacher',
-        requested_at: new Date().toISOString(),
-        completed_at: new Date().toISOString()
-      })
-      .select()
-      .single()
+    // Insert to withdrawals table (PENDING status for Admin)
+    const { error } = await supabase.from('withdrawals').insert({
+      user_id: authStore.user.id,
+      les_place_id: teacherData?.les_place_id || null,
+      amount: amount,
+      fee: fee,
+      net_amount: netAmount,
+      status: 'pending',
+      bank_name: bankName,
+      bank_account: bankAccount,
+      bank_holder: bankHolder,
+      requester_type: 'teacher',
+      requested_at: new Date().toISOString()
+    })
     
-    if (error) {
-      console.error('Withdraw error:', error)
-      withdrawError.value = 'Gagal mengajukan pencairan: ' + error.message
-      return
-    }
+    if (error) throw error
     
-    // Update local state
-    withdrawals.value.unshift(newWithdrawal)
-    summary.value.withdrawableBalance -= amount
-    
-    // Reset form
-    withdrawAmount.value = ''
+    toast('Permintaan pencairan berhasil dikrim', 'success')
     withdrawSuccess.value = true
+    withdrawAmount.value = ''
     
-    // Reload withdrawals data
     await fetchWithdrawals()
+    window.scrollTo({ top: 0, behavior: 'smooth' })
     
-    setTimeout(() => withdrawSuccess.value = false, 5000)
   } catch (err) {
-    console.error('Withdraw error:', err)
-    withdrawError.value = 'Terjadi kesalahan. Silakan coba lagi.'
+    console.error('Withdraw Error:', err)
+    toast('Gagal memproses: ' + err.message, 'error')
+    withdrawError.value = err.message
   } finally {
     withdrawing.value = false
   }
 }
+  
+
+
+    
+
 </script>
 
 <template>
@@ -577,7 +612,8 @@ async function handleWithdraw() {
                 <line x1="2" y1="10" x2="22" y2="10"></line>
               </svg>
               <h4>Belum ada riwayat pembayaran</h4>
-              <p>Riwayat pembayaran akan muncul di sini</p>
+              <p>Riwayat pembayaran gaji dan honorarium akan muncul di sini.</p>
+              <p class="text-xs text-muted mt-2">Data tidak muncul? Hubungi Admin.</p>
             </div>
           </div>
         </section>
@@ -770,6 +806,88 @@ async function handleWithdraw() {
               <p>Belum ada riwayat pencairan</p>
             </div>
           </div>
+
+          <!-- Toast Notification -->
+          <Transition name="slide">
+            <div v-if="showToast" :class="['toast', toastType]">
+              <div class="toast-icon">
+                <svg v-if="toastType === 'success'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                  <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                </svg>
+                <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="12" cy="12" r="10"></circle>
+                  <line x1="12" y1="8" x2="12" y2="12"></line>
+                  <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                </svg>
+              </div>
+              <p>{{ toastMessage }}</p>
+            </div>
+          </Transition>
+
+          <!-- Withdrawal Confirmation Modal -->
+          <div v-if="showWithdrawConfirmModal" class="modal-overlay">
+            <div class="modal confirm-modal">
+              <div class="modal-header">
+                <h3>Konfirmasi Pencairan</h3>
+                <button class="modal-close" @click="showWithdrawConfirmModal = false">&times;</button>
+              </div>
+              
+              <div class="modal-body" v-if="withdrawConfirmData">
+                <div class="confirm-alert">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <line x1="12" y1="16" x2="12" y2="12"></line>
+                    <line x1="12" y1="8" x2="12.01" y2="8"></line>
+                  </svg>
+                  <p>Pastikan data rekening sudah benar.</p>
+                </div>
+
+                <div class="confirm-details">
+                  <div class="detail-row">
+                    <span>Jumlah Penarikan</span>
+                    <span class="value">{{ formatCurrency(withdrawConfirmData.amount) }}</span>
+                  </div>
+                  <div class="detail-row">
+                    <span>Biaya Admin</span>
+                    <span class="value text-red">- {{ formatCurrency(withdrawConfirmData.fee) }}</span>
+                  </div>
+                  <div class="detail-row total">
+                    <span>Total Diterima</span>
+                    <span class="value">{{ formatCurrency(withdrawConfirmData.netAmount) }}</span>
+                  </div>
+                </div>
+
+                <div class="bank-preview-box">
+                  <span class="label">Rekening Tujuan:</span>
+                  <div class="bank-info" v-if="withdrawConfirmData.bankInfo.bank_name">
+                    <img src="https://via.placeholder.com/30x30?text=B" alt="Bank" class="bank-icon-sm">
+                    <div>
+                      <p class="bank-name">{{ withdrawConfirmData.bankInfo.bank_name }}</p>
+                      <p class="bank-number">{{ withdrawConfirmData.bankInfo.bank_account }}</p>
+                      <p class="bank-holder">{{ withdrawConfirmData.bankInfo.bank_holder }}</p>
+                    </div>
+                  </div>
+                  <div class="bank-info" v-else>
+                    <img src="https://via.placeholder.com/30x30?text=E" alt="Wallet" class="bank-icon-sm">
+                    <div>
+                      <p class="bank-name">{{ withdrawConfirmData.bankInfo.ewallet_type }}</p>
+                      <p class="bank-number">{{ withdrawConfirmData.bankInfo.ewallet_number }}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              <div class="modal-footer">
+                <button class="btn-cancel" @click="showWithdrawConfirmModal = false">Batal</button>
+                <button class="btn-confirm" :disabled="withdrawing" @click="confirmWithdraw">
+                  <span v-if="withdrawing" class="spinner-sm"></span>
+                  {{ withdrawing ? 'Memproses...' : 'Ya, Cairkan Dana' }}
+                </button>
+              </div>
+            </div>
+          </div>
+
         </section>
       </div>
     </main>
@@ -782,6 +900,104 @@ async function handleWithdraw() {
   min-height: 100vh;
   background: #f8fafc;
 }
+.modal-overlay {
+  position: fixed;
+  top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.5);
+  display: flex; justify-content: center; align-items: center;
+  z-index: 1100;
+  backdrop-filter: blur(4px);
+}
+.modal {
+  background: white;
+  border-radius: 16px;
+  width: 90%; max-width: 480px;
+  box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1);
+  animation: slideUp 0.3s ease;
+}
+.modal-header {
+  padding: 20px 24px;
+  border-bottom: 1px solid #e2e8f0;
+  display: flex; justify-content: space-between; align-items: center;
+}
+.modal-header h3 { font-size: 18px; font-weight: 700; color: #1e293b; margin: 0; }
+.modal-close { font-size: 24px; color: #64748b; background: none; border: none; cursor: pointer; }
+.modal-body { padding: 24px; }
+.modal-footer {
+  padding: 20px 24px;
+  border-top: 1px solid #e2e8f0;
+  display: flex; gap: 12px; justify-content: flex-end;
+}
+.confirm-alert {
+  background: #fffbeb; border: 1px solid #fcd34d;
+  padding: 12px 16px; border-radius: 8px;
+  display: flex; gap: 10px; align-items: center;
+  margin-bottom: 20px;
+}
+.confirm-alert svg { width: 20px; height: 20px; color: #d97706; }
+.confirm-alert p { font-size: 14px; color: #92400e; margin: 0; }
+.confirm-details {
+  background: #f8fafc; border-radius: 12px;
+  padding: 16px; margin-bottom: 20px;
+}
+.detail-row {
+  display: flex; justify-content: space-between;
+  margin-bottom: 10px; font-size: 14px; color: #64748b;
+}
+.detail-row:last-child { margin-bottom: 0; }
+.detail-row.total {
+  margin-top: 12px; padding-top: 12px; border-top: 1px dashed #cbd5e1;
+  font-weight: 700; color: #1e293b; font-size: 16px;
+}
+.detail-row .value { color: #1e293b; font-weight: 600; }
+.detail-row .text-red { color: #ef4444; }
+.bank-preview-box {
+  border: 1px solid #e2e8f0; border-radius: 12px; padding: 16px;
+}
+.bank-preview-box .label {
+  display: block; font-size: 12px; color: #64748b; margin-bottom: 8px;
+}
+.bank-info { display: flex; align-items: center; gap: 12px; }
+.bank-icon-sm { width: 40px; height: 40px; border-radius: 8px; background: #e2e8f0; }
+.bank-name { font-weight: 600; color: #1e293b; font-size: 14px; margin: 0; }
+.bank-number { font-size: 13px; color: #64748b; margin: 2px 0; }
+.bank-holder { font-size: 12px; color: #94a3b8; font-weight: 500; text-transform: uppercase; margin: 0; }
+.btn-cancel {
+  padding: 12px 20px; background: white; border: 1px solid #cbd5e1;
+  border-radius: 10px; font-weight: 600; color: #64748b; cursor: pointer;
+}
+.btn-confirm {
+  padding: 12px 24px; background: #0d5782; border: none;
+  border-radius: 10px; font-weight: 600; color: white; cursor: pointer;
+  display: flex; align-items: center; gap: 8px;
+}
+.btn-confirm:disabled { background: #94a3b8; cursor: not-allowed; }
+.loading-spinner-sm, .spinner-sm {
+  width: 16px; height: 16px; border: 2px solid rgba(255,255,255,0.3);
+  border-top-color: white; border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+/* Toast */
+.toast {
+  position: fixed; top: 24px; right: 24px;
+  display: flex; align-items: center; gap: 12px;
+  padding: 16px 20px; border-radius: 12px;
+  background: white; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1);
+  font-weight: 600; font-size: 14px; z-index: 1200;
+  min-width: 300px;
+}
+.toast.success { border-left: 4px solid #16a34a; }
+.toast.error { border-left: 4px solid #ef4444; }
+.toast-icon {
+  width: 24px; height: 24px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+}
+.toast.success .toast-icon { background: #dcfce7; color: #16a34a; }
+.toast.error .toast-icon { background: #fee2e2; color: #ef4444; }
+.slide-enter-active, .slide-leave-active { transition: all 0.3s ease; }
+.slide-enter-from, .slide-leave-to { transform: translateX(100%); opacity: 0; }
+@keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+@keyframes spin { to { transform: rotate(360deg); } }
 
 .main {
   flex: 1;

@@ -6,7 +6,8 @@ import {
   getAdminRevenueStats, 
   getMonthlyRevenueChart, 
   getRecentPlatformRevenue,
-  getPendingRefunds 
+  getAllRefunds,
+  repairApprovedRefunds
 } from '@/services/paymentService'
 import { supabase } from '@/lib/supabase'
 
@@ -35,8 +36,8 @@ const recentRevenue = ref([])
 // Pending withdrawals
 const pendingWithdrawals = ref([])
 
-// Pending refunds
-const pendingRefunds = ref([])
+// All refunds
+const allRefunds = ref([])
 
 const tabs = [
   { id: 'overview', label: 'Ringkasan' },
@@ -55,10 +56,40 @@ async function fetchData() {
     // SUCCESS STATUSES (consistent across all finance pages)
     const successStatuses = ['paid', 'settlement', 'capture']
 
+    // 1. Fetch ALL Withdrawals first (needed for stats & chart)
+    const { data: withdrawals } = await supabase
+      .from('withdrawals')
+      .select(`
+        *,
+        users(name, email),
+        les_places(name)
+      `)
+      .in('status', ['pending', 'processing', 'completed', 'rejected'])
+      .order('created_at', { ascending: false })
+    
+    pendingWithdrawals.value = withdrawals || []
+    
+    const completedWithdrawals = (withdrawals || []).filter(w => w.status === 'completed')
+    const totalWithdrawalFee = completedWithdrawals.reduce((sum, w) => sum + (w.fee || 0), 0)
+
+    // 2. Fetch Refunds
+    const refundResult = await getAllRefunds()
+    if (refundResult.success) {
+      allRefunds.value = refundResult.refunds
+    }
+    const pendingRefundsCount = (allRefunds.value || []).filter(r => r.status === 'pending').length
+
+    // 3. Calculate Revenue Stats
     // Try to fetch from platform_revenue first
     const statsResult = await getAdminRevenueStats()
     if (statsResult.success && statsResult.stats.totalRevenue > 0) {
       stats.value = statsResult.stats
+      // Manually add withdrawal fee if not included in API (API might not include it yet)
+      // Assuming API only returns platform fees for now based on previous code
+      if (stats.value.breakdown && !stats.value.breakdown.withdrawal_fee) {
+         stats.value.totalRevenue += totalWithdrawalFee
+         stats.value.breakdown.withdrawal_fee = totalWithdrawalFee
+      }
     } else {
       // FALLBACK: Calculate from bookings (source of truth)
       const { data: allBookings } = await supabase
@@ -74,34 +105,28 @@ async function fetchData() {
       const now = new Date()
       const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
       const monthlyBookings = completedBookings.filter(b => new Date(b.created_at) >= startOfMonth)
+      const monthlyWithdrawals = completedWithdrawals.filter(w => new Date(w.completed_at || w.created_at) >= startOfMonth)
       
       // Calculate platform fee (10%) from completed bookings
       const totalPlatformFee = completedBookings.reduce((sum, b) => sum + Math.round((b.programs?.price || 0) * 0.1), 0)
       const monthlyPlatformFee = monthlyBookings.reduce((sum, b) => sum + Math.round((b.programs?.price || 0) * 0.1), 0)
+      const monthlyWithdrawalFee = monthlyWithdrawals.reduce((sum, w) => sum + (w.fee || 0), 0)
       
-      const { data: pendingWithdrawalsCount } = await supabase
-        .from('withdrawals')
-        .select('id')
-        .eq('status', 'pending')
-      
-      const { data: pendingRefundsCount } = await supabase
-        .from('refunds')
-        .select('id')
-        .eq('status', 'pending')
+      const pendingWithdrawalsCount = (withdrawals || []).filter(w => w.status === 'pending').length
       
       stats.value = {
-        totalRevenue: totalPlatformFee,
-        monthRevenue: monthlyPlatformFee,
-        pendingWithdrawals: pendingWithdrawalsCount?.length || 0,
-        pendingRefunds: pendingRefundsCount?.length || 0,
+        totalRevenue: totalPlatformFee + totalWithdrawalFee,
+        monthRevenue: monthlyPlatformFee + monthlyWithdrawalFee,
+        pendingWithdrawals: pendingWithdrawalsCount,
+        pendingRefunds: pendingRefundsCount,
         breakdown: {
           platform_fee: totalPlatformFee,
-          withdrawal_fee: 0
+          withdrawal_fee: totalWithdrawalFee
         }
       }
     }
 
-    // Generate chart data from bookings (last 6 months)
+    // 4. Generate Chart Data
     const { data: chartBookings } = await supabase
       .from('bookings')
       .select('status, payment_status, created_at, programs(price)')
@@ -122,16 +147,25 @@ async function fetchData() {
     }
     
     chartData.value = chartMonths.map(m => {
+      // Platform Fees
       const monthBookings = (chartBookings || []).filter(b => {
         const bDate = new Date(b.created_at)
         return bDate.getFullYear() === m.year && bDate.getMonth() === m.month
       })
       const platformFee = monthBookings.reduce((sum, b) => sum + Math.round((b.programs?.price || 0) * 0.1), 0)
+      
+      // Withdrawal Fees
+      const monthWithdrawals = completedWithdrawals.filter(w => {
+        const wDate = new Date(w.completed_at || w.created_at)
+        return wDate.getFullYear() === m.year && wDate.getMonth() === m.month
+      })
+      const withdrawalFee = monthWithdrawals.reduce((sum, w) => sum + (w.fee || 0), 0)
+
       return {
         month: m.label,
         platformFee: platformFee,
-        withdrawalFee: 0,
-        total: platformFee
+        withdrawalFee: withdrawalFee,
+        total: platformFee + withdrawalFee
       }
     })
 
@@ -153,24 +187,6 @@ async function fetchData() {
       created_at: b.created_at
     }))
 
-    // Fetch pending withdrawals
-    const { data: withdrawals } = await supabase
-      .from('withdrawals')
-      .select(`
-        *,
-        users(name, email),
-        les_places(name)
-      `)
-      .eq('status', 'pending')
-      .order('created_at', { ascending: false })
-    pendingWithdrawals.value = withdrawals || []
-
-    // Fetch pending refunds
-    const refundResult = await getPendingRefunds()
-    if (refundResult.success) {
-      pendingRefunds.value = refundResult.refunds
-    }
-
   } catch (err) {
     console.error('Error fetching admin finance data:', err)
   } finally {
@@ -191,7 +207,8 @@ async function approveWithdrawal(withdrawal) {
     await supabase
       .from('withdrawals')
       .update({ 
-        status: 'processing',
+        status: 'completed',
+        completed_at: new Date().toISOString(),
         processed_at: new Date().toISOString()
       })
       .eq('id', withdrawal.id)
@@ -237,19 +254,63 @@ async function rejectWithdrawal(withdrawal) {
   }
 }
 
-async function approveRefund(refund) {
-  if (!confirm(`Setujui refund Rp ${formatCurrency(refund.amount)}?`)) return
+// Modal State
+const showModal = ref(false)
+const modalType = ref('approve') // 'approve' or 'reject'
+const selectedRefund = ref(null)
+const rejectReason = ref('')
+const processing = ref(false)
+
+function openModal(type, refund) {
+  modalType.value = type
+  selectedRefund.value = refund
+  rejectReason.value = ''
+  showModal.value = true
+}
+
+function closeModal() {
+  if (processing.value) return
+  showModal.value = false
+  selectedRefund.value = null
+  rejectReason.value = ''
+}
+
+async function confirmAction() {
+  if (!selectedRefund.value) return
   
+  processing.value = true
+  try {
+    if (modalType.value === 'approve') {
+      await processApprove(selectedRefund.value)
+    } else {
+      await processReject(selectedRefund.value)
+    }
+    closeModal()
+  } catch (err) {
+    console.error('Error in modal action:', err)
+  } finally {
+    processing.value = false
+  }
+}
+
+async function approveRefund(refund) {
+  openModal('approve', refund)
+}
+
+async function rejectRefund(refund) {
+  openModal('reject', refund)
+}
+
+async function processApprove(refund) {
   try {
     const { processRefund } = await import('@/services/paymentService')
-    const result = await processRefund(refund.id)
+    const result = await processRefund(refund.id, 'approved')
     
     if (!result.success) {
       alert(`Refund ditolak: ${result.error}`)
       return
     }
     
-    alert('Refund berhasil disetujui!')
     await fetchData()
   } catch (err) {
     console.error('Error approving refund:', err)
@@ -257,23 +318,42 @@ async function approveRefund(refund) {
   }
 }
 
-async function rejectRefund(refund) {
-  const reason = prompt('Alasan penolakan:')
-  if (!reason) return
-  
+async function processReject(refund) {
   try {
-    await supabase
-      .from('refunds')
-      .update({ 
-        status: 'rejected',
-        admin_note: reason,
-        processed_at: new Date().toISOString()
-      })
-      .eq('id', refund.id)
+    const { processRefund } = await import('@/services/paymentService')
+    const result = await processRefund(refund.id, 'rejected', rejectReason.value)
+    
+    if (!result.success) {
+      alert(`Gagal menolak refund: ${result.error}`)
+      return
+    }
     
     await fetchData()
   } catch (err) {
     console.error('Error rejecting refund:', err)
+    alert('Terjadi kesalahan saat menolak refund')
+  }
+}
+
+// Repair old approved refunds that didn't revoke booking access
+const repairing = ref(false)
+async function runRepairRefunds() {
+  if (!confirm('Perbaiki refund yang disetujui sebelumnya? Ini akan mengupdate status booking ke "refunded" untuk semua refund yang sudah disetujui.')) return
+  
+  repairing.value = true
+  try {
+    const result = await repairApprovedRefunds()
+    if (result.success) {
+      alert(result.message)
+    } else {
+      alert(`Gagal: ${result.error}`)
+    }
+    await fetchData()
+  } catch (err) {
+    console.error('Repair error:', err)
+    alert('Terjadi kesalahan saat memperbaiki data')
+  } finally {
+    repairing.value = false
   }
 }
 
@@ -518,7 +598,7 @@ function getSourceClass(source) {
           <!-- Withdrawals Tab -->
           <div v-if="activeTab === 'withdrawals'" class="tab-panel">
             <div class="panel-card">
-              <h3>Pencairan Pending ({{ pendingWithdrawals.length }})</h3>
+              <h3>Daftar Pencairan ({{ pendingWithdrawals.length }})</h3>
               <div class="table-responsive">
                 <table class="modern-table">
                   <thead>
@@ -549,9 +629,14 @@ function getSourceClass(source) {
                       <td>Rp {{ formatCurrency(w.amount) }}</td>
                       <td class="amount">Rp {{ formatCurrency(w.net_amount) }}</td>
                       <td>
-                        <div class="action-buttons">
+                        <div v-if="['pending', 'processing'].includes(w.status)" class="action-buttons">
                           <button class="btn-approve" @click="approveWithdrawal(w)">Proses</button>
                           <button class="btn-reject" @click="rejectWithdrawal(w)">Tolak</button>
+                        </div>
+                        <div v-else>
+                          <span class="badge" :class="w.status === 'completed' ? 'badge-success' : 'badge-danger'">
+                            {{ w.status === 'completed' ? 'Selesai' : 'Ditolak' }}
+                          </span>
                         </div>
                       </td>
                     </tr>
@@ -564,10 +649,17 @@ function getSourceClass(source) {
             </div>
           </div>
 
-          <!-- Refunds Tab -->
+            <!-- Refunds Tab -->
           <div v-if="activeTab === 'refunds'" class="tab-panel">
             <div class="panel-card">
-              <h3>Refund Pending ({{ pendingRefunds.length }})</h3>
+              <div class="panel-header-row">
+                <h3>Riwayat Refund ({{ allRefunds.length }})</h3>
+                <button class="btn-repair" @click="runRepairRefunds" :disabled="repairing">
+                  <svg v-if="!repairing" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path></svg>
+                  <span v-if="repairing" class="spinner-sm"></span>
+                  {{ repairing ? 'Memperbaiki...' : 'Perbaiki Data Lama' }}
+                </button>
+              </div>
               <div class="table-responsive">
                 <table class="modern-table">
                   <thead>
@@ -577,16 +669,16 @@ function getSourceClass(source) {
                       <th>Transaksi</th>
                       <th>Alasan</th>
                       <th>Jumlah</th>
-                      <th>Aksi</th>
+                      <th>Status</th>
                     </tr>
                   </thead>
                   <tbody>
-                    <tr v-for="r in pendingRefunds" :key="r.id">
+                    <tr v-for="r in allRefunds" :key="r.id">
                       <td>{{ formatDate(r.created_at) }}</td>
                       <td>
                         <div class="user-info">
-                          <strong>{{ r.students?.users?.name || 'N/A' }}</strong>
-                          <span>{{ r.students?.users?.email }}</span>
+                          <strong>{{ r.transactions?.student?.name || 'N/A' }}</strong>
+                          <span>{{ r.transactions?.student?.email }}</span>
                         </div>
                       </td>
                       <td>
@@ -598,14 +690,17 @@ function getSourceClass(source) {
                       <td>{{ r.reason || '-' }}</td>
                       <td class="amount">Rp {{ formatCurrency(r.amount) }}</td>
                       <td>
-                        <div class="action-buttons">
+                        <div v-if="r.status === 'pending'" class="action-buttons">
                           <button class="btn-approve" @click="approveRefund(r)">Setuju</button>
                           <button class="btn-reject" @click="rejectRefund(r)">Tolak</button>
                         </div>
+                        <span v-else class="badge" :class="r.status === 'approved' ? 'success' : 'reject-badge'">
+                          {{ r.status === 'approved' ? 'Disetujui' : 'Ditolak' }}
+                        </span>
                       </td>
                     </tr>
-                    <tr v-if="pendingRefunds.length === 0">
-                      <td colspan="6" class="empty">Tidak ada refund pending</td>
+                    <tr v-if="allRefunds.length === 0">
+                      <td colspan="6" class="empty">Tidak ada data refund</td>
                     </tr>
                   </tbody>
                 </table>
@@ -615,6 +710,59 @@ function getSourceClass(source) {
         </div>
       </div>
     </main>
+    <!-- Confirmation Modal -->
+    <div v-if="showModal" class="modal-overlay" @click.self="closeModal">
+      <div class="modal-content">
+        <div class="modal-body">
+          <div class="modal-icon-wrapper" :class="modalType">
+            <svg v-if="modalType === 'approve'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline>
+            </svg>
+            <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line>
+            </svg>
+          </div>
+          
+          <h3>{{ modalType === 'approve' ? 'Setujui Refund?' : 'Tolak Refund?' }}</h3>
+          <p>{{ modalType === 'approve' ? 'Apakah Anda yakin ingin menyetujui pengajuan refund ini?' : 'Masukkan alasan penolakan refund di bawah ini.' }}</p>
+
+          <div class="refund-detail" v-if="selectedRefund">
+            <div class="detail-row">
+              <span class="detail-label">Siswa</span>
+              <span class="detail-value">{{ selectedRefund.transactions?.student?.name }}</span>
+            </div>
+            <div class="detail-row">
+              <span class="detail-label">Jumlah</span>
+              <span class="detail-value">Rp {{ formatCurrency(selectedRefund.amount) }}</span>
+            </div>
+          </div>
+
+          <div v-if="modalType === 'reject'" class="form-group">
+            <textarea 
+              v-model="rejectReason" 
+              class="modal-input" 
+              rows="3" 
+              placeholder="Contoh: Alasan tidak valid..."
+            ></textarea>
+          </div>
+        </div>
+
+        <div class="modal-actions">
+          <button class="btn-cancel" @click="closeModal">Batal</button>
+          <button 
+            class="btn-confirm" 
+            :class="modalType" 
+            @click="confirmAction"
+            :disabled="processing || (modalType === 'reject' && !rejectReason)"
+          >
+            <svg v-if="processing" class="spinning" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 16px; height: 16px;">
+              <path d="M21 12a9 9 0 1 1-6.219-2.209"></path>
+            </svg>
+            {{ processing ? 'Memproses...' : (modalType === 'approve' ? 'Ya, Setujui' : 'Ya, Tolak') }}
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -710,6 +858,7 @@ function getSourceClass(source) {
 .badge.success { background: #D1FAE5; color: #059669; }
 .badge.info { background: #DBEAFE; color: #2563EB; }
 .badge.warning { background: #FEF3C7; color: #D97706; }
+.badge.reject-badge { background: #FEE2E2; color: #DC2626; }
 
 .user-info, .bank-info, .txn-info { display: flex; flex-direction: column; gap: 2px; }
 .user-info strong, .bank-info strong, .txn-info strong { font-weight: 600; }
@@ -720,6 +869,23 @@ function getSourceClass(source) {
 .btn-approve:hover { background: #059669; }
 .btn-reject { padding: 6px 12px; background: #FEE2E2; color: #DC2626; border: none; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; }
 .btn-reject:hover { background: #FECACA; }
+
+.panel-header-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+.btn-repair { 
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 8px 16px; background: #F1F5F9; color: #475569; 
+  border: 1px solid #E2E8F0; border-radius: 8px; 
+  font-size: 13px; font-weight: 500; cursor: pointer; 
+  transition: all 0.2s;
+}
+.btn-repair:hover { background: #E2E8F0; border-color: #CBD5E1; }
+.btn-repair:disabled { opacity: 0.6; cursor: not-allowed; }
+.btn-repair svg { width: 16px; height: 16px; }
+.spinner-sm { 
+  width: 14px; height: 14px; 
+  border: 2px solid #CBD5E1; border-top-color: #475569; 
+  border-radius: 50%; animation: spin 1s linear infinite; 
+}
 
 .empty-state { text-align: center; padding: 40px; color: #94A3B8; }
 
@@ -732,6 +898,194 @@ function getSourceClass(source) {
   .stats-grid { grid-template-columns: 1fr; }
   .main-content { padding: 16px; }
 }
+
+/* Modal Styles - Scoped to ensure no conflicts */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  backdrop-filter: blur(4px);
+  animation: fadeIn 0.2s ease-out;
+}
+
+.modal-content {
+  background: white;
+  border-radius: 20px;
+  width: 90%;
+  max-width: 400px;
+  padding: 30px;
+  text-align: center;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  animation: slideUp 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  position: relative;
+  z-index: 10000;
+}
+
+.modal-body {
+  margin-bottom: 24px;
+}
+
+.modal-icon-wrapper {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 20px;
+}
+
+.modal-icon-wrapper.approve {
+  background: #D1FAE5;
+  color: #059669;
+}
+
+.modal-icon-wrapper.reject {
+  background: #FEE2E2;
+  color: #DC2626;
+}
+
+.modal-icon-wrapper svg {
+  width: 30px;
+  height: 30px;
+}
+
+.modal-content h3 {
+  font-size: 20px;
+  font-weight: 700;
+  color: #1F2937;
+  margin-bottom: 8px;
+}
+
+.modal-content p {
+  font-size: 14px;
+  color: #6B7280;
+  line-height: 1.5;
+  margin-bottom: 20px;
+}
+
+.refund-detail {
+  background: #F9FAFB;
+  padding: 12px;
+  border-radius: 12px;
+  margin-bottom: 16px;
+  text-align: left;
+}
+
+.detail-row {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.detail-row:last-child {
+  margin-bottom: 0;
+}
+
+.detail-label {
+  font-size: 12px;
+  color: #6B7280;
+}
+
+.detail-value {
+  font-size: 12px;
+  font-weight: 600;
+  color: #374151;
+}
+
+.form-group {
+  text-align: left;
+  margin-bottom: 0;
+}
+
+.modal-input {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #E5E7EB;
+  border-radius: 8px;
+  font-size: 14px;
+  color: #1F2937;
+  transition: all 0.2s;
+  resize: none;
+}
+
+.modal-input:focus {
+  outline: none;
+  border-color: #0A4568;
+  box-shadow: 0 0 0 3px rgba(10, 69, 104, 0.1);
+}
+
+.modal-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+}
+
+.modal-actions button {
+  flex: 1;
+  padding: 12px;
+  border-radius: 12px;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.btn-cancel {
+  background: white;
+  border: 1px solid #E5E7EB;
+  color: #374151;
+}
+
+.btn-cancel:hover {
+  background: #F3F4F6;
+  border-color: #D1D5DB;
+}
+
+.btn-confirm {
+  border: none;
+  color: white;
+}
+
+.btn-confirm.approve {
+  background: #10B981;
+}
+
+.btn-confirm.approve:hover {
+  background: #059669;
+}
+
+.btn-confirm.reject {
+  background: #DC2626;
+}
+
+.btn-confirm.reject:hover {
+  background: #B91C1C;
+}
+
+.btn-confirm:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.spinning { animation: spin 1s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(10px) scale(0.95); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
 </style>
-@media (max-width: 1200px) { .stats-grid { grid-template-columns: repeat(2, 1fr); } }
-@media (max-width: 768px) { .stats-grid { grid-template-columns: 1fr; } }

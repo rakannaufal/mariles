@@ -142,7 +142,7 @@ async function fetchMyClasses() {
     }
 
     // Get enrolled classes
-    const { data: bookings } = await supabase
+    const { data: bookingsData } = await supabase
       .from('bookings')
       .select(`
         id, status, created_at,
@@ -153,9 +153,42 @@ async function fetchMyClasses() {
       `)
       .eq('student_id', studentData.id)
       .in('status', ['active', 'confirmed', 'completed'])
+      .neq('status', 'refunded') // Basic check
       .in('payment_status', ['paid', 'settlement', 'capture'])
       .order('created_at', { ascending: false })
       .limit(3)
+
+    // DEFENSIVE CHECK: Fetch approved refunds to exclude them
+    // This handles cases where booking status wasn't updated correctly
+    const { data: approvedRefunds } = await supabase
+      .from('refunds')
+      .select('transaction_id, transactions(booking_id, program_id)')
+      .eq('student_id', authStore.user.id) // user_id in refunds is from users table
+      .eq('status', 'approved')
+    
+    let bookings = bookingsData || []
+    
+    if (approvedRefunds && approvedRefunds.length > 0) {
+      // Create a set of refunded program IDs and booking IDs
+      const refundedProgramIds = new Set()
+      const refundedBookingIds = new Set()
+      
+      approvedRefunds.forEach(r => {
+        if (r.transactions?.program_id) refundedProgramIds.add(r.transactions.program_id)
+        if (r.transactions?.booking_id) refundedBookingIds.add(r.transactions.booking_id)
+      })
+      
+      // Filter out bookings that match refunded programs
+      bookings = bookings.filter(b => {
+        const isRefundedBooking = refundedBookingIds.has(b.id)
+        const isRefundedProgram = b.programs?.id && refundedProgramIds.has(b.programs.id) // Note: b.programs not b.program in this query
+        
+        if (isRefundedBooking || isRefundedProgram) {
+          return false
+        }
+        return true
+      })
+    }
 
     // Process each class to get real progress and schedule
     const processedClasses = await Promise.all((bookings || []).map(async booking => {

@@ -432,6 +432,59 @@ async function incrementProgramStudents(orderId) {
 }
 
 /**
+ * Decrement program's current_students and les_place's total_students after refund
+ * @param {string} programId - Program ID
+ * @param {string} lesPlaceId - Les place ID
+ */
+async function decrementProgramStudents(programId, lesPlaceId) {
+  try {
+    if (!programId) return;
+
+    // Decrement program's current_students
+    const { data: program } = await supabase
+      .from("programs")
+      .select("current_students")
+      .eq("id", programId)
+      .single();
+
+    if (program && program.current_students > 0) {
+      await supabase
+        .from("programs")
+        .update({
+          current_students: program.current_students - 1,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", programId);
+      
+      console.log(`Program ${programId} student count decremented`);
+    }
+
+    // Also decrement les_place's total_students
+    if (lesPlaceId) {
+      const { data: lesPlace } = await supabase
+        .from("les_places")
+        .select("total_students")
+        .eq("id", lesPlaceId)
+        .single();
+
+      if (lesPlace && lesPlace.total_students > 0) {
+        await supabase
+          .from("les_places")
+          .update({
+            total_students: lesPlace.total_students - 1,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", lesPlaceId);
+
+        console.log(`Les place ${lesPlaceId} total students decremented`);
+      }
+    }
+  } catch (error) {
+    console.error("Decrement program students error:", error);
+  }
+}
+
+/**
  * Request a withdrawal
  * @param {Object} params - Withdrawal parameters
  * @param {string} params.userId - User requesting withdrawal
@@ -860,9 +913,16 @@ export async function requestRefund({ transactionId, studentId, reason = "" }) {
  * @param {string} refundId - Refund ID
  * @returns {Promise<Object>} Result with success status
  */
-export async function processRefund(refundId) {
+/**
+ * Process refund with hold period and window validation (Admin only)
+ * @param {string} refundId - Refund ID
+ * @param {string} action - 'approved' or 'rejected'
+ * @param {string} adminNote - Admin's reason or note
+ * @returns {Promise<Object>} Result with success status
+ */
+export async function processRefund(refundId, action = 'approved', adminNote = '') {
   try {
-    // Get refund with transaction details
+    // Get refund with transaction details and Booking ID
     const { data: refund, error: refundError } = await supabase
       .from("refunds")
       .select(
@@ -870,6 +930,8 @@ export async function processRefund(refundId) {
         *,
         transactions (
           id,
+          booking_id,
+          program_id,
           amount,
           net_amount,
           platform_fee,
@@ -895,6 +957,26 @@ export async function processRefund(refundId) {
       return { success: false, error: "Refund sudah diproses sebelumnya" };
     }
 
+    // === HANDLE REJECTION ===
+    if (action === 'rejected') {
+      const { error: rejectError } = await supabase
+        .from("refunds")
+        .update({
+          status: "rejected",
+          admin_note: adminNote || "Ditolak oleh admin",
+          processed_at: new Date().toISOString(),
+        })
+        .eq("id", refundId);
+
+      if (rejectError) throw rejectError;
+
+      return {
+        success: true,
+        message: "Refund berhasil ditolak",
+      };
+    }
+
+    // === HANDLE APPROVAL ===
     const txn = refund.transactions;
 
     // Check 1: Refund window validity (90 days) - with fallback to created_at
@@ -990,6 +1072,7 @@ export async function processRefund(refundId) {
       .update({
         lock_status: "refunded",
         payment_status: "refunded",
+        description: (txn.description || "") + " (REFUNDED)", // Optional: tag description
       })
       .eq("id", txn.id);
 
@@ -998,16 +1081,73 @@ export async function processRefund(refundId) {
       .from("refunds")
       .update({
         status: "approved",
-        admin_note: inHoldPeriod
-          ? "Disetujui (dalam hold period)"
-          : "Disetujui (setelah hold period)",
+        admin_note: adminNote || (inHoldPeriod
+          ? "Disetujui (dalam hold period) - Dana akan dikembalikan otomatis saat settlement"
+          : "Disetujui - Dana siap dikembalikan"),
         processed_at: new Date().toISOString(),
       })
       .eq("id", refundId);
+      
+    // 5. REVOKE BOOKING ACCESS (Set status to 'refunded')
+    // This removes the student from class lists and frees up the slot
+    let bookingIdToUpdate = txn.booking_id;
+    
+    // Fallback: If booking_id is null in transaction, find it from student + program
+    if (!bookingIdToUpdate && refund.student_id && txn.program_id) {
+      console.log("Booking ID not in transaction, searching by student_id and program_id...");
+      
+      // Get student record first
+      const { data: studentData } = await supabase
+        .from("students")
+        .select("id")
+        .eq("user_id", refund.student_id)
+        .single();
+      
+      if (studentData) {
+        const { data: booking } = await supabase
+          .from("bookings")
+          .select("id")
+          .eq("student_id", studentData.id)
+          .eq("program_id", txn.program_id)
+          .in("status", ["active", "confirmed"])
+          .single();
+        
+        if (booking) {
+          bookingIdToUpdate = booking.id;
+          console.log("Found booking via fallback:", bookingIdToUpdate);
+        }
+      }
+    }
+    
+    if (bookingIdToUpdate) {
+      const { error: bookingError } = await supabase
+        .from("bookings")
+        .update({
+          status: "refunded",
+          payment_status: "refunded",
+          notes: "Refund disetujui - Akses kelas dicabut",
+          updated_at: new Date().toISOString()
+        })
+        .eq("id", bookingIdToUpdate);
+      
+      if (bookingError) {
+        console.error("Error updating booking status:", bookingError);
+      } else {
+        console.log("Booking status updated to 'refunded' for ID:", bookingIdToUpdate);
+      }
+    } else {
+      console.warn("No booking found to revoke access for refund:", refundId);
+    }
+
+    // 6. RETURN SLOT (Decrement student count)
+    if (txn.program_id) {
+      await decrementProgramStudents(txn.program_id, txn.les_place_id);
+      console.log("Decremented student count for program:", txn.program_id);
+    }
 
     return {
       success: true,
-      message: "Refund berhasil disetujui",
+      message: "Refund berhasil disetujui dan akses kelas telah dicabut",
     };
   } catch (error) {
     console.error("Process refund error:", error);
@@ -1039,23 +1179,247 @@ export async function getRefundHistory(userId) {
 }
 
 /**
- * Get all pending refunds (Admin)
+ * Get all refunds (Admin) - Pending, Approved, Rejected
  */
-export async function getPendingRefunds() {
+export async function getAllRefunds() {
   try {
     const { data, error } = await supabase
       .from("refunds")
       .select(
-        "*, transactions(midtrans_order_id, amount, description, les_places(name)), students:student_id(users(name, email))"
+        "id, created_at, amount, reason, status, student_id, transaction_id, transactions(midtrans_order_id, amount, description, les_places(name), student:users(name, email))"
       )
-      .eq("status", "pending")
-      .order("created_at", { ascending: true });
+      .order("created_at", { ascending: false }); // Newest first
 
     if (error) throw error;
 
-    return { success: true, refunds: data || [] };
+    // Sort client-side to avoid ambiguous column error
+    const sortedRefunds = (data || []).sort(
+      (a, b) => new Date(b.created_at) - new Date(a.created_at)
+    );
+
+    return { success: true, refunds: sortedRefunds };
   } catch (error) {
     console.error("Get pending refunds error:", error);
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * Repair old approved refunds that didn't update booking status
+ * This is a one-time fix for data inconsistency
+ * Uses multiple fallback strategies to find the correct booking
+ * @returns {Promise<Object>} Result with count of fixed bookings
+ */
+export async function repairApprovedRefunds() {
+  try {
+    console.log("Starting repair of approved refunds...");
+    
+    // 1. Get all approved refunds with full transaction details
+    const { data: approvedRefunds, error: refundError } = await supabase
+      .from("refunds")
+      .select(`
+        id,
+        student_id,
+        les_place_id,
+        transaction_id,
+        created_at,
+        transactions (
+          id,
+          booking_id,
+          program_id,
+          student_id,
+          les_place_id,
+          description
+        )
+      `)
+      .eq("status", "approved");
+    
+    if (refundError) {
+      console.error("Error fetching approved refunds:", refundError);
+      throw refundError;
+    }
+    
+    console.log(`Found ${approvedRefunds?.length || 0} approved refunds`);
+    
+    let fixedCount = 0;
+    let errors = [];
+    
+    for (const refund of approvedRefunds || []) {
+      try {
+        const txn = refund.transactions;
+        console.log(`Processing refund ${refund.id}:`, { txn, student_id: refund.student_id });
+        
+        let bookingIdToFix = txn?.booking_id;
+        
+        // STRATEGY 1: Use booking_id from transaction
+        if (bookingIdToFix) {
+          console.log(`Strategy 1: Found booking_id ${bookingIdToFix} in transaction`);
+        }
+        
+        // STRATEGY 2: Find by student_id (from students table) and program_id
+        if (!bookingIdToFix && txn?.program_id) {
+          // Get student ID - try refund.student_id first (which is user_id)
+          const userId = refund.student_id || txn?.student_id;
+          
+          if (userId) {
+            console.log(`Strategy 2: Looking for booking with user_id ${userId} and program_id ${txn.program_id}`);
+            
+            const { data: studentData } = await supabase
+              .from("students")
+              .select("id")
+              .eq("user_id", userId)
+              .single();
+            
+            if (studentData) {
+              const { data: booking } = await supabase
+                .from("bookings")
+                .select("id, status")
+                .eq("student_id", studentData.id)
+                .eq("program_id", txn.program_id)
+                .neq("status", "refunded") // Not already refunded
+                .neq("status", "cancelled")
+                .order("created_at", { ascending: false })
+                .limit(1)
+                .single();
+              
+              if (booking) {
+                bookingIdToFix = booking.id;
+                console.log(`Strategy 2: Found booking ${bookingIdToFix}`);
+              }
+            }
+          }
+        }
+        
+        // STRATEGY 3: Find by les_place_id and student (from refund directly)  
+        if (!bookingIdToFix && refund.les_place_id && refund.student_id) {
+          console.log(`Strategy 3: Looking for booking with les_place_id ${refund.les_place_id}`);
+          
+          const { data: studentData } = await supabase
+            .from("students")
+            .select("id")
+            .eq("user_id", refund.student_id)
+            .single();
+          
+          if (studentData) {
+            // Get programs for this les_place
+            const { data: programs } = await supabase
+              .from("programs")
+              .select("id")
+              .eq("les_place_id", refund.les_place_id);
+            
+            if (programs?.length) {
+              const programIds = programs.map(p => p.id);
+              
+              const { data: booking } = await supabase
+                .from("bookings")
+                .select("id, status")
+                .eq("student_id", studentData.id)
+                .in("program_id", programIds)
+                .neq("status", "refunded")
+                .neq("status", "cancelled")
+                .order("created_at", { ascending: false })
+                .limit(1)
+                .single();
+              
+              if (booking) {
+                bookingIdToFix = booking.id;
+                console.log(`Strategy 3: Found booking ${bookingIdToFix}`);
+              }
+            }
+          }
+        }
+        
+        // STRATEGY 4: Match by description (program name) from transaction
+        if (!bookingIdToFix && txn?.description && refund.student_id) {
+          console.log(`Strategy 4: Looking for booking by description: ${txn.description}`);
+          
+          const { data: studentData } = await supabase
+            .from("students")
+            .select("id")
+            .eq("user_id", refund.student_id)
+            .single();
+          
+          if (studentData) {
+            // Extract program name from description (usually format: "Pembayaran Program Name")
+            const descMatch = txn.description.match(/Pembayaran (.+)/i) || 
+                              txn.description.match(/Program (.+)/i);
+            const programName = descMatch ? descMatch[1].trim() : txn.description;
+            
+            const { data: programs } = await supabase
+              .from("programs")
+              .select("id")
+              .ilike("name", `%${programName}%`);
+            
+            if (programs?.length) {
+              const programIds = programs.map(p => p.id);
+              
+              const { data: booking } = await supabase
+                .from("bookings")
+                .select("id, status")
+                .eq("student_id", studentData.id)
+                .in("program_id", programIds)
+                .neq("status", "refunded")
+                .neq("status", "cancelled")
+                .order("created_at", { ascending: false })
+                .limit(1)
+                .single();
+              
+              if (booking) {
+                bookingIdToFix = booking.id;
+                console.log(`Strategy 4: Found booking ${bookingIdToFix} via description match`);
+              }
+            }
+          }
+        }
+        
+        // Update booking if found
+        if (bookingIdToFix) {
+          const { data: currentBooking } = await supabase
+            .from("bookings")
+            .select("status")
+            .eq("id", bookingIdToFix)
+            .single();
+          
+          if (currentBooking && currentBooking.status !== "refunded") {
+            const { error: updateError } = await supabase
+              .from("bookings")
+              .update({
+                status: "refunded",
+                payment_status: "refunded",
+                notes: "Diperbaiki otomatis - Refund disetujui",
+                updated_at: new Date().toISOString()
+              })
+              .eq("id", bookingIdToFix);
+            
+            if (updateError) {
+              console.error(`Error updating booking ${bookingIdToFix}:`, updateError);
+              errors.push({ refundId: refund.id, error: updateError.message });
+            } else {
+              console.log(`✓ Fixed booking ${bookingIdToFix} for refund ${refund.id}`);
+              fixedCount++;
+            }
+          } else {
+            console.log(`Booking ${bookingIdToFix} already refunded or not found`);
+          }
+        } else {
+          console.log(`✗ No booking found for refund ${refund.id}`);
+          errors.push({ refundId: refund.id, error: "Booking tidak ditemukan" });
+        }
+      } catch (innerError) {
+        console.error(`Error processing refund ${refund.id}:`, innerError);
+        errors.push({ refundId: refund.id, error: innerError.message });
+      }
+    }
+    
+    console.log(`Repair completed. Fixed ${fixedCount} bookings. Errors: ${errors.length}`);
+    return { 
+      success: true, 
+      fixedCount, 
+      errors,
+      message: `Berhasil memperbaiki ${fixedCount} booking${errors.length > 0 ? ` (${errors.length} error)` : ''}`
+    };
+  } catch (error) {
+    console.error("Repair approved refunds error:", error);
     return { success: false, error: error.message };
   }
 }
@@ -1293,5 +1657,74 @@ export async function getUpcomingTeacherPayments() {
   } catch (error) {
     console.error("Get upcoming teacher payments error:", error);
     return { success: false, error: error.message };
+  }
+}
+
+/**
+ * Recalculate and Sync Owner Balance
+ * Ensures properties in 'balances' table match transaction history.
+ * Useful for fixing 'Saldo tidak ditemukan' errors.
+ */
+export async function recalculateOwnerBalance(userId, lesPlaceId) {
+  try {
+    // 1. Calculate Income (From Bookings - Source of Truth)
+    // We use bookings instead of transactions because legacy data might be in bookings
+    const { data: bookings } = await supabase
+      .from('bookings')
+      .select(`
+        payment_status, 
+        status, 
+        programs!inner(price, les_place_id)
+      `)
+      .eq('programs.les_place_id', lesPlaceId)
+      .in('payment_status', ['paid', 'settlement', 'capture', 'completed'])
+      .in('status', ['active', 'confirmed']);
+      
+    const totalIncome = bookings?.reduce((sum, b) => {
+      const price = b.programs?.price || 0;
+      const net = Math.round(price * 0.9); // 10% Platform Fee
+      return sum + net;
+    }, 0) || 0;
+
+    // 2. Calculate Teacher Payments
+    const { data: payments } = await supabase
+      .from('teacher_payments')
+      .select('amount')
+      .eq('owner_id', userId)
+      .neq('payment_status', 'failed');
+      
+    const totalPayments = payments?.reduce((sum, p) => sum + (Number(p.amount) || 0), 0) || 0;
+
+    // 3. Calculate Withdrawals
+    const { data: withdrawals } = await supabase
+      .from('withdrawals')
+      .select('amount')
+      .eq('user_id', userId)
+      .neq('status', 'failed');
+      
+    const totalWithdrawals = withdrawals?.reduce((sum, w) => sum + (Number(w.amount) || 0), 0) || 0;
+
+    // 4. Final Balance
+    const currentBalance = totalIncome - totalPayments - totalWithdrawals;
+    
+    // 5. Upsert to balances table
+    const { error } = await supabase
+       .from('balances')
+       .upsert({
+         user_id: userId,
+         les_place_id: lesPlaceId,
+         total_balance: currentBalance,
+         available_balance: currentBalance, // Assuming all is available for now
+         pending_balance: 0, 
+         updated_at: new Date().toISOString()
+       }, { onConflict: 'user_id' });
+       
+    if (error) throw error;
+    
+    console.log(`Balance synced for user ${userId}: Rp ${currentBalance}`);
+    return { success: true, balance: currentBalance };
+  } catch (err) {
+    console.error('Recalculate balance error:', err);
+    return { success: false, error: err.message };
   }
 }

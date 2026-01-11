@@ -33,7 +33,7 @@ export function useMyClass() {
       const studentId = studentData.id
 
       // 2. Fetch Bookings
-      const { data, error: err } = await supabase
+      const { data: bookingsData, error: err } = await supabase
         .from('bookings')
         .select(`
           id,
@@ -61,10 +61,51 @@ export function useMyClass() {
         .eq('student_id', studentId)
         .in('status', ['active', 'confirmed'])
         .in('payment_status', ['paid', 'settlement', 'capture']) // Broaden payment status
+        .neq('status', 'refunded') // Basic check
         .order('start_date', { ascending: false })
 
       if (err) throw err
-      enrolledCourses.value = data || []
+
+      // 3. DEFENSIVE CHECK: Fetch approved refunds to exclude them
+      // This handles cases where booking status wasn't updated correctly
+      const { data: approvedRefunds } = await supabase
+        .from('refunds')
+        .select('transaction_id, transactions(booking_id, program_id)')
+        .eq('student_id', userId) // Use userId argument (which is the auth user id)
+        .eq('status', 'approved')
+      
+      let filteredBookings = bookingsData || []
+
+      if (approvedRefunds && approvedRefunds.length > 0) {
+        console.log('Found approved refunds:', approvedRefunds)
+        
+        // Create a set of refunded program IDs and booking IDs
+        // check both program_id and booking_id to be safe
+        const refundedProgramIds = new Set()
+        const refundedBookingIds = new Set()
+        
+        approvedRefunds.forEach(r => {
+          if (r.transactions?.program_id) refundedProgramIds.add(r.transactions.program_id)
+          if (r.transactions?.booking_id) refundedBookingIds.add(r.transactions.booking_id)
+        })
+        
+        console.log('Refunded Programs:', [...refundedProgramIds])
+        console.log('Refunded Bookings:', [...refundedBookingIds])
+
+        // Filter out bookings that match refunded programs
+        filteredBookings = filteredBookings.filter(b => {
+          const isRefundedBooking = refundedBookingIds.has(b.id)
+          const isRefundedProgram = b.program?.id && refundedProgramIds.has(b.program.id)
+          
+          if (isRefundedBooking || isRefundedProgram) {
+            console.log(`Booking ${b.id} (${b.program?.name}) excluded due to refund record`)
+            return false
+          }
+          return true
+        })
+      }
+
+      enrolledCourses.value = filteredBookings
     } catch (err) {
       error.value = err.message
       console.error('Error fetching enrolled courses:', err)
