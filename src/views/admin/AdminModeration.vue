@@ -219,13 +219,27 @@ async function deleteReportedContent(report) {
     }).eq('id', report.id)
     
     // 4. Notify User
+    // 4. Notify User (Owner)
     if (contentData?.user_id) {
        await supabase.from('notifications').insert({
           user_id: contentData.user_id,
           type: 'content_removed',
           title: 'Konten Anda Dihapus',
           message: `Konten Anda (${report.target_type === 'forum_post' ? 'Postingan' : 'Komentar'}) telah dihapus oleh admin karena melanggar aturan komunitas (Laporan: ${report.reason}).`,
-          is_read: false
+          is_read: false,
+          created_at: new Date().toISOString()
+       })
+    }
+
+    // 5. Notify Reporter
+    if (report.reporter_id) {
+       await supabase.from('notifications').insert({
+          user_id: report.reporter_id,
+          type: 'report_resolved',
+          title: 'Laporan Anda Ditindaklanjuti',
+          message: `Laporan Anda mengenai ${report.target_type === 'forum_post' ? 'postingan' : 'komentar'} telah kami terima dan konten tersebut telah dihapus. Terima kasih atas bantuan Anda menjaga komunitas.`,
+          is_read: false,
+          created_at: new Date().toISOString()
        })
     }
     

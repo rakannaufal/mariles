@@ -114,7 +114,8 @@ async function fetchPosts() {
       .from('forum_posts')
       .select(`
         id, title, content, category, tags, views, likes, is_pinned, created_at,
-        user:users(id, name, avatar_url)
+        user:users(id, name, avatar_url),
+        forum_comments(count)
       `)
       .order('is_pinned', { ascending: false })
       .order('created_at', { ascending: false })
@@ -528,7 +529,7 @@ onMounted(async () => {
                  </div>
                  <div class="footer-item">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="icon"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg>
-                    {{ 0 }} <!-- Comments count placeholder -->
+                    {{ post.forum_comments?.[0]?.count || 0 }}
                  </div>
                  <!-- Report Button Post -->
                   <div class="footer-item" @click.stop="openReport(post, 'forum_post')">
