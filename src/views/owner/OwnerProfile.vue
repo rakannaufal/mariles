@@ -2,7 +2,9 @@
 import { ref, onMounted, watch, computed } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { supabase } from '@/lib/supabase'
+import { useRouter } from 'vue-router'
 
+const router = useRouter()
 const authStore = useAuthStore()
 
 // State
@@ -103,8 +105,10 @@ const ewalletOptions = [
 const tabs = [
   { id: 'identity', label: 'Identitas', icon: 'user' },
   { id: 'business', label: 'Bisnis', icon: 'building' },
+  { id: 'business', label: 'Bisnis', icon: 'building' },
   { id: 'address', label: 'Alamat', icon: 'location' },
-  { id: 'bank', label: 'Keuangan', icon: 'credit-card' }
+  { id: 'bank', label: 'Keuangan', icon: 'credit-card' },
+  { id: 'account', label: 'Akun', icon: 'key' }
 ]
 
 // Watchers
@@ -361,6 +365,26 @@ async function handleSave() {
     message.value = { type: 'error', text: 'Gagal menyimpan: ' + err.message }
   } finally {
     saving.value = false
+  }
+}
+
+async function deleteAccount() {
+  if (!confirm('Yakin ingin menghapus akun? Semua data akan dihapus permanen. Tindakan ini tidak dapat dibatalkan.')) return
+  if (!confirm('Apakah Anda benar-benar yakin? Data tidak dapat dipulihkan kembali.')) return
+  
+  try {
+    const { data, error } = await supabase.functions.invoke('delete-user', {
+      body: { user_id: authStore.user.id }
+    })
+
+    if (error) throw error
+    if (data && !data.success) throw new Error(data.error || 'Gagal menghapus akun')
+    
+    await authStore.signOut()
+    router.push('/')
+  } catch (err) {
+    console.error('Delete account error:', err)
+    message.value = { type: 'error', text: 'Gagal menghapus akun: ' + err.message }
   }
 }
 </script>
@@ -657,6 +681,19 @@ async function handleSave() {
               </svg>
               <p>Metode pembayaran yang dipilih akan digunakan untuk menerima pembayaran dari sistem.</p>
             </div>
+            </div>
+          </div>
+
+          <!-- Account -->
+          <div v-show="activeTab === 'account'" class="form-section">
+            <h3 class="section-title">Pengaturan Akun</h3>
+            <p class="section-subtitle">Kelola keamanan dan status akun Anda</p>
+            
+            <div class="account-card danger">
+              <h4>Hapus Akun</h4>
+              <p>Menghapus akun Anda secara permanen. Semua data histori les, transaksi, dan profil akan hilang dan tidak dapat dikembalikan.</p>
+              <button type="button" class="btn-delete-account" @click="deleteAccount">Hapus Akun Permanen</button>
+            </div>
           </div>
 
         </div>
@@ -798,6 +835,15 @@ async function handleSave() {
 
 @media (max-width: 768px) {
   .page-header { flex-direction: column; gap: 16px; }
+
+  .account-card{background:#f8fafc;padding:24px;border-radius:12px;border:1px solid #e2e8f0;margin-top:20px}
+  .account-card.danger{border-color:#fee2e2;background:#fffafa}
+  .account-card h4{font-size:16px;font-weight:600;margin-bottom:8px;color:#1e293b}
+  .account-card.danger h4{color:#dc2626}
+  .account-card p{font-size:14px;color:#64748b;margin-bottom:16px;line-height:1.5}
+  .account-card.danger p{color:#7f1d1d}
+  .btn-delete-account{padding:10px 20px;background:#dc2626;color:white;border:none;border-radius:8px;font-weight:600;cursor:pointer;font-size:14px;transition:all 0.2s}
+  .btn-delete-account:hover{background:#b91c1c}
   .profile-header-card { flex-direction: column; align-items: stretch; text-align: center; }
   .profile-main { flex-direction: column; }
   .name-row { justify-content: center; }

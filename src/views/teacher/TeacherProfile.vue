@@ -1,10 +1,11 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { supabase } from '@/lib/supabase'
 
 const route = useRoute()
+const router = useRouter()
 const isOwner = computed(() => route.path.startsWith('/owner'))
 const authStore = useAuthStore()
 
@@ -272,7 +273,7 @@ async function deleteAccount() {
      if (data && !data.success) throw new Error(data.error)
      
      await authStore.signOut()
-     window.location.href = '/'
+     router.push('/')
   } catch(e) {
     alert('Gagal: ' + e.message)
   }

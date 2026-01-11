@@ -2,7 +2,9 @@
 import { ref, onMounted, watch } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { supabase } from '@/lib/supabase'
+import { useRouter } from 'vue-router'
 
+const router = useRouter()
 const authStore = useAuthStore()
 
 // Form State
@@ -469,6 +471,26 @@ function calculateAge(dateOfBirth) {
   if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--
   return age
 }
+
+async function deleteAccount() {
+  if (!confirm('Yakin ingin menghapus akun? Semua data akan dihapus permanen. Tindakan ini tidak dapat dibatalkan.')) return
+  if (!confirm('Apakah Anda benar-benar yakin? Data tidak dapat dipulihkan kembali.')) return
+  
+  try {
+    const { data, error } = await supabase.functions.invoke('delete-user', {
+      body: { user_id: authStore.user.id }
+    })
+
+    if (error) throw error
+    if (data && !data.success) throw new Error(data.error || 'Gagal menghapus akun')
+    
+    await authStore.signOut()
+    router.push('/')
+  } catch (err) {
+    console.error('Delete account error:', err)
+    message.value = { type: 'error', text: 'Gagal menghapus akun: ' + err.message }
+  }
+}
 </script>
 
 <template>
@@ -545,6 +567,10 @@ function calculateAge(dateOfBirth) {
             <button :class="['tab', { active: activeTab === 'contact' }]" @click="activeTab = 'contact'">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
               Kontak & Wali
+            </button>
+            <button :class="['tab', { active: activeTab === 'account' }]" @click="activeTab = 'account'">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+              Akun
             </button>
           </div>
 
@@ -717,6 +743,22 @@ function calculateAge(dateOfBirth) {
               </div>
             </div>
 
+            <!-- Tab: Account -->
+            <div v-show="activeTab === 'account'" class="tab-content">
+              <div class="form-section">
+                <div class="section-header">
+                  <h3>Pengaturan Akun</h3>
+                  <p>Kelola keamanan dan status akun Anda</p>
+                </div>
+                
+                <div class="account-card danger">
+                  <h4>Hapus Akun</h4>
+                  <p>Menghapus akun Anda secara permanen. Semua data histori les, transaksi, dan profil akan hilang dan tidak dapat dikembalikan.</p>
+                  <button type="button" class="btn-delete-account" @click="deleteAccount">Hapus Akun Permanen</button>
+                </div>
+              </div>
+            </div>
+
             <!-- Submit -->
             <div class="form-actions">
               <button type="submit" class="btn-save" :disabled="saving">
@@ -796,8 +838,16 @@ function calculateAge(dateOfBirth) {
 .info-box{display:flex;align-items:flex-start;gap:12px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;padding:16px;margin-top:20px}
 .info-box svg{width:20px;height:20px;color:#16a34a;flex-shrink:0}
 .info-box p{font-size:13px;color:#166534;line-height:1.5;margin:0}
-.info-box.blue{background:#eff6ff;border-color:#bfdbfe}
 .info-box.blue svg{color:#2563eb}
+
+.account-card{background:#f8fafc;padding:24px;border-radius:12px;border:1px solid #e2e8f0}
+.account-card.danger{border-color:#fee2e2;background:#fffafa}
+.account-card h4{font-size:16px;font-weight:600;margin-bottom:8px;color:#1e293b}
+.account-card.danger h4{color:#dc2626}
+.account-card p{font-size:14px;color:#64748b;margin-bottom:16px;line-height:1.5}
+.account-card.danger p{color:#7f1d1d}
+.btn-delete-account{padding:10px 20px;background:#dc2626;color:white;border:none;border-radius:8px;font-weight:600;cursor:pointer;font-size:14px;transition:all 0.2s}
+.btn-delete-account:hover{background:#b91c1c}
 .info-box.blue p{color:#1e40af}
 
 .form-actions{padding-top:24px;border-top:2px solid var(--border-light)}

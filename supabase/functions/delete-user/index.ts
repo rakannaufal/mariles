@@ -11,13 +11,15 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-serve(async (req) => {
+  serve(async (req) => {
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
 
   try {
+    console.log("Function 'delete-user' v1.1 started") // Log version for debugging
+
     // 1. Initialize Client with User Auth Context
     const authHeader = req.headers.get('Authorization')
     if (!authHeader) {
@@ -28,6 +30,12 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_ANON_KEY') ?? '',
       { global: { headers: { Authorization: authHeader } } }
+    )
+
+    // Initialize Admin Client (Service Role) for deletion
+    const supabaseAdmin = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     )
 
     // 2. Verify Caller Identity
@@ -98,7 +106,8 @@ serve(async (req) => {
       }
     )
 
-  } catch (error) {
+  } catch (err) {
+    const error = err as Error
     console.error('Edge Function Error:', error.message)
     return new Response(
       JSON.stringify({
