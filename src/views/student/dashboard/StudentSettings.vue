@@ -138,7 +138,7 @@ async function deleteAccount() {
           </div>
         </section>
 
-        </section>
+
 
         <!-- Delete Account -->
         <section class="settings-card danger">
