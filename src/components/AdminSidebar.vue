@@ -1,9 +1,17 @@
 <script setup>
+import { ref } from 'vue'
 import { useAuthStore } from '@/stores/auth'
+import LogoutConfirmationModal from '@/components/modals/LogoutConfirmationModal.vue'
 
 const authStore = useAuthStore()
 
-async function handleLogout() {
+const showLogoutModal = ref(false)
+
+function handleLogout() {
+  showLogoutModal.value = true
+}
+
+async function confirmLogout() {
   try {
     await authStore.signOut()
   } catch (err) {
@@ -126,6 +134,12 @@ async function handleLogout() {
       <span>Keluar</span>
     </button>
   </aside>
+
+  <LogoutConfirmationModal 
+    :show="showLogoutModal" 
+    @close="showLogoutModal = false" 
+    @confirm="confirmLogout"
+  />
 </template>
 
 <style scoped>

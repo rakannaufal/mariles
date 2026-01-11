@@ -5,6 +5,7 @@ import { useAuthStore } from '@/stores/auth'
 import { useCategories } from '@/composables/useCategories'
 import { supabase } from '@/lib/supabase'
 import FloatingChatWidget from '@/components/FloatingChatWidget.vue'
+import LogoutConfirmationModal from '@/components/modals/LogoutConfirmationModal.vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -147,9 +148,17 @@ const quickCategories = computed(() => {
   return quick.slice(0, 6)
 })
 
-async function handleLogout() {
-  await authStore.signOut()
+// Logout Modal State
+const showLogoutModal = ref(false)
+
+function handleLogout() {
   showProfileMenu.value = false
+  showLogoutModal.value = true
+}
+
+async function confirmLogout() {
+  await authStore.signOut()
+  showLogoutModal.value = false
   router.push('/')
 }
 
@@ -393,10 +402,17 @@ onMounted(() => {
           <router-link to="/login" class="btn btn-auth-primary">Masuk</router-link>
         </div>
 
-        <button class="mobile-menu-btn" @click="isMenuOpen = !isMenuOpen"><span></span><span></span><span></span></button>
+    <button class="mobile-menu-btn" @click="isMenuOpen = !isMenuOpen"><span></span><span></span><span></span></button>
       </div>
     </div>
   </nav>
+
+  <!-- Logout Confirmation Modal -->
+  <LogoutConfirmationModal 
+    :show="showLogoutModal" 
+    @close="showLogoutModal = false" 
+    @confirm="confirmLogout"
+  />
 </template>
 
 <style scoped>

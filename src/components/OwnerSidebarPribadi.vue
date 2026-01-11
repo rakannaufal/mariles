@@ -2,6 +2,7 @@
 import { ref, onMounted, watch } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { supabase } from '@/lib/supabase'
+import LogoutConfirmationModal from '@/components/modals/LogoutConfirmationModal.vue'
 
 const authStore = useAuthStore()
 const lesPlaceName = ref('')
@@ -23,7 +24,13 @@ async function fetchLesPlace() {
 onMounted(() => { if (authStore.user?.id) fetchLesPlace() })
 watch(() => authStore.user, (newUser) => { if (newUser?.id) fetchLesPlace() }, { immediate: true })
 
-async function handleLogout() {
+const showLogoutModal = ref(false)
+
+function handleLogout() {
+  showLogoutModal.value = true
+}
+
+async function confirmLogout() {
   try { await authStore.signOut() } catch (err) { console.error('Logout error:', err) }
   window.location.href = '/'
 }
@@ -216,6 +223,12 @@ async function handleLogout() {
       <span>Keluar</span>
     </button>
   </aside>
+
+  <LogoutConfirmationModal 
+    :show="showLogoutModal" 
+    @close="showLogoutModal = false" 
+    @confirm="confirmLogout"
+  />
 </template>
 
 <style scoped>

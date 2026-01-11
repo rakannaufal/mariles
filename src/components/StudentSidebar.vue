@@ -4,6 +4,7 @@ import { useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useChat } from '@/composables/useChat'
 import FloatingChatWidget from '@/components/FloatingChatWidget.vue'
+import LogoutConfirmationModal from '@/components/modals/LogoutConfirmationModal.vue'
 
 const route = useRoute()
 const authStore = useAuthStore()
@@ -22,7 +23,14 @@ onMounted(async () => {
   }
 })
 
-async function handleLogout() {
+// Logout Logic
+const showLogoutModal = ref(false)
+
+function handleLogout() {
+  showLogoutModal.value = true
+}
+
+async function confirmLogout() {
   try {
     await authStore.signOut()
   } catch (err) {
@@ -30,6 +38,7 @@ async function handleLogout() {
   }
   window.location.href = '/'
 }
+
 </script>
 
 <template>
@@ -146,6 +155,12 @@ async function handleLogout() {
   </aside>
   
   <FloatingChatWidget v-if="!isChatPage" user-role="student" />
+  
+  <LogoutConfirmationModal 
+    :show="showLogoutModal" 
+    @close="showLogoutModal = false" 
+    @confirm="confirmLogout"
+  />
 </template>
 
 <style scoped>

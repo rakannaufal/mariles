@@ -64,9 +64,9 @@ const tabs = computed(() => {
     { id: 'latihan', label: 'Latihan', icon: 'edit' }
   ]
   
-  // For Offline classes, only show Jadwal and Nilai
+  // For Offline classes, only show Jadwal
   if (!isOnlineClass.value) {
-    return allTabs.filter(t => ['jadwal', 'nilai'].includes(t.id))
+    return allTabs.filter(t => ['jadwal'].includes(t.id))
   }
   
   return allTabs
@@ -431,7 +431,7 @@ function joinMeeting() {
 
         <div class="container">
           <!-- Stats Overview -->
-          <div class="stats-overview">
+          <div v-if="isOnlineClass" class="stats-overview">
             <StatCard 
                 label="Progress Belajar" 
                 :value="calculateCourseProgress() + '%'" 

@@ -147,8 +147,8 @@ async function fetchMyClasses() {
       .select(`
         id, status, created_at,
         programs (
-          id, name, duration_months, schedule,
-          les_places (id, name, photos)
+          id, name, duration_months, schedule, type, class_type,
+          les_places (id, name, photos, type)
         )
       `)
       .eq('student_id', studentData.id)
@@ -190,6 +190,16 @@ async function fetchMyClasses() {
       // 2. Check Schedule for Today
       const todayScheduleCount = getTodayScheduleCount(booking.programs?.schedule)
 
+      // 3. Check if Online Class
+      const p = booking.programs
+      let isOnline = false
+      if (p?.class_type) {
+        isOnline = p.class_type === 'online'
+      } else {
+        const type = p?.les_places?.type || p?.type
+        isOnline = type && ['Online', 'online', 'Hybrid', 'hybrid'].includes(type)
+      }
+
       return {
         id: booking.id,
         programName: booking.programs?.name || 'Program',
@@ -197,7 +207,8 @@ async function fetchMyClasses() {
         photo: booking.programs?.les_places?.photos?.[0] || null,
         progress: progress,
         status: booking.status,
-        todayScheduleCount: todayScheduleCount
+        todayScheduleCount: todayScheduleCount,
+        isOnline: isOnline
       }
     }))
 
@@ -540,7 +551,7 @@ const currentDate = computed(() => {
                   </span>
                 </div>
                 <p class="class-place">{{ cls.lesPlaceName }}</p>
-                <div class="progress-container">
+                <div v-if="cls.isOnline" class="progress-container">
                   <div class="progress-bar">
                     <div class="progress-fill" :style="{ width: cls.progress + '%' }"></div>
                   </div>
@@ -720,11 +731,11 @@ const currentDate = computed(() => {
             </div>
             <div class="stat-box">
               <span class="stat-value">{{ platformStats.totalStudents || '23' }}+</span>
-              <span class="stat-label">Siswa Aktif</span>
+              <span class="stat-label">Siswa</span>
             </div>
             <div class="stat-box">
               <span class="stat-value">{{ platformStats.totalTeachers || '4' }}+</span>
-              <span class="stat-label">Guru Ahli</span>
+              <span class="stat-label">Guru </span>
             </div>
           </div>
         </div>

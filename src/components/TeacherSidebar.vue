@@ -1,9 +1,10 @@
 <script setup>
-import { onMounted, computed } from 'vue'
+import { onMounted, computed, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useTeacherData } from '@/composables/useTeacherData'
 import FloatingChatWidget from './FloatingChatWidget.vue'
+import LogoutConfirmationModal from '@/components/modals/LogoutConfirmationModal.vue'
 
 const route = useRoute()
 const authStore = useAuthStore()
@@ -15,7 +16,13 @@ onMounted(async () => {
   await fetchTeacherProfile()
 })
 
-async function handleLogout() {
+const showLogoutModal = ref(false)
+
+function handleLogout() {
+  showLogoutModal.value = true
+}
+
+async function confirmLogout() {
   try {
     await authStore.signOut()
   } catch (err) {
@@ -176,6 +183,12 @@ async function handleLogout() {
   </aside>
   
   <FloatingChatWidget v-if="!isChatPage" user-role="teacher" />
+
+  <LogoutConfirmationModal 
+    :show="showLogoutModal" 
+    @close="showLogoutModal = false" 
+    @confirm="confirmLogout"
+  />
 </template>
 
 <style scoped>

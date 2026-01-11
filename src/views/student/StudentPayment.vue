@@ -22,7 +22,7 @@ const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
 
-const SERVICE_FEE = 10
+const SERVICE_FEE = 5000
 const isDev = import.meta.env.DEV
 
 // States
