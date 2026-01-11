@@ -25,7 +25,7 @@ import CTASection from '@/components/CTASection.vue'
               <div class="step-number">1</div>
               <div class="step-icon">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+                  <circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.35-4.35"></path>
                 </svg>
               </div>
               <h3>Cari & Temukan</h3>
@@ -42,9 +42,9 @@ import CTASection from '@/components/CTASection.vue'
               <div class="step-number">2</div>
               <div class="step-icon">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
-                  <circle cx="8.5" cy="7" r="4"/>
-                  <polyline points="17 11 19 13 23 9"/>
+                  <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                  <circle cx="8.5" cy="7" r="4"></circle>
+                  <polyline points="17 11 19 13 23 9"></polyline>
                 </svg>
               </div>
               <h3>Daftar & Bayar</h3>
@@ -61,8 +61,8 @@ import CTASection from '@/components/CTASection.vue'
               <div class="step-number">3</div>
               <div class="step-icon">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M22 10v6M2 10l10-5 10 5-10 5z"/>
-                  <path d="M6 12v5c3 3 9 3 12 0v-5"/>
+                  <path d="M22 10v6M2 10l10-5 10 5-10 5z"></path>
+                  <path d="M6 12v5c3 3 9 3 12 0v-5"></path>
                 </svg>
               </div>
               <h3>Mulai Belajar</h3>
@@ -88,19 +88,19 @@ import CTASection from '@/components/CTASection.vue'
               <p>Mariles menyediakan ribuan pilihan tempat les berkualitas di seluruh Indonesia. Dari pelajaran akademik hingga keterampilan khusus, semua ada di sini.</p>
               <ul class="audience-benefits">
                 <li>
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
                   Akses ke ribuan tempat les terverifikasi
                 </li>
                 <li>
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
                   Review dan rating dari siswa lain
                 </li>
                 <li>
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
                   Pembayaran aman dan mudah
                 </li>
                 <li>
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
                   Dashboard untuk memantau progress
                 </li>
               </ul>
@@ -123,19 +123,19 @@ import CTASection from '@/components/CTASection.vue'
               <p>Gabung dengan jaringan guru profesional di Mariles. Tingkatkan penghasilan dan raih lebih banyak siswa dengan platform kami.</p>
               <ul class="audience-benefits">
                 <li>
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
                   Kelola jadwal mengajar dengan mudah
                 </li>
                 <li>
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
                   Upload dan berbagi materi pembelajaran
                 </li>
                 <li>
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
                   Tracking performa dan penilaian siswa
                 </li>
                 <li>
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
                   Penghasilan transparan dan tepat waktu
                 </li>
               </ul>
@@ -158,19 +158,19 @@ import CTASection from '@/components/CTASection.vue'
               <p>Daftarkan tempat les Anda dan jangkau lebih banyak siswa. Kelola bisnis dengan tools manajemen yang lengkap.</p>
               <ul class="audience-benefits">
                 <li>
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
                   Dashboard manajemen lengkap
                 </li>
                 <li>
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
                   Kelola program dan jadwal
                 </li>
                 <li>
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
                   Laporan keuangan real-time
                 </li>
                 <li>
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
                   Promosi dan marketing support
                 </li>
               </ul>

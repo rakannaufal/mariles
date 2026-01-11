@@ -126,7 +126,7 @@ function getPercentage(count) {
               <span class="rating-value">{{ averageRating.toFixed(1) }}</span>
               <div class="rating-stars">
                 <svg v-for="i in 5" :key="i" viewBox="0 0 24 24" :class="{ filled: i <= Math.round(averageRating) }">
-                  <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+                  <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
                 </svg>
               </div>
               <span class="rating-count">{{ reviews.length }} ulasan</span>
@@ -189,7 +189,7 @@ function getPercentage(count) {
               </div>
               <div class="review-rating">
                 <svg v-for="i in 5" :key="i" viewBox="0 0 24 24" :class="{ filled: i <= review.rating }">
-                  <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+                  <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
                 </svg>
                 <span class="rating-text">{{ review.rating }}/5</span>
               </div>

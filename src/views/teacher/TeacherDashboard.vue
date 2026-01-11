@@ -184,9 +184,9 @@ const currentDate = computed(() => {
         <div v-if="!isProfileComplete" class="profile-alert">
           <div class="alert-icon">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <circle cx="12" cy="12" r="10"/>
-              <line x1="12" y1="8" x2="12" y2="12"/>
-              <line x1="12" y1="16" x2="12.01" y2="16"/>
+              <circle cx="12" cy="12" r="10"></circle>
+              <line x1="12" y1="8" x2="12" y2="12"></line>
+              <line x1="12" y1="16" x2="12.01" y2="16"></line>
             </svg>
           </div>
           <div class="alert-content">
@@ -205,17 +205,17 @@ const currentDate = computed(() => {
           >
               <template #icon>
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
-                  <circle cx="9" cy="7" r="4"/>
-                  <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
-                  <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                  <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                  <circle cx="9" cy="7" r="4"></circle>
+                  <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                  <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
                 </svg>
               </template>
               <template #extra>
                 <div class="stat-trend up">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/>
-                    <polyline points="17 6 23 6 23 12"/>
+                    <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline>
+                    <polyline points="17 6 23 6 23 12"></polyline>
                   </svg>
                 </div>
               </template>
@@ -228,10 +228,10 @@ const currentDate = computed(() => {
           >
               <template #icon>
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <rect x="3" y="4" width="18" height="18" rx="2"/>
-                  <line x1="16" y1="2" x2="16" y2="6"/>
-                  <line x1="8" y1="2" x2="8" y2="6"/>
-                  <line x1="3" y1="10" x2="21" y2="10"/>
+                  <rect x="3" y="4" width="18" height="18" rx="2"></rect>
+                  <line x1="16" y1="2" x2="16" y2="6"></line>
+                  <line x1="8" y1="2" x2="8" y2="6"></line>
+                  <line x1="3" y1="10" x2="21" y2="10"></line>
                 </svg>
               </template>
           </StatCard>
@@ -243,8 +243,8 @@ const currentDate = computed(() => {
           >
               <template #icon>
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
-                  <polyline points="22 4 12 14.01 9 11.01"/>
+                  <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                  <polyline points="22 4 12 14.01 9 11.01"></polyline>
                 </svg>
               </template>
           </StatCard>
@@ -256,7 +256,7 @@ const currentDate = computed(() => {
           >
               <template #icon>
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+                  <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
                 </svg>
               </template>
               <template #extra>
@@ -276,8 +276,8 @@ const currentDate = computed(() => {
               <div class="card-header">
                 <h2>
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <circle cx="12" cy="12" r="10"/>
-                    <polyline points="12 6 12 12 16 14"/>
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <polyline points="12 6 12 12 16 14"></polyline>
                   </svg>
                   Jadwal Hari Ini
                 </h2>
@@ -301,10 +301,10 @@ const currentDate = computed(() => {
               </div>
               <div v-else class="empty-state-mini">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
-                  <line x1="16" y1="2" x2="16" y2="6"/>
-                  <line x1="8" y1="2" x2="8" y2="6"/>
-                  <line x1="3" y1="10" x2="21" y2="10"/>
+                  <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                  <line x1="16" y1="2" x2="16" y2="6"></line>
+                  <line x1="8" y1="2" x2="8" y2="6"></line>
+                  <line x1="3" y1="10" x2="21" y2="10"></line>
                 </svg>
                 <p>Tidak ada kelas hari ini</p>
               </div>
@@ -315,9 +315,9 @@ const currentDate = computed(() => {
               <div class="card-header">
                 <h2>
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <line x1="18" y1="20" x2="18" y2="10"/>
-                    <line x1="12" y1="20" x2="12" y2="4"/>
-                    <line x1="6" y1="20" x2="6" y2="14"/>
+                    <line x1="18" y1="20" x2="18" y2="10"></line>
+                    <line x1="12" y1="20" x2="12" y2="4"></line>
+                    <line x1="6" y1="20" x2="6" y2="14"></line>
                   </svg>
                   Jadwal Kelas Mingguan
                 </h2>
@@ -339,7 +339,7 @@ const currentDate = computed(() => {
               <div class="card-header">
                 <h2>
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+                    <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
                   </svg>
                   Performa Bulanan
                 </h2>
@@ -348,9 +348,9 @@ const currentDate = computed(() => {
                 <div class="chart-area">
                   <svg viewBox="0 0 350 120" class="chart-svg">
                     <!-- Grid lines -->
-                    <line x1="0" y1="30" x2="350" y2="30" stroke="#e2e8f0" stroke-dasharray="4"/>
-                    <line x1="0" y1="60" x2="350" y2="60" stroke="#e2e8f0" stroke-dasharray="4"/>
-                    <line x1="0" y1="90" x2="350" y2="90" stroke="#e2e8f0" stroke-dasharray="4"/>
+                    <line x1="0" y1="30" x2="350" y2="30" stroke="#e2e8f0" stroke-dasharray="4"></line>
+                    <line x1="0" y1="60" x2="350" y2="60" stroke="#e2e8f0" stroke-dasharray="4"></line>
+                    <line x1="0" y1="90" x2="350" y2="90" stroke="#e2e8f0" stroke-dasharray="4"></line>
                     
                     <!-- Attendance line (green) -->
                     <polyline
@@ -374,8 +374,8 @@ const currentDate = computed(() => {
                     
                     <!-- Data points -->
                     <g v-for="(m, i) in monthlyPerformance" :key="i">
-                      <circle :cx="i * 60 + 30" :cy="120 - m.attendance" r="4" fill="#22c55e"/>
-                      <circle :cx="i * 60 + 30" :cy="120 - m.classes * 4" r="4" fill="#3b82f6"/>
+                      <circle :cx="i * 60 + 30" :cy="120 - m.attendance" r="4" fill="#22c55e"></circle>
+                      <circle :cx="i * 60 + 30" :cy="120 - m.classes * 4" r="4" fill="#3b82f6"></circle>
                     </g>
                   </svg>
                 </div>
@@ -397,8 +397,8 @@ const currentDate = computed(() => {
               <div class="card-header">
                 <h2>
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <circle cx="12" cy="12" r="10"/>
-                    <path d="M12 6v6l4 2"/>
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <path d="M12 6v6l4 2"></path>
                   </svg>
                   Distribusi Nilai
                 </h2>
@@ -419,8 +419,8 @@ const currentDate = computed(() => {
               <div class="card-header">
                 <h2>
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
-                    <polyline points="22 4 12 14.01 9 11.01"/>
+                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                    <polyline points="22 4 12 14.01 9 11.01"></polyline>
                   </svg>
                   Ringkasan Kehadiran
                 </h2>
@@ -428,7 +428,7 @@ const currentDate = computed(() => {
               <div class="attendance-summary">
                 <div class="donut-chart">
                   <svg viewBox="0 0 120 120" class="donut">
-                    <circle cx="60" cy="60" r="50" fill="none" stroke="#e2e8f0" stroke-width="12"/>
+                    <circle cx="60" cy="60" r="50" fill="none" stroke="#e2e8f0" stroke-width="12"></circle>
                     <circle 
                       cx="60" cy="60" r="50" 
                       fill="none" 
@@ -457,7 +457,7 @@ const currentDate = computed(() => {
               <div class="card-header">
                 <h2>
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+                    <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
                   </svg>
                   Review Terbaru
                 </h2>
@@ -477,7 +477,7 @@ const currentDate = computed(() => {
               </div>
               <div v-else class="empty-state-mini">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+                  <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
                 </svg>
                 <p>Belum ada review</p>
               </div>
@@ -489,32 +489,32 @@ const currentDate = computed(() => {
               <div class="action-buttons">
                 <router-link to="/teacher/attendance" class="action-btn">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
-                    <polyline points="22 4 12 14.01 9 11.01"/>
+                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                    <polyline points="22 4 12 14.01 9 11.01"></polyline>
                   </svg>
                   Absensi
                 </router-link>
                 <router-link to="/teacher/grades" class="action-btn">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                    <polyline points="14 2 14 8 20 8"/>
-                    <line x1="16" y1="13" x2="8" y2="13"/>
-                    <line x1="16" y1="17" x2="8" y2="17"/>
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                    <polyline points="14 2 14 8 20 8"></polyline>
+                    <line x1="16" y1="13" x2="8" y2="13"></line>
+                    <line x1="16" y1="17" x2="8" y2="17"></line>
                   </svg>
                   Input Nilai
                 </router-link>
                 <router-link to="/teacher/materials" class="action-btn">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                    <polyline points="17 8 12 3 7 8"/>
-                    <line x1="12" y1="3" x2="12" y2="15"/>
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                    <polyline points="17 8 12 3 7 8"></polyline>
+                    <line x1="12" y1="3" x2="12" y2="15"></line>
                   </svg>
                   Upload Materi
                 </router-link>
                 <router-link to="/teacher/students" class="action-btn">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
-                    <circle cx="9" cy="7" r="4"/>
+                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                    <circle cx="9" cy="7" r="4"></circle>
                   </svg>
                   Daftar Siswa
                 </router-link>

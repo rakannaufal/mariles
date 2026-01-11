@@ -169,8 +169,8 @@ function getTypeInfo(type) {
         <div class="header-left">
           <h1>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
-              <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+              <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+              <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
             </svg>
             Broadcast Notifikasi
           </h1>
@@ -178,7 +178,7 @@ function getTypeInfo(type) {
         </div>
         <button class="btn-primary" @click="openModal">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+            <line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line>
           </svg>
           Buat Notifikasi
         </button>
@@ -194,7 +194,7 @@ function getTypeInfo(type) {
 
         <div v-if="sentNotifications.length === 0" class="empty-state">
           <div class="empty-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>
           </div>
           <h3>Belum Ada Notifikasi</h3>
           <p>Klik "Buat Notifikasi" untuk mengirim broadcast pertama</p>
@@ -203,7 +203,7 @@ function getTypeInfo(type) {
         <div v-else class="notifications-list">
           <div v-for="notif in sentNotifications" :key="notif.id" class="notification-item">
             <div class="notif-icon-box" :class="getTypeInfo(notif.type).class">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
             </div>
             <div class="notif-content">
               <h4>{{ notif.title }}</h4>
@@ -264,7 +264,7 @@ function getTypeInfo(type) {
                     @click="toggleRole(role.value)"
                   >
                     <span class="role-name">{{ role.label }}</span>
-                    <svg v-if="notificationForm.targetRoles.includes(role.value)" class="check-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+                    <svg v-if="notificationForm.targetRoles.includes(role.value)" class="check-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
                   </button>
                 </div>
               </div>

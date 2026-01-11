@@ -234,10 +234,10 @@ onMounted(async () => {
         <div class="header-left">
           <h1>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
-              <line x1="16" y1="2" x2="16" y2="6"/>
-              <line x1="8" y1="2" x2="8" y2="6"/>
-              <line x1="3" y1="10" x2="21" y2="10"/>
+              <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+              <line x1="16" y1="2" x2="16" y2="6"></line>
+              <line x1="8" y1="2" x2="8" y2="6"></line>
+              <line x1="3" y1="10" x2="21" y2="10"></line>
             </svg>
             Jadwal Mengajar
           </h1>
@@ -248,10 +248,10 @@ onMounted(async () => {
       <!-- Notification Banner -->
       <div v-if="notification.show" :class="['notification-banner', notification.type]">
         <svg v-if="notification.type === 'success'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>
+          <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline>
         </svg>
         <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>
+          <circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line>
         </svg>
         <span>{{ notification.message }}</span>
         <button class="close-notification" @click="notification.show = false">&times;</button>
@@ -262,8 +262,8 @@ onMounted(async () => {
         <div class="stat-card blue">
           <div class="stat-icon">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <rect x="3" y="4" width="18" height="18" rx="2"/>
-              <line x1="3" y1="10" x2="21" y2="10"/>
+              <rect x="3" y="4" width="18" height="18" rx="2"></rect>
+              <line x1="3" y1="10" x2="21" y2="10"></line>
             </svg>
           </div>
           <div class="stat-info">
@@ -274,8 +274,8 @@ onMounted(async () => {
         <div class="stat-card green">
           <div class="stat-icon">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <circle cx="12" cy="12" r="10"/>
-              <polyline points="12 6 12 12 16 14"/>
+              <circle cx="12" cy="12" r="10"></circle>
+              <polyline points="12 6 12 12 16 14"></polyline>
             </svg>
           </div>
           <div class="stat-info">
@@ -286,10 +286,10 @@ onMounted(async () => {
         <div class="stat-card purple">
           <div class="stat-icon">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
-              <circle cx="9" cy="7" r="4"/>
-              <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
-              <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+              <circle cx="9" cy="7" r="4"></circle>
+              <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+              <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
             </svg>
           </div>
           <div class="stat-info">
@@ -300,8 +300,8 @@ onMounted(async () => {
         <div class="stat-card orange">
           <div class="stat-icon">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
-              <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+              <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+              <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
             </svg>
           </div>
           <div class="stat-info">
@@ -316,13 +316,13 @@ onMounted(async () => {
         <div class="week-navigation">
           <button class="nav-btn" @click="prevWeek">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <polyline points="15 18 9 12 15 6"/>
+              <polyline points="15 18 9 12 15 6"></polyline>
             </svg>
           </button>
           <span class="week-range">{{ formatWeekRange() }}</span>
           <button class="nav-btn" @click="nextWeek">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <polyline points="9 18 15 12 9 6"/>
+              <polyline points="9 18 15 12 9 6"></polyline>
             </svg>
           </button>
           <button class="today-btn" @click="goToToday">Hari Ini</button>
@@ -330,21 +330,21 @@ onMounted(async () => {
         <div class="view-toggle">
           <button :class="['toggle-btn', { active: viewMode === 'week' }]" @click="viewMode = 'week'">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
-              <line x1="16" y1="2" x2="16" y2="6"/>
-              <line x1="8" y1="2" x2="8" y2="6"/>
-              <line x1="3" y1="10" x2="21" y2="10"/>
+              <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+              <line x1="16" y1="2" x2="16" y2="6"></line>
+              <line x1="8" y1="2" x2="8" y2="6"></line>
+              <line x1="3" y1="10" x2="21" y2="10"></line>
             </svg>
             Mingguan
           </button>
           <button :class="['toggle-btn', { active: viewMode === 'list' }]" @click="viewMode = 'list'">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <line x1="8" y1="6" x2="21" y2="6"/>
-              <line x1="8" y1="12" x2="21" y2="12"/>
-              <line x1="8" y1="18" x2="21" y2="18"/>
-              <line x1="3" y1="6" x2="3.01" y2="6"/>
-              <line x1="3" y1="12" x2="3.01" y2="12"/>
-              <line x1="3" y1="18" x2="3.01" y2="18"/>
+              <line x1="8" y1="6" x2="21" y2="6"></line>
+              <line x1="8" y1="12" x2="21" y2="12"></line>
+              <line x1="8" y1="18" x2="21" y2="18"></line>
+              <line x1="3" y1="6" x2="3.01" y2="6"></line>
+              <line x1="3" y1="12" x2="3.01" y2="12"></line>
+              <line x1="3" y1="18" x2="3.01" y2="18"></line>
             </svg>
             Harian
           </button>
@@ -379,8 +379,8 @@ onMounted(async () => {
                 <p class="item-class">{{ item.class }}</p>
                 <div class="item-students" v-if="item.students || item.capacity">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
-                    <circle cx="9" cy="7" r="4"/>
+                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                    <circle cx="9" cy="7" r="4"></circle>
                   </svg>
                   {{ item.students || item.capacity }} siswa
                 </div>
@@ -391,8 +391,8 @@ onMounted(async () => {
                    class="meet-link" 
                    @click.stop>
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M15.75 6.75a3 3 0 11-6 0 3 3 0 016 0zM4.501 20.118a7.5 7.5 0 0114.998 0" />
-                    <path d="M18 16.08V16a3 3 0 00-6 0v.08" />
+                    <path d="M15.75 6.75a3 3 0 11-6 0 3 3 0 016 0zM4.501 20.118a7.5 7.5 0 0114.998 0" ></path>
+                    <path d="M18 16.08V16a3 3 0 00-6 0v.08" ></path>
                   </svg>
                   Meet
                 </a>
@@ -431,8 +431,8 @@ onMounted(async () => {
               <div class="card-header">
                 <div class="time-slot">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <circle cx="12" cy="12" r="10"/>
-                    <polyline points="12 6 12 12 16 14"/>
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <polyline points="12 6 12 12 16 14"></polyline>
                   </svg>
                   <span>{{ item.time }}</span>
                 </div>
@@ -450,22 +450,22 @@ onMounted(async () => {
                 <div class="card-details">
                   <div class="detail-item">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                      <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
-                      <circle cx="12" cy="10" r="3"/>
+                      <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+                      <circle cx="12" cy="10" r="3"></circle>
                     </svg>
                     <span>{{ item.les_place || lesPlace?.name || '-' }}</span>
                   </div>
                   <div class="detail-item" v-if="item.room && item.room !== '-'">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                      <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
-                      <polyline points="9 22 9 12 15 12 15 22"/>
+                      <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+                      <polyline points="9 22 9 12 15 12 15 22"></polyline>
                     </svg>
                     <span>{{ item.room }}</span>
                   </div>
                   <div class="detail-item">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                      <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
-                      <circle cx="9" cy="7" r="4"/>
+                      <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                      <circle cx="9" cy="7" r="4"></circle>
                     </svg>
                     <span>{{ item.students || item.capacity || 0 }} siswa</span>
                   </div>
@@ -475,24 +475,24 @@ onMounted(async () => {
               <div class="card-actions">
                 <router-link :to="isOwner ? '/owner/attendance' : '/teacher/attendance'" class="btn btn-primary">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
-                    <polyline points="22 4 12 14.01 9 11.01"/>
+                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                    <polyline points="22 4 12 14.01 9 11.01"></polyline>
                   </svg>
                   Absensi
                 </router-link>
                 <router-link :to="isOwner ? '/owner/materials' : '/teacher/materials'" class="btn btn-secondary">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                    <polyline points="14 2 14 8 20 8"/>
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                    <polyline points="14 2 14 8 20 8"></polyline>
                   </svg>
                   Materi
                 </router-link>
                 <router-link :to="isOwner ? '/owner/grades' : '/teacher/grades'" class="btn btn-outline">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <line x1="16" y1="13" x2="8" y2="13"/>
-                    <line x1="16" y1="17" x2="8" y2="17"/>
-                    <line x1="10" y1="9" x2="8" y2="9"/>
-                    <path d="M4 2h16v20H4z"/>
+                    <line x1="16" y1="13" x2="8" y2="13"></line>
+                    <line x1="16" y1="17" x2="8" y2="17"></line>
+                    <line x1="10" y1="9" x2="8" y2="9"></line>
+                    <path d="M4 2h16v20H4z"></path>
                   </svg>
                   Nilai
                 </router-link>
@@ -505,13 +505,13 @@ onMounted(async () => {
         <div v-else class="empty-state">
           <div class="empty-illustration">
             <svg viewBox="0 0 200 200" fill="none">
-              <circle cx="100" cy="100" r="80" fill="#f1f5f9"/>
-              <rect x="60" y="50" width="80" height="100" rx="8" fill="white" stroke="#e2e8f0" stroke-width="2"/>
-              <line x1="70" y1="70" x2="130" y2="70" stroke="#e2e8f0" stroke-width="2"/>
-              <line x1="70" y1="90" x2="110" y2="90" stroke="#e2e8f0" stroke-width="2"/>
-              <line x1="70" y1="110" x2="120" y2="110" stroke="#e2e8f0" stroke-width="2"/>
-              <circle cx="140" cy="130" r="25" fill="#0d5782" opacity="0.1"/>
-              <path d="M140 120v20M130 130h20" stroke="#0d5782" stroke-width="3" stroke-linecap="round"/>
+              <circle cx="100" cy="100" r="80" fill="#f1f5f9"></circle>
+              <rect x="60" y="50" width="80" height="100" rx="8" fill="white" stroke="#e2e8f0" stroke-width="2"></rect>
+              <line x1="70" y1="70" x2="130" y2="70" stroke="#e2e8f0" stroke-width="2"></line>
+              <line x1="70" y1="90" x2="110" y2="90" stroke="#e2e8f0" stroke-width="2"></line>
+              <line x1="70" y1="110" x2="120" y2="110" stroke="#e2e8f0" stroke-width="2"></line>
+              <circle cx="140" cy="130" r="25" fill="#0d5782" opacity="0.1"></circle>
+              <path d="M140 120v20M130 130h20" stroke="#0d5782" stroke-width="3" stroke-linecap="round"></path>
             </svg>
           </div>
           <h3>Tidak ada jadwal</h3>

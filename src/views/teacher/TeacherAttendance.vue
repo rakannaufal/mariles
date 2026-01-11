@@ -278,8 +278,8 @@ onMounted(async () => {
       <header class="page-header">
         <h1>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
-            <polyline points="22 4 12 14.01 9 11.01"/>
+            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+            <polyline points="22 4 12 14.01 9 11.01"></polyline>
           </svg>
           Absensi Kelas
         </h1>
@@ -289,10 +289,10 @@ onMounted(async () => {
       <!-- Notification Banner -->
       <div v-if="notification.show" :class="['notification-banner', notification.type]">
         <svg v-if="notification.type === 'success'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>
+          <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline>
         </svg>
         <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>
+          <circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line>
         </svg>
         <span>{{ notification.message }}</span>
         <button class="close-notification" @click="notification.show = false">&times;</button>
@@ -303,8 +303,8 @@ onMounted(async () => {
         <div class="stat-card">
           <div class="stat-icon blue">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <rect x="3" y="4" width="18" height="18" rx="2"/>
-              <line x1="3" y1="10" x2="21" y2="10"/>
+              <rect x="3" y="4" width="18" height="18" rx="2"></rect>
+              <line x1="3" y1="10" x2="21" y2="10"></line>
             </svg>
           </div>
           <div class="stat-info">
@@ -316,8 +316,8 @@ onMounted(async () => {
         <div class="stat-card">
           <div class="stat-icon green">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
-              <polyline points="22 4 12 14.01 9 11.01"/>
+              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+              <polyline points="22 4 12 14.01 9 11.01"></polyline>
             </svg>
           </div>
           <div class="stat-info">
@@ -329,8 +329,8 @@ onMounted(async () => {
         <div class="stat-card">
           <div class="stat-icon orange">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <circle cx="12" cy="12" r="10"/>
-              <polyline points="12 6 12 12 16 14"/>
+              <circle cx="12" cy="12" r="10"></circle>
+              <polyline points="12 6 12 12 16 14"></polyline>
             </svg>
           </div>
           <div class="stat-info">
@@ -342,8 +342,8 @@ onMounted(async () => {
         <div class="stat-card">
           <div class="stat-icon purple">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
-              <circle cx="9" cy="7" r="4"/>
+              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+              <circle cx="9" cy="7" r="4"></circle>
             </svg>
           </div>
           <div class="stat-info">
@@ -357,13 +357,13 @@ onMounted(async () => {
       <section class="week-nav">
         <button class="nav-btn" @click="prevWeek">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <polyline points="15 18 9 12 15 6"/>
+            <polyline points="15 18 9 12 15 6"></polyline>
           </svg>
         </button>
         <span class="week-range">{{ formatWeekRange() }}</span>
         <button class="nav-btn" @click="nextWeek">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <polyline points="9 18 15 12 9 6"/>
+            <polyline points="9 18 15 12 9 6"></polyline>
           </svg>
         </button>
         <button class="today-btn" @click="goToToday">Hari Ini</button>
@@ -389,8 +389,8 @@ onMounted(async () => {
       <section class="filter-bar">
         <div class="search-input">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <circle cx="11" cy="11" r="8"/>
-            <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+            <circle cx="11" cy="11" r="8"></circle>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
           </svg>
           <input v-model="searchQuery" type="text" placeholder="Cari kelas atau program...">
         </div>
@@ -412,8 +412,8 @@ onMounted(async () => {
           <div class="card-top">
             <div class="time-tag">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <circle cx="12" cy="12" r="10"/>
-                <polyline points="12 6 12 12 16 14"/>
+                <circle cx="12" cy="12" r="10"></circle>
+                <polyline points="12 6 12 12 16 14"></polyline>
               </svg>
               {{ session.time }}
             </div>
@@ -428,15 +428,15 @@ onMounted(async () => {
           <div class="card-meta">
             <span>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
-                <circle cx="9" cy="7" r="4"/>
+                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                <circle cx="9" cy="7" r="4"></circle>
               </svg>
               {{ session.students || session.capacity || 0 }} siswa
             </span>
             <span>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
-                <circle cx="12" cy="10" r="3"/>
+                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+                <circle cx="12" cy="10" r="3"></circle>
               </svg>
               {{ session.les_place }}
             </span>
@@ -444,8 +444,8 @@ onMounted(async () => {
           
           <button class="btn-action" :class="{ completed: session.attendance_status === 'completed' }" @click="openAttendanceModal(session)">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
-              <polyline points="22 4 12 14.01 9 11.01"/>
+              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+              <polyline points="22 4 12 14.01 9 11.01"></polyline>
             </svg>
             {{ session.attendance_status === 'completed' ? 'Edit Absensi' : 'Mulai Absensi' }}
           </button>
@@ -455,10 +455,10 @@ onMounted(async () => {
       <!-- Empty State -->
       <section v-else class="empty-state">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-          <rect x="3" y="4" width="18" height="18" rx="2"/>
-          <line x1="3" y1="10" x2="21" y2="10"/>
-          <line x1="9" y1="2" x2="9" y2="6"/>
-          <line x1="15" y1="2" x2="15" y2="6"/>
+          <rect x="3" y="4" width="18" height="18" rx="2"></rect>
+          <line x1="3" y1="10" x2="21" y2="10"></line>
+          <line x1="9" y1="2" x2="9" y2="6"></line>
+          <line x1="15" y1="2" x2="15" y2="6"></line>
         </svg>
         <h3>Tidak ada jadwal pada hari {{ getSelectedDayName() }}</h3>
         <p>Pilih hari lain yang memiliki jadwal kelas</p>

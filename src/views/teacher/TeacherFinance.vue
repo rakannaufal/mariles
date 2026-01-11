@@ -375,10 +375,10 @@ async function handleWithdraw() {
         <div class="header-left">
           <h1>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <rect x="2" y="4" width="20" height="16" rx="2"/>
-              <path d="M12 12h.01"/>
-              <path d="M17 12h.01"/>
-              <path d="M7 12h.01"/>
+              <rect x="2" y="4" width="20" height="16" rx="2"></rect>
+              <path d="M12 12h.01"></path>
+              <path d="M17 12h.01"></path>
+              <path d="M7 12h.01"></path>
             </svg>
             Keuangan
           </h1>
@@ -386,7 +386,7 @@ async function handleWithdraw() {
         </div>
         <div class="header-badge" v-if="lesPlace">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
           </svg>
           {{ lesPlace.name }}
         </div>
@@ -418,8 +418,8 @@ async function handleWithdraw() {
           >
               <template #icon>
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <rect x="3" y="4" width="18" height="18" rx="2"/>
-                  <line x1="3" y1="10" x2="21" y2="10"/>
+                  <rect x="3" y="4" width="18" height="18" rx="2"></rect>
+                  <line x1="3" y1="10" x2="21" y2="10"></line>
                 </svg>
               </template>
           </StatCard>
@@ -431,7 +431,7 @@ async function handleWithdraw() {
           >
               <template #icon>
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <polyline points="20 6 9 17 4 12"/>
+                  <polyline points="20 6 9 17 4 12"></polyline>
                 </svg>
               </template>
           </StatCard>
@@ -458,7 +458,7 @@ async function handleWithdraw() {
                 <div class="summary-item">
                   <div class="summary-icon green">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                      <polyline points="20 6 9 17 4 12"/>
+                      <polyline points="20 6 9 17 4 12"></polyline>
                     </svg>
                   </div>
                   <div class="summary-info">
@@ -469,8 +469,8 @@ async function handleWithdraw() {
                 <div class="summary-item">
                   <div class="summary-icon purple">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                      <rect x="2" y="5" width="20" height="14" rx="2"/>
-                      <line x1="2" y1="10" x2="22" y2="10"/>
+                      <rect x="2" y="5" width="20" height="14" rx="2"></rect>
+                      <line x1="2" y1="10" x2="22" y2="10"></line>
                     </svg>
                   </div>
                   <div class="summary-info">
@@ -492,15 +492,15 @@ async function handleWithdraw() {
               <div v-for="payment in payments.slice(0, 5)" :key="payment.id" class="transaction-item">
                 <div class="tx-icon" :class="payment.payment_type">
                   <svg v-if="payment.payment_type === 'salary'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <rect x="2" y="7" width="20" height="14" rx="2"/>
-                    <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/>
+                    <rect x="2" y="7" width="20" height="14" rx="2"></rect>
+                    <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path>
                   </svg>
                   <svg v-else-if="payment.payment_type === 'bonus'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+                    <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
                   </svg>
                   <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <circle cx="12" cy="12" r="10"/>
-                    <line x1="8" y1="12" x2="16" y2="12"/>
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <line x1="8" y1="12" x2="16" y2="12"></line>
                   </svg>
                 </div>
                 <div class="tx-info">
@@ -573,8 +573,8 @@ async function handleWithdraw() {
             
             <div v-else class="empty-state">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                <rect x="2" y="5" width="20" height="14" rx="2"/>
-                <line x1="2" y1="10" x2="22" y2="10"/>
+                <rect x="2" y="5" width="20" height="14" rx="2"></rect>
+                <line x1="2" y1="10" x2="22" y2="10"></line>
               </svg>
               <h4>Belum ada riwayat pembayaran</h4>
               <p>Riwayat pembayaran akan muncul di sini</p>
@@ -605,8 +605,8 @@ async function handleWithdraw() {
               
               <div v-if="withdrawSuccess" class="alert success">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
-                  <polyline points="22 4 12 14.01 9 11.01"/>
+                  <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                  <polyline points="22 4 12 14.01 9 11.01"></polyline>
                 </svg>
                 <div>
                   <strong>Pencairan Berhasil!</strong>
@@ -623,8 +623,8 @@ async function handleWithdraw() {
                   <div v-if="teacherBankInfo.bank_name" class="bank-card">
                     <div class="bank-logo">
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <rect x="2" y="5" width="20" height="14" rx="2"/>
-                        <line x1="2" y1="10" x2="22" y2="10"/>
+                        <rect x="2" y="5" width="20" height="14" rx="2"></rect>
+                        <line x1="2" y1="10" x2="22" y2="10"></line>
                       </svg>
                     </div>
                     <div class="bank-details">
@@ -640,8 +640,8 @@ async function handleWithdraw() {
                   <div v-else-if="teacherBankInfo.ewallet_type" class="bank-card ewallet">
                     <div class="bank-logo ewallet">
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <rect x="2" y="4" width="20" height="16" rx="2"/>
-                        <path d="M6 8h4M6 12h8M6 16h6"/>
+                        <rect x="2" y="4" width="20" height="16" rx="2"></rect>
+                        <path d="M6 8h4M6 12h8M6 16h6"></path>
                       </svg>
                     </div>
                     <div class="bank-details">
@@ -655,14 +655,14 @@ async function handleWithdraw() {
                   <!-- No payment method set -->
                   <div v-else class="no-bank-info">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                      <path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                      <path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
                     </svg>
                     <p>Anda belum mengatur metode pembayaran</p>
                     <span class="hint">Atur rekening bank atau e-wallet di halaman profil</span>
                     <button class="btn-primary-sm" @click="$router.push('/teacher/profile')">
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
-                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
                       </svg>
                       Atur di Profil
                     </button>

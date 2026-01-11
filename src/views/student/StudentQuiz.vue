@@ -165,9 +165,9 @@ function goBack() {
         <!-- Quiz Not Found -->
         <div v-else-if="!quiz" class="empty-state">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-            <circle cx="12" cy="12" r="10"/>
-            <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/>
-            <line x1="12" y1="17" x2="12.01" y2="17"/>
+            <circle cx="12" cy="12" r="10"></circle>
+            <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
+            <line x1="12" y1="17" x2="12.01" y2="17"></line>
           </svg>
           <h3>Quiz tidak ditemukan</h3>
           <p>Quiz yang Anda cari tidak tersedia atau belum dipublikasikan.</p>
@@ -179,13 +179,13 @@ function goBack() {
           <div class="result-card">
             <div class="result-icon" :class="score >= (quiz.passing_score || 70) ? 'passed' : 'failed'">
               <svg v-if="score >= (quiz.passing_score || 70)" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
-                <polyline points="22 4 12 14.01 9 11.01"/>
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                <polyline points="22 4 12 14.01 9 11.01"></polyline>
               </svg>
               <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <circle cx="12" cy="12" r="10"/>
-                <line x1="15" y1="9" x2="9" y2="15"/>
-                <line x1="9" y1="9" x2="15" y2="15"/>
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="15" y1="9" x2="9" y2="15"></line>
+                <line x1="9" y1="9" x2="15" y2="15"></line>
               </svg>
             </div>
             <h2>{{ score >= (quiz.passing_score || 70) ? 'Selamat!' : 'Tetap Semangat!' }}</h2>
@@ -211,9 +211,9 @@ function goBack() {
           <div class="start-card">
             <div class="quiz-icon">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <circle cx="12" cy="12" r="10"/>
-                <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/>
-                <line x1="12" y1="17" x2="12.01" y2="17"/>
+                <circle cx="12" cy="12" r="10"></circle>
+                <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
+                <line x1="12" y1="17" x2="12.01" y2="17"></line>
               </svg>
             </div>
             <h2>{{ quiz.title }}</h2>
@@ -222,23 +222,23 @@ function goBack() {
             <div class="quiz-meta-grid">
               <div class="meta-box">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                  <polyline points="14 2 14 8 20 8"/>
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                  <polyline points="14 2 14 8 20 8"></polyline>
                 </svg>
                 <span class="meta-value">{{ totalQuestions }}</span>
                 <span class="meta-label">Soal</span>
               </div>
               <div class="meta-box">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <circle cx="12" cy="12" r="10"/>
-                  <polyline points="12 6 12 12 16 14"/>
+                  <circle cx="12" cy="12" r="10"></circle>
+                  <polyline points="12 6 12 12 16 14"></polyline>
                 </svg>
                 <span class="meta-value">{{ quiz.duration_minutes || 30 }}</span>
                 <span class="meta-label">Menit</span>
               </div>
               <div class="meta-box">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+                  <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
                 </svg>
                 <span class="meta-value">{{ quiz.passing_score || 70 }}</span>
                 <span class="meta-label">KKM</span>
@@ -259,8 +259,8 @@ function goBack() {
             <div class="quiz-title">{{ quiz.title }}</div>
             <div class="quiz-timer" :class="{ warning: timeLeft < 60 }">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <circle cx="12" cy="12" r="10"/>
-                <polyline points="12 6 12 12 16 14"/>
+                <circle cx="12" cy="12" r="10"></circle>
+                <polyline points="12 6 12 12 16 14"></polyline>
               </svg>
               {{ formattedTime }}
             </div>
@@ -297,7 +297,7 @@ function goBack() {
           <div class="quiz-navigation">
             <button class="btn btn-secondary" @click="prevQuestion" :disabled="currentQuestionIndex === 0">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <polyline points="15 18 9 12 15 6"/>
+                <polyline points="15 18 9 12 15 6"></polyline>
               </svg>
               Sebelumnya
             </button>
@@ -325,7 +325,7 @@ function goBack() {
             <button v-else class="btn btn-primary" @click="nextQuestion">
               Selanjutnya
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <polyline points="9 18 15 12 9 6"/>
+                <polyline points="9 18 15 12 9 6"></polyline>
               </svg>
             </button>
           </div>

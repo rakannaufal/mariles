@@ -251,10 +251,10 @@ onMounted(async () => {
         <div class="header-left">
           <h1>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
-              <circle cx="9" cy="7" r="4"/>
-              <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
-              <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+              <circle cx="9" cy="7" r="4"></circle>
+              <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+              <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
             </svg>
             Daftar Siswa
           </h1>
@@ -271,8 +271,8 @@ onMounted(async () => {
         >
             <template #icon>
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
-                  <circle cx="9" cy="7" r="4"/>
+                  <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                  <circle cx="9" cy="7" r="4"></circle>
                 </svg>
             </template>
         </StatCard>
@@ -284,8 +284,8 @@ onMounted(async () => {
         >
             <template #icon>
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
-                  <polyline points="22 4 12 14.01 9 11.01"/>
+                  <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                  <polyline points="22 4 12 14.01 9 11.01"></polyline>
                 </svg>
             </template>
         </StatCard>
@@ -297,9 +297,9 @@ onMounted(async () => {
         >
             <template #icon>
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <line x1="18" y1="20" x2="18" y2="10"/>
-                  <line x1="12" y1="20" x2="12" y2="4"/>
-                  <line x1="6" y1="20" x2="6" y2="14"/>
+                  <line x1="18" y1="20" x2="18" y2="10"></line>
+                  <line x1="12" y1="20" x2="12" y2="4"></line>
+                  <line x1="6" y1="20" x2="6" y2="14"></line>
                 </svg>
             </template>
         </StatCard>
@@ -311,10 +311,10 @@ onMounted(async () => {
         >
             <template #icon>
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
-                  <circle cx="8.5" cy="7" r="4"/>
-                  <line x1="20" y1="8" x2="20" y2="14"/>
-                  <line x1="23" y1="11" x2="17" y2="11"/>
+                  <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                  <circle cx="8.5" cy="7" r="4"></circle>
+                  <line x1="20" y1="8" x2="20" y2="14"></line>
+                  <line x1="23" y1="11" x2="17" y2="11"></line>
                 </svg>
             </template>
         </StatCard>
@@ -325,8 +325,8 @@ onMounted(async () => {
         <div class="filter-left">
           <div class="search-box">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <circle cx="11" cy="11" r="8"/>
-              <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+              <circle cx="11" cy="11" r="8"></circle>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
             </svg>
             <input 
               v-model="searchQuery" 
@@ -345,20 +345,20 @@ onMounted(async () => {
           <div class="view-toggle">
             <button :class="['toggle-btn', { active: viewMode === 'grid' }]" @click="viewMode = 'grid'">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <rect x="3" y="3" width="7" height="7"/>
-                <rect x="14" y="3" width="7" height="7"/>
-                <rect x="14" y="14" width="7" height="7"/>
-                <rect x="3" y="14" width="7" height="7"/>
+                <rect x="3" y="3" width="7" height="7"></rect>
+                <rect x="14" y="3" width="7" height="7"></rect>
+                <rect x="14" y="14" width="7" height="7"></rect>
+                <rect x="3" y="14" width="7" height="7"></rect>
               </svg>
             </button>
             <button :class="['toggle-btn', { active: viewMode === 'table' }]" @click="viewMode = 'table'">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <line x1="8" y1="6" x2="21" y2="6"/>
-                <line x1="8" y1="12" x2="21" y2="12"/>
-                <line x1="8" y1="18" x2="21" y2="18"/>
-                <line x1="3" y1="6" x2="3.01" y2="6"/>
-                <line x1="3" y1="12" x2="3.01" y2="12"/>
-                <line x1="3" y1="18" x2="3.01" y2="18"/>
+                <line x1="8" y1="6" x2="21" y2="6"></line>
+                <line x1="8" y1="12" x2="21" y2="12"></line>
+                <line x1="8" y1="18" x2="21" y2="18"></line>
+                <line x1="3" y1="6" x2="3.01" y2="6"></line>
+                <line x1="3" y1="12" x2="3.01" y2="12"></line>
+                <line x1="3" y1="18" x2="3.01" y2="18"></line>
               </svg>
             </button>
           </div>
@@ -391,8 +391,8 @@ onMounted(async () => {
             <h3 class="student-name">{{ student.name }}</h3>
             <p class="student-meta">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
-                <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+                <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+                <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
               </svg>
               {{ student.class || '-' }}
             </p>
@@ -414,10 +414,10 @@ onMounted(async () => {
           <div class="card-footer">
             <div class="footer-info">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
-                <line x1="16" y1="2" x2="16" y2="6"/>
-                <line x1="8" y1="2" x2="8" y2="6"/>
-                <line x1="3" y1="10" x2="21" y2="10"/>
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                <line x1="16" y1="2" x2="16" y2="6"></line>
+                <line x1="8" y1="2" x2="8" y2="6"></line>
+                <line x1="3" y1="10" x2="21" y2="10"></line>
               </svg>
               <span>{{ student.join_date || '-' }}</span>
             </div>
@@ -433,16 +433,16 @@ onMounted(async () => {
           <div class="card-actions">
             <button class="action-btn secondary" @click="openCompleteModal(student, $event)" v-if="student.status === 'active'">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M9 12l2 2 4-4"/>
-                <circle cx="12" cy="12" r="10"/>
+                <path d="M9 12l2 2 4-4"></path>
+                <circle cx="12" cy="12" r="10"></circle>
               </svg>
               Selesai
             </button>
             <button class="action-btn danger" @click="openTerminateModal(student, $event)" v-if="student.status === 'active'">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <circle cx="12" cy="12" r="10"/>
-                <line x1="15" y1="9" x2="9" y2="15"/>
-                <line x1="9" y1="9" x2="15" y2="15"/>
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="15" y1="9" x2="9" y2="15"></line>
+                <line x1="9" y1="9" x2="15" y2="15"></line>
               </svg>
               Berhentikan
             </button>
@@ -453,11 +453,11 @@ onMounted(async () => {
         <div v-if="filteredStudents.length === 0" class="empty-state">
           <div class="empty-illustration">
             <svg viewBox="0 0 200 200" fill="none">
-              <circle cx="100" cy="100" r="80" fill="#f1f5f9"/>
-              <circle cx="100" cy="80" r="30" fill="white" stroke="#e2e8f0" stroke-width="2"/>
-              <path d="M60 150c0-22 18-40 40-40s40 18 40 40" fill="white" stroke="#e2e8f0" stroke-width="2"/>
-              <circle cx="140" cy="140" r="25" fill="#0d5782" opacity="0.1"/>
-              <path d="M140 130v20M130 140h20" stroke="#0d5782" stroke-width="3" stroke-linecap="round"/>
+              <circle cx="100" cy="100" r="80" fill="#f1f5f9"></circle>
+              <circle cx="100" cy="80" r="30" fill="white" stroke="#e2e8f0" stroke-width="2"></circle>
+              <path d="M60 150c0-22 18-40 40-40s40 18 40 40" fill="white" stroke="#e2e8f0" stroke-width="2"></path>
+              <circle cx="140" cy="140" r="25" fill="#0d5782" opacity="0.1"></circle>
+              <path d="M140 130v20M130 140h20" stroke="#0d5782" stroke-width="3" stroke-linecap="round"></path>
             </svg>
           </div>
           <h3>Tidak ada siswa ditemukan</h3>
@@ -529,8 +529,8 @@ onMounted(async () => {
         <div class="modal">
           <button class="modal-close" @click="showStudentModal = false">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <line x1="18" y1="6" x2="6" y2="18"/>
-              <line x1="6" y1="6" x2="18" y2="18"/>
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
             </svg>
           </button>
           
@@ -668,15 +668,15 @@ onMounted(async () => {
           <div class="modal-actions">
             <router-link :to="isOwner ? '/owner/grades' : '/teacher/grades'" class="modal-btn primary" @click="showStudentModal = false">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                <polyline points="14 2 14 8 20 8"/>
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                <polyline points="14 2 14 8 20 8"></polyline>
               </svg>
               Input Nilai
             </router-link>
             <router-link :to="isOwner ? '/owner/attendance' : '/teacher/attendance'" class="modal-btn secondary" @click="showStudentModal = false">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
-                <polyline points="22 4 12 14.01 9 11.01"/>
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                <polyline points="22 4 12 14.01 9 11.01"></polyline>
               </svg>
               Absensi
             </router-link>

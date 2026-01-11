@@ -105,8 +105,8 @@ async function deleteAccount() {
         <section class="settings-card">
           <div class="card-header">
              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-               <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
-               <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+               <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+               <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
              </svg>
              <h2>Keamanan Password</h2>
           </div>
@@ -124,8 +124,8 @@ async function deleteAccount() {
              </div>
              
              <div v-if="passwordMessage.text" :class="['alert', passwordMessage.type]">
-                <svg v-if="passwordMessage.type === 'success'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
-                <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+                <svg v-if="passwordMessage.type === 'success'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+                <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>
                 {{ passwordMessage.text }}
              </div>
 
@@ -162,9 +162,9 @@ async function deleteAccount() {
         <section class="settings-card">
           <div class="card-header">
              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-               <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
-               <polyline points="16 17 21 12 16 7"/>
-               <line x1="21" y1="12" x2="9" y2="12"/>
+               <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+               <polyline points="16 17 21 12 16 7"></polyline>
+               <line x1="21" y1="12" x2="9" y2="12"></line>
              </svg>
              <h2>Keluar dari Sesi</h2>
           </div>

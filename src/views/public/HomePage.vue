@@ -514,7 +514,7 @@ const currentDate = computed(() => {
             </div>
             <router-link to="/student/myclass" class="see-all-link">
               Lihat Semua 
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg>
             </router-link>
           </div>
 
@@ -528,7 +528,7 @@ const currentDate = computed(() => {
                 <img v-if="cls.photo" :src="cls.photo" :alt="cls.programName">
                 <div v-else class="photo-placeholder">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+                    <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
                   </svg>
                 </div>
               </div>
@@ -551,7 +551,7 @@ const currentDate = computed(() => {
                   class="btn-continue"
                 >
                   Lanjutkan
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg>
                 </router-link>
               </div>
             </div>
@@ -577,7 +577,7 @@ const currentDate = computed(() => {
             </div>
             <router-link to="/search" class="see-all-link">
               Lihat Semua 
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg>
             </router-link>
           </div>
 
@@ -613,8 +613,8 @@ const currentDate = computed(() => {
             <div v-for="activity in recentActivities" :key="activity.id" class="activity-item" :class="{ unread: !activity.is_read }">
               <div class="activity-icon">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
-                  <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+                  <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+                  <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
                 </svg>
               </div>
               <div class="activity-content">

@@ -194,7 +194,7 @@ onUnmounted(() => {
     <div class="page-title-section">
       <div class="page-title-content">
         <svg class="title-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
         </svg>
         <h1>Chat</h1>
       </div>
@@ -209,8 +209,8 @@ onUnmounted(() => {
           <button v-if="availablePartners.teachers.length || availablePartners.owners.length" 
                   class="new-chat-btn" @click="showNewChat = !showNewChat">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <line x1="12" y1="5" x2="12" y2="19"/>
-              <line x1="5" y1="12" x2="19" y2="12"/>
+              <line x1="12" y1="5" x2="12" y2="19"></line>
+              <line x1="5" y1="12" x2="19" y2="12"></line>
             </svg>
           </button>
         </div>
@@ -221,7 +221,7 @@ onUnmounted(() => {
             <h3>Mulai Chat Baru</h3>
             <button class="close-btn" @click="showNewChat = false">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                <line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line>
               </svg>
             </button>
           </div>
@@ -267,7 +267,7 @@ onUnmounted(() => {
           <div v-if="displayChatRooms.length === 0" class="empty-conversations">
             <div class="empty-icon">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
               </svg>
             </div>
             <p>Belum ada percakapan</p>
@@ -306,7 +306,7 @@ onUnmounted(() => {
           <div class="window-header">
             <button class="mobile-back" @click="showMobileList = true">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M19 12H5M12 19l-7-7 7-7"/>
+                <path d="M19 12H5M12 19l-7-7 7-7"></path>
               </svg>
             </button>
             <div class="participant-info">
@@ -357,8 +357,8 @@ onUnmounted(() => {
               >
               <button class="send-btn" :disabled="!newMessage.trim()" @click="handleSendMessage">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <line x1="22" y1="2" x2="11" y2="13"/>
-                  <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+                  <line x1="22" y1="2" x2="11" y2="13"></line>
+                  <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
                 </svg>
               </button>
             </div>
@@ -369,9 +369,9 @@ onUnmounted(() => {
         <div v-else class="empty-chat">
           <div class="empty-illustration">
             <svg class="main-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
-              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-              <line x1="9" y1="10" x2="15" y2="10"/>
-              <line x1="12" y1="7" x2="12" y2="13"/>
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+              <line x1="9" y1="10" x2="15" y2="10"></line>
+              <line x1="12" y1="7" x2="12" y2="13"></line>
             </svg>
           </div>
           <h2>Pilih Percakapan</h2>

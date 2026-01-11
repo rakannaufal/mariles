@@ -121,19 +121,19 @@ const faqs = [
             <div v-for="feature in features" :key="feature.title" class="feature-card">
               <div class="feature-icon">
                 <svg v-if="feature.icon === 'chart'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M18 20V10M12 20V4M6 20v-6"/>
+                  <path d="M18 20V10M12 20V4M6 20v-6"></path>
                 </svg>
                 <svg v-else-if="feature.icon === 'users'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
-                  <circle cx="9" cy="7" r="4"/>
-                  <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>
+                  <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                  <circle cx="9" cy="7" r="4"></circle>
+                  <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"></path>
                 </svg>
                 <div v-else-if="feature.icon === 'money'" style="display: flex; align-items: center; justify-content: center; width: 100%; height: 100%;">
                   <span style="font-weight: 800; font-size: 20px; color: white;">Rp</span>
                 </div>
                 <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="m3 11 18-5v12L3 14v-3z"/>
-                  <path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/>
+                  <path d="m3 11 18-5v12L3 14v-3z"></path>
+                  <path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"></path>
                 </svg>
               </div>
               <h3>{{ feature.title }}</h3>
