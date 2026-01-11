@@ -680,7 +680,6 @@ async function deleteAccount() {
               </svg>
               <p>Metode pembayaran yang dipilih akan digunakan untuk menerima pembayaran dari sistem.</p>
             </div>
-            </div>
           </div>
 
           <!-- Account -->
