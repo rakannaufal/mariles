@@ -158,7 +158,35 @@ async function fetchData() {
       `)
       .order('created_at', { ascending: false })
     
-    reports.value = reportData || []
+    // 3. Fetch details for Forum Posts/Comments
+    if (reportData && reportData.length > 0) {
+      const postIds = reportData.filter(r => r.target_type === 'forum_post').map(r => r.target_id)
+      const commentIds = reportData.filter(r => r.target_type === 'forum_comment').map(r => r.target_id)
+      
+      let posts = [], comments = []
+      
+      if (postIds.length > 0) {
+        const { data } = await supabase.from('forum_posts').select('id, title, content').in('id', postIds)
+        posts = data || []
+      }
+      
+      if (commentIds.length > 0) {
+        const { data } = await supabase.from('forum_comments').select('id, content').in('id', commentIds)
+        comments = data || []
+      }
+      
+      // Map details to reports
+      reports.value = reportData.map(r => {
+        let details = null
+        if (r.target_type === 'forum_post') details = posts.find(p => p.id === r.target_id)
+        else if (r.target_type === 'forum_comment') details = comments.find(c => c.id === r.target_id)
+        
+        return { ...r, target_details: details }
+      })
+    } else {
+      reports.value = []
+    }
+    
     stats.value.pendingReports = (reportData || []).filter(r => r.status === 'pending').length
     stats.value.resolvedReports = (reportData || []).filter(r => r.status === 'resolved').length
 
@@ -167,6 +195,45 @@ async function fetchData() {
     toast(`Error: ${err.message || 'Gagal memuat data'}`, 'error')
   } finally {
     loading.value = false
+  }
+}
+
+async function deleteReportedContent(report) {
+  if (!confirm('Hapus konten yang dilaporkan? Ini akan menghapus postingan/komentar secara permanen dan memberitahu pemiliknya.')) return
+  
+  try {
+    const table = report.target_type === 'forum_post' ? 'forum_posts' : 'forum_comments'
+    
+    // 1. Get content owner to notify
+    const { data: contentData } = await supabase.from(table).select('user_id').eq('id', report.target_id).single()
+    
+    // 2. Delete content
+    const { error } = await supabase.from(table).delete().eq('id', report.target_id)
+    if (error) throw error
+    
+    // 3. Update report status
+    await supabase.from('reports').update({ 
+      status: 'resolved',
+      resolved_at: new Date().toISOString(),
+      admin_note: 'Content deleted by admin'
+    }).eq('id', report.id)
+    
+    // 4. Notify User
+    if (contentData?.user_id) {
+       await supabase.from('notifications').insert({
+          user_id: contentData.user_id,
+          type: 'content_removed',
+          title: 'Konten Anda Dihapus',
+          message: `Konten Anda (${report.target_type === 'forum_post' ? 'Postingan' : 'Komentar'}) telah dihapus oleh admin karena melanggar aturan komunitas (Laporan: ${report.reason}).`,
+          is_read: false
+       })
+    }
+    
+    toast('Konten berhasil dihapus & laporan diselesaikan', 'success')
+    await fetchData()
+  } catch(e) {
+    console.error(e)
+    toast('Gagal menghapus konten', 'error')
   }
 }
 
@@ -600,8 +667,26 @@ const filteredReports = computed(() => {
                 <div class="reporter">
                   Pelapor: {{ report.users?.name || 'Anonim' }}
                 </div>
+                <!-- Content Preview -->
+                <div v-if="report.target_details" class="content-preview">
+                   <div class="preview-label">Konten yang dilaporkan:</div>
+                   <strong v-if="report.target_details.title">{{ report.target_details.title }}</strong>
+                   <p>"{{ report.target_details.content?.substring(0, 100) }}..."</p>
+                </div>
+                <div v-else-if="report.status !== 'resolved'" class="content-preview error">
+                   Konten tidak ditemukan (mungkin sudah dihapus)
+                </div>
               </div>
               <div class="report-actions">
+                <button 
+                  v-if="report.status === 'pending' && report.target_details"
+                  class="btn-sm delete" 
+                  @click="deleteReportedContent(report)"
+                  title="Hapus Konten & Selesaikan"
+                >
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                  Hapus Konten
+                </button>
                 <button class="btn-sm respond" @click="openResponseModal(report)">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
                   Tanggapi
@@ -798,6 +883,32 @@ const filteredReports = computed(() => {
 .btn-action.delete:hover { background: #FECACA; color: #B91C1C; }
 
 /* Reports List */
+.reports-list { display: flex; flex-direction: column; gap: 16px; }
+.report-item { background: white; border: 1px solid #E2E8F0; border-radius: 12px; padding: 20px; display: flex; gap: 20px; align-items: flex-start; }
+.report-status { text-transform: capitalize; padding: 4px 10px; border-radius: 6px; font-size: 12px; font-weight: 600; white-space: nowrap; }
+.report-status.pending { background: #FFF7ED; color: #C2410C; }
+.report-status.investigating { background: #EFF6FF; color: #1D4ED8; }
+.report-status.resolved { background: #F0FDF4; color: #15803D; }
+.report-status.dismissed { background: #F1F5F9; color: #64748B; }
+
+.report-main { flex: 1; }
+.report-header { display: flex; gap: 10px; align-items: center; margin-bottom: 8px; font-size: 12px; color: #64748B; }
+.report-type { background: #F1F5F9; padding: 2px 6px; border-radius: 4px; font-family: monospace; }
+.report-main h4 { font-size: 15px; font-weight: 700; color: #1E293B; margin-bottom: 4px; }
+.report-main p { font-size: 14px; color: #475569; margin-bottom: 12px; }
+.reporter { font-size: 12px; color: #94A3B8; font-style: italic; }
+
+.content-preview { margin-top: 12px; padding: 12px; background: #F8FAFC; border-radius: 8px; border-left: 3px solid #CBD5E1; font-size: 13px; }
+.content-preview.error { color: #EF4444; background: #FEF2F2; border-color: #FECACA; }
+.preview-label { font-size: 11px; color: #64748B; margin-bottom: 4px; text-transform: uppercase; font-weight: 700; }
+
+.report-actions { display: flex; flex-direction: column; gap: 8px; }
+.btn-sm { display: flex; align-items: center; gap: 6px; padding: 8px 12px; border: none; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 600; white-space: nowrap; transition: all 0.2s; }
+.btn-sm.respond { background: #F1F5F9; color: #334155; }
+.btn-sm.respond:hover { background: #E2E8F0; }
+.btn-sm.delete { background: #FEF2F2; color: #DC2626; }
+.btn-sm.delete:hover { background: #FECACA; }
+.btn-sm svg { width: 14px; height: 14px; }
 .filters-bar { margin-bottom: 24px; display: flex; gap: 12px; }
 .filter-group { display: flex; gap: 4px; background: white; padding: 4px; border-radius: 8px; border: 1px solid #E2E8F0; }
 .filter-group button { padding: 6px 16px; border: none; background: transparent; border-radius: 6px; font-size: 13px; font-weight: 500; color: #64748B; cursor: pointer; }

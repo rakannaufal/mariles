@@ -61,6 +61,47 @@ function saveLikes() {
   if (authStore.user?.id) {
     localStorage.setItem(`forum_likes_${authStore.user.id}`, JSON.stringify([...likedPostIds.value]))
   }
+const reportTarget = ref(null) // { id, type }
+const showReportModal = ref(false)
+const reportReason = ref('')
+const reportDescription = ref('')
+const reportOptions = [
+  'Spam atau iklan',
+  'Kata-kata kasar/tidak sopan',
+  'Informasi palsu',
+  'Pelecehan atau bullying',
+  'Lainnya'
+]
+
+// Open Report Modal
+function openReport(target, type) {
+  if (!authStore.user) return alert('Login untuk melaporkan')
+  reportTarget.value = { ...target, type }
+  reportReason.value = ''
+  reportDescription.value = ''
+  showReportModal.value = true
+}
+
+async function submitReport() {
+  if (!reportReason.value) return alert('Pilih alasan pelaporan')
+  
+  try {
+    const { error } = await supabase.from('reports').insert({
+      reporter_id: authStore.user.id,
+      target_type: reportTarget.value.type, // 'forum_post' or 'forum_comment'
+      target_id: reportTarget.value.id,
+      reason: reportReason.value,
+      description: reportDescription.value,
+      status: 'pending'
+    })
+    
+    if (error) throw error
+    alert('Laporan berhasil dikirim. Terima kasih telah membantu menjaga komunitas.')
+    showReportModal.value = false
+  } catch (err) {
+    console.error('Report error:', err)
+    alert('Gagal mengirim laporan')
+  }
 }
 
 // Fetch all posts (Optimized with limit)
@@ -487,6 +528,11 @@ onMounted(async () => {
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="icon"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
                     {{ 0 }} <!-- Comments count placeholder -->
                  </div>
+                 <!-- Report Button Post -->
+                  <div class="footer-item" @click.stop="openReport(post, 'forum_post')">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="icon"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg>
+                    Lapor
+                 </div>
               </div>
            </div>
         </div>
@@ -586,6 +632,35 @@ onMounted(async () => {
              </div>
           </div>
        </div>
+       </div>
+    </div>
+
+    <!-- Report Modal -->
+    <div v-if="showReportModal" class="modal-overlay" @click.self="showReportModal = false">
+      <div class="modal">
+        <h3>Laporkan Konten</h3>
+        <p class="section-subtitle">Mengapa Anda melaporkan konten ini?</p>
+        
+        <div class="report-form">
+          <label v-for="opt in reportOptions" :key="opt" class="radio-label">
+            <input type="radio" v-model="reportReason" :value="opt">
+            {{ opt }}
+          </label>
+          
+          <textarea 
+            v-if="reportReason === 'Lainnya'"
+            v-model="reportDescription" 
+            placeholder="Jelaskan detail pelanggaran..." 
+            rows="3" 
+            class="input-field mt-2"
+          ></textarea>
+          
+          <div class="modal-actions">
+             <button @click="showReportModal = false" class="btn-cancel">Batal</button>
+             <button @click="submitReport" class="btn-primary danger">Kirim Laporan</button>
+          </div>
+        </div>
+      </div>
     </div>
 
   </div>
@@ -598,6 +673,12 @@ onMounted(async () => {
   background-color: #F8FAFC;
   padding-bottom: 40px;
 }
+.radio-label { display: flex; gap: 8px; padding: 8px 0; cursor: pointer; color: #475569; }
+.btn-primary.danger { background-color: #EF4444; }
+.btn-primary.danger:hover { background-color: #DC2626; }
+.btn-action.flag { color: #94A3B8; }
+.btn-action.flag:hover { color: #F59E0B; background:#FFF7ED; }
+.mt-2 { margin-top: 8px; }
 
 .content-container {
   max-width: 900px;
