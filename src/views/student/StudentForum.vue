@@ -632,6 +632,7 @@ onMounted(async () => {
              </div>
           </div>
        </div>
+    </div>
 
 
     <!-- Report Modal -->
