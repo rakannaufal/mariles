@@ -509,7 +509,6 @@ async function deleteAccount() {
           </button>
         </div>
 
-        <!-- Content Area -->
         <div class="tab-content">
           <!-- Identity -->
           <div v-show="activeTab === 'identity'" class="form-section">
@@ -693,7 +692,6 @@ async function deleteAccount() {
               <button type="button" class="btn-delete-account" @click="deleteAccount">Hapus Akun Permanen</button>
             </div>
           </div>
-
         </div>
       </div>
     </main>
