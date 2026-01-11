@@ -632,8 +632,7 @@ onMounted(async () => {
              </div>
           </div>
        </div>
-       </div>
-    </div>
+
 
     <!-- Report Modal -->
     <div v-if="showReportModal" class="modal-overlay" @click.self="showReportModal = false">
