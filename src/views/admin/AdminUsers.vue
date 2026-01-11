@@ -123,13 +123,27 @@ async function deleteUser(user) {
   if (!confirm(`Hapus pengguna "${user.name}"? Tindakan ini tidak dapat dibatalkan.`)) return
 
   try {
-    await supabase.from('users').delete().eq('id', user.id)
+    const { data, error } = await supabase.functions.invoke('delete-user', {
+      body: { user_id: user.id }
+    })
+
+    if (error) {
+      console.error('Supabase Function Error:', error)
+      throw new Error(`Function Invoke Error: ${error.message}`)
+    }
+    
+    if (data && !data.success) {
+      console.error('Function Logic Error:', data.error)
+      throw new Error(data.error || 'Gagal menghapus pengguna (Unknown Error)')
+    }
+
     await fetchUsers()
     await fetchStats()
     showModal.value = false
+    alert('Pengguna berhasil dihapus')
   } catch (err) {
     console.error('Error deleting user:', err)
-    alert('Gagal menghapus pengguna')
+    alert(`Gagal menghapus pengguna: ${err.message}. \nCek konsol browser untuk detail.`)
   }
 }
 

@@ -1,0 +1,76 @@
+Entitas,Nama Halaman,Nama File,Jumlah Modal,Detail Modal
+Publik,Home,HomePage.vue,0,-
+Publik,Search,SearchPage.vue,0,-
+Publik,Les Detail,LesDetailPage.vue,2,"Program Detail, Report Les Place"
+Publik,Login,LoginPage.vue,0,-
+Publik,Register,RegisterPage.vue,0,-
+Publik,Forgot Password,ForgotPasswordPage.vue,0,-
+Publik,Update Password,UpdatePasswordPage.vue,0,-
+Publik,FAQ,FAQPage.vue,0,-
+Publik,Guide Partner,PartnerGuidePage.vue,0,-
+Publik,Guide Teacher,TeacherGuidePage.vue,0,-
+Publik,About,AboutPage.vue,0,-
+Publik,Privacy Policy,PrivacyPolicyPage.vue,0,-
+Publik,Terms,TermsPage.vue,0,-
+Publik,How It Works,HowItWorksPage.vue,0,-
+Publik,Contact,ContactPage.vue,0,-
+Publik,Auth Callback,AuthCallback.vue,0,-
+Publik,Maintenance,MaintenancePage.vue,0,-
+
+Siswa,Dashboard,StudentDashboard.vue,0,-
+Siswa,Bookings,StudentBookings.vue,2,"Cancel Booking, Detail Booking"
+Siswa,My Class,StudentMyClass.vue,1,"Review Class"
+Siswa,Class Detail,MyClassDetail.vue,1,"Upload Assignment"
+Siswa,Quiz,StudentQuiz.vue,0,-
+Siswa,Progress,StudentProgress.vue,0,-
+Siswa,Payment,StudentPayment.vue,0,-
+Siswa,Payment Success,PaymentSuccess.vue,0,-
+Siswa,Payment Pending,PaymentPending.vue,0,-
+Siswa,Favorites,StudentFavorites.vue,0,-
+Siswa,Profile,StudentProfile.vue,0,-
+Siswa,Settings,StudentSettings.vue,0,-
+Siswa,Chat,StudentChat.vue,0,-
+Siswa,Forum,StudentForum.vue,2,"Create/Edit Post, View Post Detail"
+Siswa,Notifications,StudentNotifications.vue,0,-
+Siswa,Refund,StudentRefund.vue,1,"Request Refund"
+
+Pemilik,Dashboard,OwnerDashboard.vue,0,-
+Pemilik,Les Management,OwnerLesManagement.vue,0,-
+Pemilik,Vouchers,OwnerVouchers.vue,1,"Create/Edit Voucher"
+Pemilik,Programs,OwnerPrograms.vue,1,"Create/Edit Program"
+Pemilik,Teachers,OwnerTeachers.vue,3,"Invite Teacher, Teacher Detail, Assign Teacher"
+Pemilik,Registrations,OwnerRegistrations.vue,1,"Registration Detail/Action"
+Pemilik,Statistics,OwnerStatistics.vue,0,-
+Pemilik,Finance,OwnerFinance.vue,4,"Pay Teacher, Confirm Payment, Payment Detail, Delete Payment"
+Pemilik,Reviews,OwnerReviews.vue,0,-
+Pemilik,Profile,OwnerProfile.vue,0,-
+Pemilik,Settings,OwnerSettings.vue,1,"Change Password"
+Pemilik,Chat,OwnerChat.vue,0,-
+Pemilik,Notifications,OwnerNotifications.vue,0,-
+
+Guru,Dashboard,TeacherDashboard.vue,0,-
+Guru,Schedule,TeacherSchedule.vue,1,"Class Detail"
+Guru,Students,TeacherStudents.vue,3,"Student Detail, Complete Program, Terminate Program"
+Guru,Student Management,TeacherStudentManagement.vue,2,"Complete Program, Terminate Program"
+Guru,Attendance,TeacherAttendance.vue,1,"Attendance Input"
+Guru,Materials,TeacherMaterials.vue,2,"Upload Material, Edit Material"
+Guru,Grades,TeacherGrades.vue,3,"Input Grade, Grade Settings, Latihan List"
+Guru,Performance,TeacherPerformance.vue,0,-
+Guru,Finance,TeacherFinance.vue,0,-
+Guru,Profile,TeacherProfile.vue,0,-
+Guru,Chat,TeacherChat.vue,0,-
+Guru,Quiz,TeacherQuiz.vue,2,"Create/Edit Quiz, Quiz Results"
+Guru,Notifications,TeacherNotifications.vue,0,-
+
+Admin,Dashboard,AdminDashboard.vue,0,-
+Admin,Users,AdminUsers.vue,1,"User Detail"
+Admin,Les Places,AdminLesPlaces.vue,2,"Les Place Detail, Reject Verification"
+Admin,Moderation,AdminModeration.vue,2,"Response Report, Flag Review"
+Admin,Analytics,AdminAnalytics.vue,0,-
+Admin,Categories,AdminCategories.vue,1,"Create/Edit Category"
+Admin,Banners,AdminBanners.vue,1,"Create/Edit Banner"
+Admin,Settings,AdminSettings.vue,0,-
+Admin,Reports,AdminReports.vue,1,"Transaction Detail"
+Admin,Vouchers,AdminVouchers.vue,1,"Create/Edit Voucher"
+Admin,Finance,AdminFinance.vue,0,-
+Admin,Notifications,AdminNotifications.vue,1,"Create Broadcast"
