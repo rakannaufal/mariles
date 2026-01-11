@@ -140,18 +140,22 @@ async function changePassword() {
 
 // Delete account
 async function deleteAccount() {
-  if (!confirm('Yakin ingin menghapus akun? Semua data akan dihapus permanen.')) return
+  if (!confirm('Yakin ingin menghapus akun? Semua data akan dihapus permanen. Tindakan ini tidak dapat dibatalkan.')) return
+  if (!confirm('Apakah Anda benar-benar yakin? Data tidak dapat dipulihkan kembali.')) return
   
   try {
-    // Soft delete - just deactivate
-    await supabase
-      .from('users')
-      .update({ is_active: false })
-      .eq('id', authStore.user.id)
+    // Hard delete via Edge Function
+    const { data, error } = await supabase.functions.invoke('delete-user', {
+      body: { user_id: authStore.user.id }
+    })
+
+    if (error) throw error
+    if (data && !data.success) throw new Error(data.error || 'Gagal menghapus akun')
     
-    await supabase.auth.signOut()
+    await authStore.signOut()
     window.location.href = '/'
   } catch (err) {
+    console.error('Delete account error:', err)
     alert('Gagal menghapus akun: ' + err.message)
   }
 }

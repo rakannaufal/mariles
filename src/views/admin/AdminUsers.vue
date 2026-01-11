@@ -128,13 +128,24 @@ async function deleteUser(user) {
     })
 
     if (error) {
-      console.error('Supabase Function Error:', error)
-      throw new Error(`Function Invoke Error: ${error.message}`)
+      // Try to parse the error body if available
+      let errorBody = ''
+      try {
+         // Supabase functions error context might contain the body
+         if (error.context && typeof error.context.json === 'function') {
+           const body = await error.context.json()
+           errorBody = body.error || body.message || JSON.stringify(body)
+         }
+      } catch (e) { /* ignore */ }
+
+      const msg = errorBody || error.message || 'Unknown Error'
+      console.error('Supabase Function Error Details:', error, msg)
+      throw new Error(msg)
     }
     
     if (data && !data.success) {
       console.error('Function Logic Error:', data.error)
-      throw new Error(data.error || 'Gagal menghapus pengguna (Unknown Error)')
+      throw new Error(data.error || 'Gagal menghapus pengguna')
     }
 
     await fetchUsers()

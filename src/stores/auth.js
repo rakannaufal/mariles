@@ -256,6 +256,13 @@ export const useAuthStore = defineStore('auth', () => {
     const pendingRole = localStorage.getItem('pendingRole') || 'student'
     const pendingOwnerType = localStorage.getItem('pendingOwnerType') || null
     
+    // Construct metadata to pass to Supabase
+    // This ensures the handle_new_user trigger gets the correct role immediately
+    const metaData = {
+      role: pendingRole,
+      owner_type: pendingOwnerType
+    }
+
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
@@ -263,7 +270,8 @@ export const useAuthStore = defineStore('auth', () => {
         queryParams: {
           access_type: 'offline',
           prompt: 'consent'
-        }
+        },
+        data: metaData 
       }
     })
     

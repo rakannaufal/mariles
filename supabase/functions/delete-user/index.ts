@@ -37,37 +37,37 @@ serve(async (req) => {
       throw new Error('Tidak terotorisasi: Sesi tidak valid')
     }
 
-    // 3. Verify Admin Role (Strict Check)
-    const { data: userData, error: userError } = await supabaseClient
-      .from('users')
-      .select('role')
-      .eq('id', user.id)
-      .single()
-
-    if (userError) {
-       console.error('Error fetching user role:', userError)
-       throw new Error('Gagal memverifikasi peran pengguna')
-    }
-
-    if (userData?.role !== 'admin') {
-      throw new Error(`Dilarang: Peran '${userData?.role}' tidak dapat menghapus pengguna`)
-    }
-
-    // 4. Initialize Admin Client (Service Role)
-    const supabaseAdmin = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    )
-
-    // 5. Parse Request Body
+    // Parse Request Body early
     const { user_id } = await req.json()
-
     if (!user_id) {
       throw new Error('User ID tidak ditemukan dalam permintaan')
     }
 
-    if (user_id === user.id) {
-        throw new Error('Tidak dapat menghapus akun Anda sendiri')
+    // 3. Determine if this is a Self-Deletion or Admin Action
+    const isSelfDelete = user.id === user_id
+
+    if (!isSelfDelete) {
+        // If not deleting self, must be Admin
+        const { data: userData, error: userError } = await supabaseClient
+            .from('users')
+            .select('role')
+            .eq('id', user.id)
+            .single()
+
+        if (userError) {
+             console.error('Error fetching user role:', userError)
+             throw new Error('Gagal memverifikasi peran pengguna')
+        }
+
+        if (userData?.role !== 'admin') {
+            throw new Error(`Dilarang: Peran '${userData?.role}' tidak dapat menghapus pengguna lain`)
+        }
+    }
+
+    if (isSelfDelete) {
+        console.log(`User ${user.id} is deleting their own account.`)
+    } else {
+        console.log(`Admin ${user.id} is deleting user ${user_id}`)
     }
 
     console.log(`Attempting to delete user: ${user_id}`)

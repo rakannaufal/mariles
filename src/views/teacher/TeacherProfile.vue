@@ -92,7 +92,8 @@ const tabs = [
   { id: 'professional', label: 'Profesional', icon: 'graduation' },
   { id: 'address', label: 'Alamat', icon: 'location' },
   { id: 'bank', label: 'Rekening', icon: 'credit-card' },
-  { id: 'workplace', label: 'Tempat Les', icon: 'home' }
+  { id: 'workplace', label: 'Tempat Les', icon: 'home' },
+  { id: 'account', label: 'Akun', icon: 'shield' }
 ]
 
 watch(() => profile.value.province_id, async (newVal) => {
@@ -228,6 +229,53 @@ async function handleSave() {
     message.value = { type: 'error', text: 'Gagal menyimpan: ' + err.message } 
   }
   finally { saving.value = false }
+
+}
+
+// Account Functions
+const passwordForm = ref({ newPassword: '', confirmPassword: '' })
+const passwordMsg = ref({ type: '', text: '' })
+
+async function updatePassword() {
+  if (passwordForm.value.newPassword !== passwordForm.value.confirmPassword) {
+    passwordMsg.value = { type: 'error', text: 'Konfirmasi password tidak cocok' }
+    return
+  }
+  if (passwordForm.value.newPassword.length < 6) {
+    passwordMsg.value = { type: 'error', text: 'Password minimal 6 karakter' }
+    return
+  }
+
+  saving.value = true
+  passwordMsg.value = { type: '', text: '' }
+  try {
+    const { error } = await supabase.auth.updateUser({ password: passwordForm.value.newPassword })
+    if (error) throw error
+    passwordMsg.value = { type: 'success', text: 'Password berhasil diupdate' }
+    passwordForm.value = { newPassword: '', confirmPassword: '' }
+  } catch(e) {
+    passwordMsg.value = { type: 'error', text: e.message }
+  } finally {
+    saving.value = false
+  }
+}
+
+async function deleteAccount() {
+  if (!confirm('HAPUS AKUN? Data tidak bisa kembali!')) return
+  if (!confirm('Yakin 100%?')) return
+  
+  try {
+     const { data, error } = await supabase.functions.invoke('delete-user', {
+        body: { user_id: authStore.user.id }
+     })
+     if (error) throw error
+     if (data && !data.success) throw new Error(data.error)
+     
+     await authStore.signOut()
+     window.location.href = '/'
+  } catch(e) {
+    alert('Gagal: ' + e.message)
+  }
 }
 
 function formatDate(date) {
@@ -329,8 +377,11 @@ function formatDate(date) {
               <svg v-else-if="tab.icon === 'credit-card'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/>
               </svg>
+              <svg v-else-if="tab.icon === 'workplace'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2-2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>
+              </svg>
               <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>
+                 <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
               </svg>
               <span>{{ tab.label }}</span>
             </button>
@@ -590,6 +641,31 @@ function formatDate(date) {
               <span class="hint">Minta kode undangan dari pemilik tempat les untuk bergabung</span>
             </div>
           </section>
+
+           <!-- Account Tab -->
+          <section v-else-if="activeTab === 'account'" class="form-section">
+            <h3>Pengaturan Akun</h3>
+            
+            <div class="account-card">
+              <h4>Ganti Password</h4>
+              <div class="form-group">
+                <label>Password Baru</label>
+                <input type="password" v-model="passwordForm.newPassword">
+              </div>
+               <div class="form-group">
+                <label>Konfirmasi Password</label>
+                <input type="password" v-model="passwordForm.confirmPassword">
+              </div>
+              <div v-if="passwordMsg.text" :class="['msg', passwordMsg.type]">{{ passwordMsg.text }}</div>
+              <button class="btn-outline" @click="updatePassword" :disabled="saving">Update Password</button>
+            </div>
+
+            <div class="account-card danger">
+              <h4>Hapus Akun</h4>
+              <p>Menghapus akun secara permanen. Tindakan ini tidak dapat dibatalkan.</p>
+              <button class="btn-danger" @click="deleteAccount">Hapus Akun Saya</button>
+            </div>
+          </section>
         </div>
       </div>
     </main>
@@ -763,4 +839,21 @@ function formatDate(date) {
 .tags-input.readonly { background: #f8fafc; border-color: #cbd5e1; }
 .tag.bg-green { background: #dcfce7; color: #16a34a; }
 .text-muted { font-size: 13px; color: #94a3b8; font-style: italic; }
+
+/* Account Tab Styles */
+.account-card { background: #f8fafc; padding: 20px; border-radius: 12px; margin-bottom: 24px; border: 1px solid #e2e8f0; }
+.account-card h4 { margin: 0 0 16px; color: #1e293b; font-size: 16px; }
+.account-card.danger { border-color: #fecaca; background: #fff1f2; }
+.account-card.danger h4 { color: #dc2626; }
+.account-card.danger p { font-size: 14px; color: #7f1d1d; margin-bottom: 16px; }
+
+.btn-outline { padding: 10px 20px; border: 1px solid #cbd5e1; background: white; border-radius: 8px; font-weight: 600; cursor: pointer; color: #475569; }
+.btn-outline:hover { border-color: #0d5782; color: #0d5782; }
+
+.btn-danger { padding: 10px 20px; background: #dc2626; color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; }
+.btn-danger:hover { background: #b91c1c; }
+
+.msg { padding: 10px; border-radius: 8px; font-size: 14px; margin-bottom: 16px; }
+.msg.success { background: #dcfce7; color: #16a34a; }
+.msg.error { background: #fee2e2; color: #dc2626; }
 </style>

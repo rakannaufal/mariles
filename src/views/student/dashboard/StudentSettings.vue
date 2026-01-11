@@ -69,6 +69,26 @@ async function handleUpdatePassword() {
     passwordLoading.value = false
   }
 }
+
+async function deleteAccount() {
+  if (!confirm('Yakin ingin menghapus akun? Semua data akan dihapus permanen. Tindakan ini tidak dapat dibatalkan.')) return
+  if (!confirm('Apakah Anda benar-benar yakin? Data tidak dapat dipulihkan kembali.')) return
+  
+  try {
+    const { data, error } = await supabase.functions.invoke('delete-user', {
+      body: { user_id: authStore.user.id }
+    })
+
+    if (error) throw error
+    if (data && !data.success) throw new Error(data.error || 'Gagal menghapus akun')
+    
+    await authStore.signOut()
+    router.push('/')
+  } catch (err) {
+    console.error('Delete account error:', err)
+    alert('Gagal menghapus akun: ' + err.message)
+  }
+}
 </script>
 
 <template>
@@ -118,8 +138,28 @@ async function handleUpdatePassword() {
           </div>
         </section>
 
-        <!-- Danger Zone -->
+        </section>
+
+        <!-- Delete Account -->
         <section class="settings-card danger">
+          <div class="card-header">
+             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+               <path d="M21 4H8l-7 8 7 8h13a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2z"></path>
+               <line x1="18" y1="9" x2="12" y2="15"></line>
+               <line x1="12" y1="9" x2="18" y2="15"></line>
+             </svg>
+             <h2>Hapus Akun</h2>
+          </div>
+          <div class="card-content">
+             <p class="section-desc">Menghapus akun Anda secara permanen. Semua data histori les, transaksi, dan profil akan hilang dan tidak dapat dikembalikan.</p>
+             <button class="btn-delete" @click="deleteAccount">
+               Hapus Akun Permanen
+             </button>
+          </div>
+        </section>
+
+        <!-- Logout Zone -->
+        <section class="settings-card">
           <div class="card-header">
              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
@@ -298,6 +338,21 @@ async function handleUpdatePassword() {
 .btn-logout:hover {
   background: #ef4444;
   color: white;
+}
+
+.btn-delete {
+  padding: 12px 24px;
+  background: #dc2626;
+  color: white;
+  border: none;
+  border-radius: 10px;
+  font-weight: 600;
+  cursor: pointer;
+  align-self: flex-start;
+  transition: all 0.2s;
+}
+.btn-delete:hover {
+  background: #b91c1c;
 }
 
 .alert {
