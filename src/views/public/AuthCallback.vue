@@ -185,6 +185,7 @@ onMounted(async () => {
       setTimeout(() => router.push('/login'), 3000)
     }
   }, 10000) // 10 seconds timeout
+})
 // Helper to get role label
 function getRoleLabel(role) {
   const labels = {
