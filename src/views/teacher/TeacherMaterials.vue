@@ -15,7 +15,8 @@ const {
   fetchTeacherMaterials, 
   fetchTeacherSchedule,
   createMaterial, 
-  deleteMaterial 
+  deleteMaterial,
+  hasAssignedPrograms
 } = useTeacherData()
 
 // Active tab
@@ -402,7 +403,7 @@ onMounted(async () => {
           </h1>
           <p class="subtitle">Kelola materi, latihan, dan video pembelajaran untuk siswa</p>
         </div>
-        <button class="btn-add" @click="openUploadModal(activeTab)">
+        <button v-if="hasAssignedPrograms" class="btn-add" @click="openUploadModal(activeTab)">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <line x1="12" y1="5" x2="12" y2="19"></line>
             <line x1="5" y1="12" x2="19" y2="12"></line>
@@ -411,6 +412,27 @@ onMounted(async () => {
         </button>
       </header>
 
+      <!-- Empty State: Not Assigned Yet -->
+      <div v-if="!hasAssignedPrograms" class="empty-dashboard-state">
+          <div class="empty-illustration">
+              <svg viewBox="0 0 200 200" fill="none" width="180" height="180">
+                <circle cx="100" cy="100" r="80" fill="#f1f5f9"/>
+                <rect x="65" y="60" width="70" height="80" rx="8" fill="white" stroke="#94a3b8" stroke-width="3"/>
+                <line x1="80" y1="80" x2="120" y2="80" stroke="#cbd5e1" stroke-width="3" stroke-linecap="round"/>
+                <line x1="80" y1="100" x2="110" y2="100" stroke="#cbd5e1" stroke-width="3" stroke-linecap="round"/>
+                <line x1="80" y1="120" x2="115" y2="120" stroke="#cbd5e1" stroke-width="3" stroke-linecap="round"/>
+                <circle cx="130" cy="130" r="25" fill="#0d5782" stroke="white" stroke-width="4"/>
+                <path d="M125 130l3 3 7-7" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+          </div>
+          <h2>Belum Ada Program Ditugaskan</h2>
+          <p>Saat ini Anda belum ditugaskan ke program atau kelas manapun. Anda tidak dapat membuat materi sampai Anda mendapatkan penugasan dari pemilik tempat les.</p>
+          <div class="empty-actions">
+            <router-link to="/teacher/dashboard" class="btn-outline">Kembali ke Dashboard</router-link>
+          </div>
+      </div>
+
+      <template v-else>
       <!-- Stats Cards -->
       <section class="stats-grid">
         <StatCard 
@@ -680,6 +702,9 @@ onMounted(async () => {
           <p>Klik tombol "Tambah Video" untuk menambahkan video pembelajaran baru</p>
         </div>
       </section>
+
+
+      </template>
 
       <!-- Upload Modal -->
       <div v-if="showUploadModal" class="modal-overlay" @click.self="showUploadModal = false">
@@ -1425,14 +1450,70 @@ onMounted(async () => {
 }
 
 .btn-cancel {
-  flex: 1;
-  padding: 12px;
-  border: 1px solid #e2e8f0;
+  padding: 12px 20px;
   background: white;
+  border: 1px solid #e2e8f0;
   border-radius: 10px;
   font-weight: 600;
+  color: #64748b;
   cursor: pointer;
 }
+
+/* Empty Dashboard State */
+.empty-dashboard-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 80px 20px;
+  background: white;
+  border-radius: 16px;
+  border: 2px dashed #e2e8f0;
+  text-align: center;
+  margin-top: 20px;
+}
+
+.empty-illustration {
+  margin-bottom: 24px;
+  opacity: 0.8;
+}
+
+.empty-dashboard-state h2 {
+  font-size: 24px;
+  font-weight: 700;
+  color: #0f172a;
+  margin-bottom: 12px;
+}
+
+.empty-dashboard-state p {
+  font-size: 16px;
+  color: #64748b;
+  max-width: 500px;
+  margin-bottom: 32px;
+  line-height: 1.6;
+}
+
+.empty-actions {
+  display: flex;
+  justify-content: center;
+}
+
+.btn-outline {
+  padding: 12px 24px;
+  border: 2px solid #e2e8f0;
+  background: white;
+  color: #64748b;
+  font-weight: 600;
+  border-radius: 8px;
+  text-decoration: none;
+  transition: all 0.2s;
+}
+
+.btn-outline:hover {
+  border-color: #0d5782;
+  color: #0d5782;
+}
+
 
 .btn-cancel:disabled { opacity: 0.5; cursor: not-allowed; }
 

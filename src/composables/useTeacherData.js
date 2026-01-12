@@ -173,12 +173,17 @@ export function useTeacherData() {
         // Only show programs that the teacher is assigned to
         programs.value = data?.filter(p => assignedProgramNames.includes(p.name)) || []
       } else {
-        // If no specialization set, show all programs (fallback for existing teachers)
-        programs.value = data || []
+        // CHANGED: If no specialization set, valid teacher should have NO programs.
+        // We do NOT default to all programs anymore.
+        programs.value = []
       }
       
-      schedule.value = scheduleItems
-      return scheduleItems
+      schedule.value = scheduleItems.filter(item => {
+        // Also filter schedule items based on assigned programs
+        return programs.value.some(p => p.id === item.program_id)
+      })
+      
+      return schedule.value
     } catch (err) {
       console.error('Error fetching schedule:', err)
       error.value = err.message
@@ -672,13 +677,30 @@ export function useTeacherData() {
     try {
       loading.value = true
       
-      // Get programs
-      const { data: programsData } = await supabase
+      // Get programs for this les_place
+      const { data: programsData, error: progErr } = await supabase
         .from('programs')
-        .select('id')
+        .select('id, name')
         .eq('les_place_id', teacherProfile.value.les_place_id)
+        
+      if (progErr) throw progErr
       
-      const programIds = programsData?.map(p => p.id) || []
+      // Use helper to get assigned programs only
+      // Teacher's assigned programs are stored in specialization array (as program names)
+      const assignedProgramNames = teacherProfile.value?.specialization || []
+      
+      let validPrograms = []
+      
+      if (assignedProgramNames.length > 0) {
+        // Teacher has specific assignments
+        validPrograms = programsData?.filter(p => assignedProgramNames.includes(p.name)) || []
+      } else {
+        // Teacher has NO assignments. 
+        // DO NOT fallback to all programs. Return empty.
+        validPrograms = []
+      }
+      
+      const programIds = validPrograms.map(p => p.id)
       
       if (programIds.length === 0) {
         materials.value = []
@@ -1297,6 +1319,9 @@ export function useTeacherData() {
     latihanSubmissions,
     fetchLatihanGrades,
     gradeLatihanSubmission,
+    
+    // Computed
+    hasAssignedPrograms: computed(() => programs.value.length > 0),
 
     // Methods
     fetchTeacherProfile,
