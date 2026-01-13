@@ -184,6 +184,30 @@ const handleLoginSuccess = async (user) => {
 onMounted(async () => {
   status.value = 'Memvalidasi sesi login...'
   
+  // 0. CEK APAKAH INI RESET PASSWORD FLOW
+  // Supabase mengirim type=recovery di hash URL untuk reset password
+  const hashParams = new URLSearchParams(window.location.hash.substring(1))
+  const authType = hashParams.get('type')
+  
+  if (authType === 'recovery') {
+    // Ini adalah flow reset password, redirect ke halaman update-password
+    status.value = 'Mengalihkan ke halaman reset password...'
+    
+    // Tunggu session ter-set oleh Supabase
+    const { data: { session } } = await supabase.auth.getSession()
+    
+    if (session) {
+      // Session berhasil, redirect ke update-password
+      window.location.href = '/update-password'
+    } else {
+      // Jika session belum ready, tunggu sebentar
+      setTimeout(() => {
+        window.location.href = '/update-password'
+      }, 1000)
+    }
+    return
+  }
+  
   // 1. Cek sesi langsung terlebih dahulu
   const { data: { session }, error: sessionError } = await supabase.auth.getSession()
   
