@@ -1,19 +1,24 @@
 <script setup>
-import { onMounted, onUnmounted, computed, ref } from 'vue'
+import { onMounted, onUnmounted, computed, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useTeacherData } from '@/composables/useTeacherData'
+import { useChat } from '@/composables/useChat'
 import { getUnreadCount, subscribeToNotifications } from '@/services/notificationService'
+import { supabase } from '@/lib/supabase'
 import FloatingChatWidget from './FloatingChatWidget.vue'
 import LogoutConfirmationModal from '@/components/modals/LogoutConfirmationModal.vue'
 
 const route = useRoute()
 const authStore = useAuthStore()
 const { lesPlace, fetchTeacherProfile } = useTeacherData()
+const { getTotalUnreadCount } = useChat()
 
 const isChatPage = computed(() => route.path.includes('/teacher/chat'))
 const unreadCount = ref(0)
+const unreadChatCount = ref(0)
 let notificationSubscription = null
+let chatSubscription = null
 
 async function updateUnreadCount() {
   if (authStore.user?.id) {
@@ -22,19 +27,75 @@ async function updateUnreadCount() {
   }
 }
 
+async function updateUnreadChatCount() {
+  if (authStore.user?.id) {
+    unreadChatCount.value = await getTotalUnreadCount(authStore.user.id)
+  }
+}
+
+const subscribeToChatNotifications = () => {
+  if (!authStore.user?.id) return
+
+  chatSubscription = supabase
+    .channel('teacher-sidebar-chat-notifications')
+    .on(
+      'postgres_changes',
+      {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'chat_messages'
+      },
+      async (payload) => {
+        if (payload.new.sender_id !== authStore.user.id) {
+           await updateUnreadChatCount()
+        }
+      }
+    )
+    .on(
+      'postgres_changes',
+      {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'chat_messages',
+        filter: 'is_read=eq.true'
+      },
+      async () => {
+        await updateUnreadChatCount()
+      }
+    )
+    .subscribe()
+}
+
 onMounted(async () => {
   await fetchTeacherProfile()
   if (authStore.user?.id) {
     await updateUnreadCount()
+    await updateUnreadChatCount()
+    
     notificationSubscription = subscribeToNotifications(authStore.user.id, () => {
       updateUnreadCount()
     })
+    
+    subscribeToChatNotifications()
   }
 })
 
 onUnmounted(() => {
   if (notificationSubscription) {
     notificationSubscription.unsubscribe()
+  }
+  if (chatSubscription) {
+    supabase.removeChannel(chatSubscription)
+  }
+})
+
+// Watch for route changes to refresh counts when entering/leaving chat
+watch(() => route.path, async () => {
+  if (authStore.user?.id) {
+    // Delay slightly to give time for read status updates
+    setTimeout(async () => {
+      await updateUnreadChatCount()
+    }, 1000)
   }
 })
 
@@ -182,6 +243,7 @@ async function confirmLogout() {
             <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
           </svg>
           <span>Chat</span>
+          <span v-if="unreadChatCount > 0" class="badge">{{ unreadChatCount }}</span>
         </router-link>
         
         <router-link to="/teacher/notifications" class="nav-item">

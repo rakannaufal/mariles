@@ -1,20 +1,65 @@
 <script setup>
-import { ref, onMounted, onUnmounted, watch } from 'vue'
+import { ref, onMounted, onUnmounted, watch, computed } from 'vue'
+import { useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { supabase } from '@/lib/supabase'
 import { getUnreadCount, subscribeToNotifications } from '@/services/notificationService'
+import { useChat } from '@/composables/useChat'
 import LogoutConfirmationModal from '@/components/modals/LogoutConfirmationModal.vue'
 
+const route = useRoute()
 const authStore = useAuthStore()
 const lesPlaceName = ref('')
 const unreadCount = ref(0)
+const unreadChatCount = ref(0)
 let notificationSubscription = null
+let chatSubscription = null
+const { getTotalUnreadCount } = useChat()
 
 async function updateUnreadCount() {
   if (authStore.user?.id) {
     const { count } = await getUnreadCount(authStore.user.id)
     unreadCount.value = count
   }
+}
+
+async function updateUnreadChatCount() {
+  if (authStore.user?.id) {
+    unreadChatCount.value = await getTotalUnreadCount(authStore.user.id)
+  }
+}
+
+const subscribeToChatNotifications = () => {
+  if (!authStore.user?.id) return
+
+  chatSubscription = supabase
+    .channel('owner-pribadi-sidebar-chat')
+    .on(
+      'postgres_changes',
+      {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'chat_messages'
+      },
+      async (payload) => {
+        if (payload.new.sender_id !== authStore.user.id) {
+           await updateUnreadChatCount()
+        }
+      }
+    )
+    .on(
+      'postgres_changes',
+      {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'chat_messages',
+        filter: 'is_read=eq.true'
+      },
+      async () => {
+        await updateUnreadChatCount()
+      }
+    )
+    .subscribe()
 }
 
 async function fetchLesPlace() {
@@ -35,9 +80,13 @@ onMounted(async () => {
   if (authStore.user?.id) {
     fetchLesPlace()
     await updateUnreadCount()
+    await updateUnreadChatCount()
+    
     notificationSubscription = subscribeToNotifications(authStore.user.id, () => {
       updateUnreadCount()
     })
+    
+    subscribeToChatNotifications()
   }
 })
 
@@ -45,12 +94,25 @@ onUnmounted(() => {
   if (notificationSubscription) {
     notificationSubscription.unsubscribe()
   }
+  if (chatSubscription) {
+    supabase.removeChannel(chatSubscription)
+  }
+})
+
+// Watch for route changes (especially when going to/from chat)
+watch(() => route.path, async () => {
+  if (authStore.user?.id) {
+    setTimeout(async () => {
+      await updateUnreadChatCount()
+    }, 1000)
+  }
 })
 
 watch(() => authStore.user, (newUser) => { 
   if (newUser?.id) {
     fetchLesPlace() 
     updateUnreadCount()
+    updateUnreadChatCount()
   }
 }, { immediate: true })
 
@@ -232,6 +294,7 @@ async function confirmLogout() {
             <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
           </svg>
           <span>Chat</span>
+          <span v-if="unreadChatCount > 0" class="badge">{{ unreadChatCount }}</span>
         </router-link>
 
         <router-link to="/owner/notifications" class="nav-item">
