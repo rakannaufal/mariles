@@ -33,10 +33,7 @@ const profile = ref({
   ewallet_type: '', ewallet_number: ''
 })
 
-const stats = ref({
-  total_branches: 0,
-  total_teachers: 0
-})
+
 
 const lesPlaces = ref([])
 const provinces = ref([])
@@ -210,7 +207,6 @@ async function fetchProfile() {
 }
 
 async function fetchStats() {
-  stats.value.total_branches = lesPlaces.value.length
   if (lesPlaces.value.length > 0) {
     const isPrivate = lesPlaces.value.some(lp => lp.is_private)
     profile.value.owner_type = isPrivate ? 'pribadi' : 'umum'
@@ -459,10 +455,7 @@ async function deleteAccount() {
               </div>
             </div>
 
-            <div class="info-item">
-              <span class="label">Total Cabang</span>
-              <span class="value">{{ stats.total_branches }}</span>
-            </div>
+
           </div>
         </aside>
 
