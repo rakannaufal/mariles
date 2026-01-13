@@ -298,18 +298,19 @@ async function handleBooking() {
 
     const studentId = studentData.id
     
-    // Check if user already enrolled in this specific program before
-    // User can buy different programs, but cannot buy the same program twice
+    // Check if user already enrolled in this specific program with ACTIVE status
+    // Allow re-enrollment if previous booking was completed or cancelled
     const { data: existingBooking } = await supabase
       .from('bookings')
       .select('id, status, payment_status')
       .eq('student_id', studentId)
       .eq('program_id', selectedProgram.value.id)
       .in('payment_status', ['paid', 'settlement', 'capture'])
+      .in('status', ['pending', 'confirmed', 'active']) // Only block if active, not completed
       .limit(1)
     
     if (existingBooking && existingBooking.length > 0) {
-      throw new Error(`Anda sudah pernah mendaftar program "${selectedProgram.value.name}". Silakan pilih program lain.`)
+      throw new Error(`Anda masih memiliki pendaftaran aktif untuk program "${selectedProgram.value.name}".`)
     }
     
     // Create booking and redirect to payment page
@@ -376,13 +377,15 @@ async function checkEnrolledPrograms() {
     
     if (!studentData?.id) return
     
-    // Get all paid bookings for this student at this les place
+    // Get all ACTIVE paid bookings for this student at this les place
+    // Exclude 'completed' status so students can re-enroll after completing a program
     const { data: bookings } = await supabase
       .from('bookings')
       .select('program_id')
       .eq('student_id', studentData.id)
       .eq('les_place_id', lesPlace.value?.id)
       .in('payment_status', ['paid', 'settlement', 'capture'])
+      .in('status', ['pending', 'confirmed', 'active']) // Exclude 'completed' and 'cancelled'
     
     if (bookings) {
       enrolledProgramIds.value = bookings.map(b => b.program_id)

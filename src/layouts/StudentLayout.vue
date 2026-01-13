@@ -7,7 +7,7 @@ const route = useRoute()
 
 // Hide sidebar for MyClass pages (they have their own Navbar)
 const showSidebar = computed(() => {
-  return !['student-myclass', 'student-myclass-detail', 'student-forum', 'student-payment'].includes(route.name)
+  return !['student-myclass', 'student-myclass-detail', 'student-forum', 'student-payment', 'student-quiz'].includes(route.name)
 })
 </script>
 

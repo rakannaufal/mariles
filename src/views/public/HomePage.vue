@@ -152,11 +152,11 @@ async function fetchMyClasses() {
         )
       `)
       .eq('student_id', studentData.id)
-      .in('status', ['active', 'confirmed', 'completed'])
+      .in('status', ['active', 'confirmed']) // Exclude 'completed' from "Lanjutkan Belajar"
       .neq('status', 'refunded') // Basic check
       .in('payment_status', ['paid', 'settlement', 'capture'])
       .order('created_at', { ascending: false })
-      .limit(3)
+      .limit(5) // Fetch more to account for filtering
 
     // DEFENSIVE CHECK: Fetch approved refunds to exclude them
     // This handles cases where booking status wasn't updated correctly
@@ -245,7 +245,8 @@ async function fetchMyClasses() {
       }
     }))
 
-    myClasses.value = processedClasses
+    // Filter out completed classes (100% progress) from "Lanjutkan Belajar"
+    myClasses.value = processedClasses.filter(c => c.progress < 100).slice(0, 3)
 
     // Calculate user stats
     const { count: totalClasses } = await supabase

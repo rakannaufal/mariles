@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useMyClass } from '@/composables/useMyClass'
@@ -9,6 +9,14 @@ import Navbar from '@/components/Navbar.vue'
 const router = useRouter()
 const authStore = useAuthStore()
 const { enrolledCourses, loading, fetchEnrolledCourses } = useMyClass()
+
+// Separate active and completed courses
+const activeCourses = computed(() => 
+  enrolledCourses.value.filter(c => c.status !== 'completed')
+)
+const completedCourses = computed(() => 
+  enrolledCourses.value.filter(c => c.status === 'completed')
+)
 
 // Review state
 const showReviewModal = ref(false)
@@ -128,7 +136,7 @@ async function submitReview() {
         </div>
 
         <!-- Empty State -->
-        <div v-else-if="enrolledCourses.length === 0" class="empty-state">
+        <div v-else-if="activeCourses.length === 0 && completedCourses.length === 0" class="empty-state">
           <div class="empty-icon">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
               <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
@@ -145,62 +153,131 @@ async function submitReview() {
           </router-link>
         </div>
 
-        <!-- Course Grid -->
-        <div v-else class="courses-grid">
-          <div v-for="booking in enrolledCourses" :key="booking.id" 
-               class="course-card" @click="openCourse(booking)">
-            <div class="course-image">
-              <img v-if="getPhoto(booking.program?.les_place?.photos)" 
-                   :src="getPhoto(booking.program.les_place.photos)" 
-                   :alt="booking.program?.name">
-              <div v-else class="course-placeholder">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                  <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
-                  <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
-                </svg>
+        <!-- Active Courses Section -->
+        <div v-if="activeCourses.length > 0" class="section-block">
+          <h2 class="section-title">Kelas Aktif</h2>
+          <div class="courses-grid">
+            <div v-for="booking in activeCourses" :key="booking.id" 
+                class="course-card" @click="openCourse(booking)">
+              <div class="course-image">
+                <img v-if="getPhoto(booking.program?.les_place?.photos)" 
+                    :src="getPhoto(booking.program.les_place.photos)" 
+                    :alt="booking.program?.name">
+                <div v-else class="course-placeholder">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                    <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+                    <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+                  </svg>
+                </div>
+                <span class="course-status" :class="booking.status">
+                  {{ booking.status === 'active' ? 'Aktif' : 'Terdaftar' }}
+                </span>
               </div>
-              <span class="course-status" :class="booking.status">
-                {{ booking.status === 'active' ? 'Aktif' : 'Terdaftar' }}
-              </span>
-            </div>
-            
-            <div class="course-content">
-              <div class="course-badge">{{ booking.program?.subject || 'Kelas' }}</div>
-              <h3 class="course-title">{{ booking.program?.name }}</h3>
-              <p class="course-place">{{ booking.program?.les_place?.name }}</p>
               
-              <div class="course-info">
-                <div class="info-item">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
-                    <line x1="16" y1="2" x2="16" y2="6"></line>
-                    <line x1="8" y1="2" x2="8" y2="6"></line>
-                    <line x1="3" y1="10" x2="21" y2="10"></line>
-                  </svg>
-                  <span>{{ formatSchedule(booking.program?.schedule) }}</span>
+              <div class="course-content">
+                <div class="course-badge">{{ booking.program?.subject || 'Kelas' }}</div>
+                <h3 class="course-title">{{ booking.program?.name }}</h3>
+                <p class="course-place">{{ booking.program?.les_place?.name }}</p>
+                
+                <div class="course-info">
+                  <div class="info-item">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                      <line x1="16" y1="2" x2="16" y2="6"></line>
+                      <line x1="8" y1="2" x2="8" y2="6"></line>
+                      <line x1="3" y1="10" x2="21" y2="10"></line>
+                    </svg>
+                    <span>{{ formatSchedule(booking.program?.schedule) }}</span>
+                  </div>
+                  <div class="info-item">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+                      <circle cx="12" cy="10" r="3"></circle>
+                    </svg>
+                    <span>{{ booking.program?.les_place?.city || 'Online' }}</span>
+                  </div>
                 </div>
-                <div class="info-item">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
-                    <circle cx="12" cy="10" r="3"></circle>
-                  </svg>
-                  <span>{{ booking.program?.les_place?.city || 'Online' }}</span>
+                <div class="course-actions">
+                  <button class="enter-btn" @click="openCourse(booking)">
+                    <span>Masuk Kelas</span>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <line x1="5" y1="12" x2="19" y2="12"></line>
+                      <polyline points="12 5 19 12 12 19"></polyline>
+                    </svg>
+                  </button>
+                  <button class="review-btn" @click="openReviewModal(booking, $event)">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+                    </svg>
+                    Beri Ulasan
+                  </button>
                 </div>
               </div>
-              <div class="course-actions">
-                <button class="enter-btn" @click="openCourse(booking)">
-                  <span>Masuk Kelas</span>
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <line x1="5" y1="12" x2="19" y2="12"></line>
-                    <polyline points="12 5 19 12 12 19"></polyline>
+            </div>
+          </div>
+        </div>
+
+        <!-- Completed Courses Section -->
+        <div v-if="completedCourses.length > 0" class="section-block completed-section">
+          <h2 class="section-title">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+              <polyline points="22 4 12 14.01 9 11.01"></polyline>
+            </svg>
+            Kelas Selesai
+          </h2>
+          <div class="courses-grid">
+            <div v-for="booking in completedCourses" :key="booking.id" 
+                class="course-card completed-card" @click="openCourse(booking)">
+              <div class="course-image">
+                <img v-if="getPhoto(booking.program?.les_place?.photos)" 
+                    :src="getPhoto(booking.program.les_place.photos)" 
+                    :alt="booking.program?.name">
+                <div v-else class="course-placeholder">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                    <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+                    <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
                   </svg>
-                </button>
-                <button class="review-btn" @click="openReviewModal(booking, $event)">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
-                  </svg>
-                  Beri Ulasan
-                </button>
+                </div>
+                <span class="course-status completed">Selesai</span>
+              </div>
+              
+              <div class="course-content">
+                <div class="course-badge">{{ booking.program?.subject || 'Kelas' }}</div>
+                <h3 class="course-title">{{ booking.program?.name }}</h3>
+                <p class="course-place">{{ booking.program?.les_place?.name }}</p>
+                
+                <div class="course-info">
+                  <div class="info-item">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                      <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                    </svg>
+                    <span>Progress 100%</span>
+                  </div>
+                  <div class="info-item">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+                      <circle cx="12" cy="10" r="3"></circle>
+                    </svg>
+                    <span>{{ booking.program?.les_place?.city || 'Online' }}</span>
+                  </div>
+                </div>
+                <div class="course-actions">
+                  <button class="enter-btn secondary" @click="openCourse(booking)">
+                    <span>Lihat Detail</span>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <line x1="5" y1="12" x2="19" y2="12"></line>
+                      <polyline points="12 5 19 12 12 19"></polyline>
+                    </svg>
+                  </button>
+                  <button class="review-btn" @click="openReviewModal(booking, $event)">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+                    </svg>
+                    Beri Ulasan
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -438,6 +515,45 @@ async function submitReview() {
 
 .course-status.confirmed {
   background: var(--warning);
+}
+
+.course-status.completed {
+  background: #3b82f6;
+}
+
+/* Section Blocks */
+.section-block {
+  margin-bottom: var(--spacing-2xl);
+}
+
+.section-title {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  font-size: var(--font-size-xl);
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: var(--spacing-lg);
+}
+
+.section-title svg {
+  width: 24px;
+  height: 24px;
+  color: #22c55e;
+}
+
+/* Completed Section */
+.completed-section {
+  border-top: 1px solid var(--border-light);
+  padding-top: var(--spacing-xl);
+}
+
+.completed-card {
+  opacity: 0.95;
+}
+
+.enter-btn.secondary {
+  background: var(--secondary);
 }
 
 .course-content {

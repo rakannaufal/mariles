@@ -59,7 +59,7 @@ export function useMyClass() {
           )
         `)
         .eq('student_id', studentId)
-        .in('status', ['active', 'confirmed'])
+        .in('status', ['active', 'confirmed', 'completed']) // Include completed for MyClass display
         .in('payment_status', ['paid', 'settlement', 'capture']) // Broaden payment status
         .neq('status', 'refunded') // Basic check
         .order('start_date', { ascending: false })
@@ -424,8 +424,26 @@ export function useMyClass() {
     }
   }
 
+  // Mark a course/booking as completed
+  async function markCourseAsCompleted(bookingId) {
+    if (!bookingId) return false
+    try {
+      const { error } = await supabase
+        .from('bookings')
+        .update({ status: 'completed' })
+        .eq('id', bookingId)
+      
+      if (error) throw error
+      console.log('Course marked as completed:', bookingId)
+      return true
+    } catch (err) {
+      console.error('Error marking course as completed:', err)
+      return false
+    }
+  }
+
   // Calculate overall course progress
-  function calculateCourseProgress() {
+  function calculateCourseProgress(bookingId = null, currentStatus = null) {
     // Count all learning items
     const moduleVideos = materials.value || []
     const quizList = tests.value || []
@@ -450,22 +468,42 @@ export function useMyClass() {
       m.progress?.is_completed || m.progress?.is_read
     ).length
     
-    // Videos: progress.is_watched or progress.watch_percentage >= 80
+    // Videos: progress.is_completed (set by openMaterial), is_watched, or watch_percentage >= 80
     const completedVideos = videoItems.filter(v => 
-      v.progress?.is_watched || (v.progress?.watch_percentage || 0) >= 80
+      v.progress?.is_completed || v.progress?.is_watched || (v.progress?.watch_percentage || 0) >= 80
     ).length
     
-    // Quizzes: have bestScore (completed at least once)
-    const completedQuizzes = quizList.filter(q => q.bestScore !== null).length
+    // Quizzes: have bestScore (completed at least once) or attemptCount > 0
+    const completedQuizzes = quizList.filter(q => 
+      q.bestScore !== null || q.attemptCount > 0
+    ).length
     
-    // Exercises: have at least one submission
+    // Exercises: have submission object, submissionCount > 0, or status is 'submitted' or 'graded'
     const completedExercises = exerciseList.filter(e => 
-      e.submissionCount > 0 || e.submissions?.length > 0
+      e.submission || e.submissionCount > 0 || e.submissions?.length > 0 || 
+      e.status === 'submitted' || e.status === 'graded'
     ).length
     
     const completedItems = completedModules + completedVideos + completedQuizzes + completedExercises
     
-    return Math.round((completedItems / totalItems) * 100)
+    // Debug log for troubleshooting
+    console.log('Progress Debug:', {
+      modules: `${completedModules}/${totalModules}`,
+      videos: `${completedVideos}/${totalVideos}`,
+      quizzes: `${completedQuizzes}/${totalQuizzes}`,
+      exercises: `${completedExercises}/${totalExercises}`,
+      total: `${completedItems}/${totalItems}`,
+      percent: Math.round((completedItems / totalItems) * 100)
+    })
+    
+    const percent = Math.round((completedItems / totalItems) * 100)
+    
+    // Auto-complete booking when progress reaches 100%
+    if (percent === 100 && bookingId && currentStatus !== 'completed') {
+      markCourseAsCompleted(bookingId)
+    }
+    
+    return percent
   }
 
   // Get schedule for display
@@ -785,6 +823,7 @@ export function useMyClass() {
     fetchReportCard,
     updateMaterialProgress,
     calculateCourseProgress,
-    getScheduleDisplay
+    getScheduleDisplay,
+    markCourseAsCompleted
   }
 }

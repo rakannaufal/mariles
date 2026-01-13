@@ -434,7 +434,7 @@ function joinMeeting() {
           <div v-if="isOnlineClass" class="stats-overview">
             <StatCard 
                 label="Progress Belajar" 
-                :value="calculateCourseProgress() + '%'" 
+                :value="calculateCourseProgress(currentCourse.id, currentCourse.status) + '%'" 
                 icon-color="blue"
             >
                 <template #icon>
