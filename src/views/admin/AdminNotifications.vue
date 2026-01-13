@@ -44,12 +44,46 @@ onMounted(async () => {
 async function fetchNotifications() {
   loading.value = true
   try {
+    // 1. Fetch notifications that are marked as broadcast OR generally available
+    // Since we don't have a distinct flag for "broadcast" on the row itself easily queryable without JSON filter which might be slow without index,
+    // we fetch a larger set and deduplicate client-side to show "History of Broadcasts".
+    // ideally, we should have a separate 'broadcasts' table or a clearer flag.
+    // For now, we assume 'admin' sent broadcast = checking data->from = 'admin' AND data->broadcast = true
+    
     const { data } = await supabase
       .from('notifications')
-      .select('id, title, message, type, created_at')
+      .select('id, title, message, type, created_at, data')
       .order('created_at', { ascending: false })
-      .limit(50)
-    sentNotifications.value = data || []
+      .limit(200) // Increased limit to find distinct broadcasts effectively
+
+    if (!data) {
+      sentNotifications.value = []
+      return
+    }
+
+    // 2. Deduplicate logic
+    // We group by "signature" = type + title + message + rough_time (to minute)
+    // This effectively collapses the 100s of copies sent to individual users into 1 display item.
+    const uniqueNotifications = []
+    const seenSignatures = new Set()
+
+    for (const notif of data) {
+      // Check if this is likely a broadcast
+      const isBroadcast = notif.data?.broadcast === true || notif.data?.from === 'admin'
+      
+      if (isBroadcast) {
+        // Create signature (ignore seconds to group batch sends)
+        const timeKey = new Date(notif.created_at).toISOString().slice(0, 16) // Up to minute: "2024-01-01T12:00"
+        const signature = `${notif.type}|${notif.title}|${notif.message}|${timeKey}`
+        
+        if (!seenSignatures.has(signature)) {
+          seenSignatures.add(signature)
+          uniqueNotifications.push(notif)
+        }
+      }
+    }
+
+    sentNotifications.value = uniqueNotifications
   } catch (err) {
     console.error('Error:', err)
   } finally {

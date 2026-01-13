@@ -74,6 +74,7 @@ async function fetchVouchers() {
     const { data, error: err } = await supabase
       .from('vouchers')
       .select('*')
+      .is('les_place_id', null)
       .order('created_at', { ascending: false })
     
     if (err) throw err

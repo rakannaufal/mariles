@@ -35,8 +35,7 @@ const profile = ref({
 
 const stats = ref({
   total_branches: 0,
-  total_teachers: 0,
-  total_students: 0
+  total_teachers: 0
 })
 
 const lesPlaces = ref([])
@@ -45,12 +44,10 @@ const cities = ref([])
 const loadingProvinces = ref(false)
 const loadingCities = ref(false)
 const loadingLesPlaces = ref(false)
-const generatingCode = ref(null)
 const togglingActive = ref(false)
 
-// Computed: Completion Percentage - must match AdminLesPlaces.vue
+// Computed: Completion Percentage
 const completionPercent = computed(() => {
-  // 9 fields matching Admin: nama, phone, nik, nama usaha, jenis usaha, provinsi, kota, alamat, pembayaran
   const baseFields = [
     profile.value.name, 
     profile.value.phone, 
@@ -62,7 +59,6 @@ const completionPercent = computed(() => {
     profile.value.address
   ]
   
-  // Check payment method based on selected type
   const hasPayment = profile.value.payment_type === 'bank' 
     ? (profile.value.bank_name && profile.value.bank_account)
     : (profile.value.ewallet_type && profile.value.ewallet_number)
@@ -72,7 +68,6 @@ const completionPercent = computed(() => {
   return Math.round((filled / fields.length) * 100)
 })
 
-// Options
 const genderOptions = [
   { value: '', label: 'Pilih jenis kelamin' },
   { value: 'male', label: 'Laki-laki' },
@@ -123,7 +118,7 @@ onMounted(async () => {
     fetchProvinces(),
     fetchLesPlaces()
   ])
-  await fetchStats() // New stats fetch
+  await fetchStats()
 })
 
 // Methods
@@ -155,18 +150,15 @@ async function fetchProfile() {
     
     if (ownerData) {
       Object.assign(profile.value, {
-        // Bisnis - ambil dari business_name atau company_name
         company_name: ownerData.business_name || ownerData.company_name || '', 
         business_type: ownerData.business_type || '',
         business_desc: ownerData.description || '',
         npwp: ownerData.npwp || '', 
         nik: ownerData.nik || '',
-        // Alamat - ambil dari owner jika ada
         province_id: ownerData.province_id || '', 
         province_name: ownerData.province_name || '',
         city_id: ownerData.city_id || '', 
         city_name: ownerData.city_name || '',
-        // Keuangan
         payment_type: ownerData.payment_type || 'bank',
         bank_name: ownerData.bank_name || '', 
         bank_account: ownerData.bank_account || '', 
@@ -175,12 +167,9 @@ async function fetchProfile() {
         ewallet_number: ownerData.ewallet_number || ''
       })
       
-      // Jika alamat dari user kosong, gunakan dari business_address
       if (!profile.value.address && ownerData.business_address) {
         profile.value.address = ownerData.business_address
       }
-      
-      // Jika phone dari user kosong, gunakan dari business_phone
       if (!profile.value.phone && ownerData.business_phone) {
         profile.value.phone = ownerData.business_phone
       }
@@ -188,16 +177,12 @@ async function fetchProfile() {
       if (ownerData.province_id) await fetchCities(ownerData.province_id)
     }
     
-    // PRE-FILL from les_places registration if owner profile is empty
     if (lesPlaceData) {
-      // Alamat dari les_places jika owner belum diisi
       if (!profile.value.address && lesPlaceData.address) {
         profile.value.address = lesPlaceData.address
       }
       
-      // Auto-select province from les_places by matching name
       if (!profile.value.province_id && lesPlaceData.province) {
-        // Find matching province ID from loaded provinces list
         const matchedProvince = provinces.value.find(p => 
           p.name.toUpperCase().includes(lesPlaceData.province.toUpperCase()) ||
           lesPlaceData.province.toUpperCase().includes(p.name.toUpperCase())
@@ -205,10 +190,8 @@ async function fetchProfile() {
         if (matchedProvince) {
           profile.value.province_id = matchedProvince.id
           profile.value.province_name = matchedProvince.name
-          // Fetch cities for this province
           await fetchCities(matchedProvince.id)
           
-          // Auto-select city from les_places by matching name
           if (!profile.value.city_id && lesPlaceData.city) {
             const matchedCity = cities.value.find(c => 
               c.name.toUpperCase().includes(lesPlaceData.city.toUpperCase()) ||
@@ -227,19 +210,11 @@ async function fetchProfile() {
 }
 
 async function fetchStats() {
-  // Simulating or fetching real stats logic
-  // 1. Total Branches (Les Places)
   stats.value.total_branches = lesPlaces.value.length
-
-  // Determine Owner Type based on branches
   if (lesPlaces.value.length > 0) {
     const isPrivate = lesPlaces.value.some(lp => lp.is_private)
     profile.value.owner_type = isPrivate ? 'pribadi' : 'umum'
   }
-
-  // 2. Total Teachers (Count teachers in owner's les places)
-  // This requires a more complex query, for now we leave it simple or fetch if we had a view.
-  // We'll trust the user wants "detail" visually first.
 }
 
 async function fetchProvinces() {
@@ -264,21 +239,17 @@ async function fetchCities(provId) {
 async function fetchLesPlaces() {
   loadingLesPlaces.value = true
   try {
-    // Gunakan view les_places_with_owner yang bypass RLS
-    // Filter berdasarkan owner_email yang sama dengan user saat ini
     const { data, error } = await supabase
       .from('les_places_with_owner')
       .select('id, name, is_private, is_verified, is_active, owner_name, owner_email')
       .eq('owner_email', authStore.user.email)
     
     if (error) {
-      console.error('Error fetching les places:', error)
-      lesPlaces.value = []
+       lesPlaces.value = []
     } else {
       lesPlaces.value = data || []
     }
   } catch (err) { 
-    console.error('Error:', err) 
     lesPlaces.value = []
   }
   finally { loadingLesPlaces.value = false }
@@ -298,7 +269,6 @@ async function toggleLesPlaceActive(lesPlace) {
     
     if (error) throw error
     
-    // Update local state
     const idx = lesPlaces.value.findIndex(lp => lp.id === lesPlace.id)
     if (idx !== -1) {
       lesPlaces.value[idx].is_active = newStatus
@@ -322,11 +292,46 @@ function onCityChange(e) {
   profile.value.city_id = e.target.value; profile.value.city_name = selected?.name || ''
 }
 
+async function handleAvatarUpload(event) {
+  const file = event.target.files[0]
+  if (!file) return
+
+  try {
+    message.value = { type: '', text: '' }
+    const fileExt = file.name.split('.').pop()
+    const fileName = `${authStore.user.id}-${Date.now()}.${fileExt}`
+    const filePath = `avatars/${fileName}`
+
+    const { error: uploadError } = await supabase.storage
+      .from('avatars')
+      .upload(filePath, file, { upsert: true })
+
+    if (uploadError) throw uploadError
+
+    const { data: { publicUrl } } = supabase.storage
+      .from('avatars')
+      .getPublicUrl(filePath)
+
+    const { error: updateError } = await supabase
+      .from('users')
+      .update({ avatar_url: publicUrl })
+      .eq('id', authStore.user.id)
+
+    if (updateError) throw updateError
+
+    profile.value.avatar_url = publicUrl
+    await authStore.fetchUserProfile()
+    message.value = { type: 'success', text: 'Foto profil berhasil diupload!' }
+    setTimeout(() => { message.value = { type: '', text: '' } }, 3000)
+  } catch (err) {
+    message.value = { type: 'error', text: 'Gagal upload: ' + err.message }
+  }
+}
+
 async function handleSave() {
   saving.value = true
   message.value = { type: '', text: '' }
   try {
-    // Update users table
     const { error: uErr } = await supabase.from('users').update({
       name: profile.value.name, 
       phone: profile.value.phone, 
@@ -336,7 +341,6 @@ async function handleSave() {
     }).eq('id', authStore.user.id)
     if (uErr) throw uErr
 
-    // Update owners table - use upsert with onConflict
     const { error: oErr } = await supabase.from('owners').upsert({
       user_id: authStore.user.id,
       business_name: profile.value.company_name,
@@ -382,7 +386,6 @@ async function deleteAccount() {
     await authStore.signOut()
     router.push('/')
   } catch (err) {
-    console.error('Delete account error:', err)
     message.value = { type: 'error', text: 'Gagal menghapus akun: ' + err.message }
   }
 }
@@ -392,306 +395,277 @@ async function deleteAccount() {
   <div class="dashboard">
 
     <main class="main">
-      <!-- Header Area -->
       <header class="page-header">
-        <div class="header-content">
-          <h1>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-              <circle cx="12" cy="7" r="4"></circle>
-            </svg>
-            Profil & Bisnis
-          </h1>
-          <p class="subtitle">Kelola identitas diri dan informasi bisnis Anda</p>
-        </div>
-        
-        <button class="btn-save" :disabled="saving" @click="handleSave">
-          <span v-if="saving" class="spinner"></span>
-          <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
-            <polyline points="17 21 17 13 7 13 7 21"></polyline>
-            <polyline points="7 3 7 8 15 8"></polyline>
-          </svg>
-          {{ saving ? 'Menyimpan...' : 'Simpan Perubahan' }}
-        </button>
+        <h1>Profil & Bisnis</h1>
+        <p>Kelola identitas diri dan informasi bisnis Anda</p>
       </header>
 
-      <!-- Toast Notification -->
-      <transition name="toast-slide">
-        <div v-if="showSaved" class="toast success">
-          <div class="toast-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
-          </div>
-          <span>Perubahan berhasil disimpan!</span>
-        </div>
-      </transition>
-      
-      <div v-if="message.text && !showSaved" class="alert-box" :class="message.type">
-        {{ message.text }}
-      </div>
-
       <div v-if="loading" class="loading-state">
-        <div class="spinner-lg"></div>
-        <p>Memuat data profil...</p>
+        <div class="loading-spinner"></div>
+        <p>Memuat profil...</p>
       </div>
 
-      <div v-else class="content-wrapper">
-        <!-- Profile Header Card -->
-        <div class="profile-header-card">
-          <div class="profile-main">
-            <div class="avatar-wrapper">
-              <img v-if="profile.avatar_url" :src="profile.avatar_url" alt="Avatar">
-              <div v-else class="avatar-placeholder">{{ profile.name?.charAt(0) }}</div>
-              <button class="btn-edit-avatar">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>
-              </button>
+      <div v-else class="profile-layout">
+        <!-- Sidebar -->
+        <aside class="profile-sidebar">
+          <div class="avatar-card">
+            <div class="avatar">
+              <img v-if="profile.avatar_url" :src="profile.avatar_url" :alt="profile.name">
+              <span v-else class="avatar-placeholder">{{ profile.name?.charAt(0)?.toUpperCase() || '?' }}</span>
             </div>
-            <div class="profile-details">
-              <div class="name-row">
-                <h2>{{ profile.name || 'Nama Belum Diisi' }}</h2>
-                <span class="badge" :class="profile.owner_type">Pemilik {{ profile.owner_type === 'pribadi' ? 'Pribadi' : 'Umum' }}</span>
+            <h3>{{ profile.name || 'Nama Pemilik' }}</h3>
+            <p class="email">{{ profile.email }}</p>
+             <div class="badges-row">
+                <span class="badge" :class="profile.owner_type">Owner {{ profile.owner_type === 'pribadi' ? 'Pribadi' : 'Umum' }}</span>
                 <span v-if="lesPlaces.length > 0" class="badge" :class="lesPlaces[0]?.is_verified ? 'verified' : 'pending'">
-                  {{ lesPlaces[0]?.is_verified ? 'Terverifikasi' : 'Menunggu Verifikasi' }}
+                  {{ lesPlaces[0]?.is_verified ? 'Terverifikasi' : 'Pending' }}
+                </span>
+             </div>
+            <label class="upload-btn">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
+              Ubah Foto
+              <input type="file" accept="image/*" hidden @change="handleAvatarUpload">
+            </label>
+          </div>
+
+          <div class="info-card">
+            <h4>Status Akun</h4>
+            <div class="info-item">
+              <span class="label">Kelengkapan</span>
+              <div class="progress-container">
+                <div class="progress-bar">
+                  <div class="progress-fill" :style="{ width: completionPercent + '%' }"></div>
+                </div>
+                <span class="value">{{ completionPercent }}%</span>
+              </div>
+            </div>
+
+            <!-- Status Tempat Les Toggle in Sidebar -->
+            <div v-if="lesPlaces.length > 0" class="status-toggle-box">
+              <span class="label">Status Tempat Les</span>
+              <div class="toggle-row">
+                 <label class="toggle-switch" :class="{ disabled: togglingActive }">
+                  <input 
+                    type="checkbox" 
+                    :checked="lesPlaces[0]?.is_active ?? true" 
+                    :disabled="togglingActive"
+                    @change="toggleLesPlaceActive(lesPlaces[0])"
+                  >
+                  <span class="toggle-slider"></span>
+                </label>
+                <span class="status-text" :class="(lesPlaces[0]?.is_active ?? true) ? 'active' : 'inactive'">
+                  {{ (lesPlaces[0]?.is_active ?? true) ? 'Aktif' : 'Nonaktif' }}
                 </span>
               </div>
-              <p class="email">{{ profile.email }}</p>
-              <div class="location" v-if="profile.city_name">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
-                {{ profile.city_name }}, {{ profile.province_name }}
-              </div>
             </div>
-          </div>
-          
-          <div class="profile-stats">
-            <div class="stat-box" :class="lesPlaces[0]?.is_verified ? 'success' : 'warning'">
-              <span class="stat-num">{{ lesPlaces[0]?.is_verified ? 'Ya' : 'Tidak' }}</span>
-              <span class="stat-label">Status Verifikasi</span>
-            </div>
-            <div class="stat-box highlight">
-              <div class="progress-ring" :style="{ '--p': completionPercent }">
-                <span>{{ completionPercent }}%</span>
-              </div>
-              <span class="stat-label">Kelengkapan</span>
-            </div>
-            <!-- Toggle Aktif Tempat Les -->
-            <div v-if="lesPlaces.length > 0" class="stat-box toggle-box" :class="(lesPlaces[0]?.is_active ?? true) ? 'active' : 'inactive'">
-              <label class="toggle-switch" :class="{ disabled: togglingActive }">
-                <input 
-                  type="checkbox" 
-                  :checked="lesPlaces[0]?.is_active ?? true" 
-                  :disabled="togglingActive"
-                  @change="toggleLesPlaceActive(lesPlaces[0])"
-                >
-                <span class="toggle-slider"></span>
-              </label>
-              <span class="stat-label">{{ (lesPlaces[0]?.is_active ?? true) ? 'Aktif' : 'Nonaktif' }}</span>
-            </div>
-          </div>
-        </div>
 
-        <!-- Navigation Tabs -->
-        <div class="tabs-nav">
-          <button 
-            v-for="tab in tabs" 
-            :key="tab.id" 
-            class="tab-btn" 
-            :class="{ active: activeTab === tab.id }"
-            @click="activeTab = tab.id"
-          >
-            <div class="tab-icon">
+            <div class="info-item">
+              <span class="label">Total Cabang</span>
+              <span class="value">{{ stats.total_branches }}</span>
+            </div>
+          </div>
+        </aside>
+
+        <!-- Main Content -->
+        <div class="profile-form-container">
+          <div v-if="message.text || showSaved" class="alert" :class="message.type || 'success'">
+            <svg v-if="message.type === 'success' || showSaved" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+            <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>
+            {{ showSaved ? 'Profil berhasil disimpan!' : message.text }}
+          </div>
+
+          <div class="tabs">
+            <button v-for="tab in tabs" :key="tab.id" :class="['tab', { active: activeTab === tab.id }]" @click="activeTab = tab.id">
               <svg v-if="tab.icon === 'user'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
-              <svg v-if="tab.icon === 'building'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="2" width="16" height="20" rx="2"></rect><line x1="9" y1="22" x2="9" y2="22"></line><path d="M9 22v-4h6v4"></path></svg>
-              <svg v-if="tab.icon === 'location'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
-              <svg v-if="tab.icon === 'credit-card'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2"></rect><line x1="1" y1="10" x2="23" y2="10"></line></svg>
-              <svg v-if="tab.icon === 'key'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"></path></svg>
-            </div>
-            <span>{{ tab.label }}</span>
-          </button>
-        </div>
-
-        <div class="tab-content">
-          <!-- Identity -->
-          <div v-show="activeTab === 'identity'" class="form-section">
-            <h3 class="section-title">Informasi Pribadi</h3>
-            <div class="form-grid">
-              <div class="input-group">
-                <label>Nama Lengkap <span class="req">*</span></label>
-                <input v-model="profile.name" type="text" class="input-field" placeholder="Nama sesuai KTP">
-              </div>
-              <div class="input-group">
-                <label>Email</label>
-                <input :value="profile.email" type="email" class="input-field disabled" disabled>
-              </div>
-              <div class="input-group">
-                <label>Nomor Telepon <span class="req">*</span></label>
-                <input v-model="profile.phone" type="tel" class="input-field" placeholder="08xxxxxxxxxx">
-              </div>
-              <div class="input-group">
-                <label>Nomor Induk Kependudukan (NIK)</label>
-                <input v-model="profile.nik" type="text" class="input-field" placeholder="16 digit NIK" maxlength="16">
-              </div>
-              <div class="input-group">
-                <label>Jenis Kelamin</label>
-                <select v-model="profile.gender" class="input-field">
-                  <option v-for="opt in genderOptions" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
-                </select>
-              </div>
-              <div class="input-group">
-                <label>Tanggal Lahir</label>
-                <input v-model="profile.birth_date" type="date" class="input-field">
-              </div>
-            </div>
+              <svg v-else-if="tab.icon === 'building'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="2" width="16" height="20" rx="2"></rect><line x1="9" y1="22" x2="9" y2="22"></line><path d="M9 22v-4h6v4"></path></svg>
+              <svg v-else-if="tab.icon === 'location'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
+              <svg v-else-if="tab.icon === 'credit-card'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2"></rect><line x1="1" y1="10" x2="23" y2="10"></line></svg>
+              <svg v-else-if="tab.icon === 'key'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"></path></svg>
+              {{ tab.label }}
+            </button>
           </div>
 
-          <!-- Business -->
-          <div v-show="activeTab === 'business'" class="form-section">
-            <h3 class="section-title">Detail Bisnis</h3>
-            <div class="form-grid">
-              <div class="input-group full">
-                <label>Nama Usaha / Bimbel</label>
-                <input v-model="profile.company_name" type="text" class="input-field" placeholder="Contoh: Ganesha Operation Cabang X">
-              </div>
-              <div class="input-group">
-                <label>Jenis Usaha</label>
-                <select v-model="profile.business_type" class="input-field">
-                  <option v-for="opt in businessTypeOptions" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
-                </select>
-              </div>
-              <div class="input-group">
-                <label>NPWP (Opsional)</label>
-                <input v-model="profile.npwp" type="text" class="input-field" placeholder="00.000.000.0-000.000">
+          <form class="profile-form" @submit.prevent="handleSave">
+             <!-- Identity -->
+            <div v-show="activeTab === 'identity'" class="tab-content">
+              <div class="form-section">
+                <div class="section-header">
+                  <h3>Informasi Pribadi</h3>
+                  <p>Data diri pemilik akun</p>
+                </div>
+                 <div class="form-row">
+                  <div class="form-group">
+                    <label>Nama Lengkap <span class="required">*</span></label>
+                    <input v-model="profile.name" type="text" placeholder="Nama sesuai KTP">
+                  </div>
+                  <div class="form-group">
+                    <label>Email</label>
+                    <input :value="profile.email" type="email" disabled>
+                    <span class="hint">Email tidak dapat diubah</span>
+                  </div>
+                </div>
+                <div class="form-row">
+                  <div class="form-group">
+                    <label>Nomor Telepon <span class="required">*</span></label>
+                    <input v-model="profile.phone" type="tel" placeholder="08xxxxxxxxxx">
+                  </div>
+                  <div class="form-group">
+                    <label>NIK</label>
+                    <input v-model="profile.nik" type="text" placeholder="16 digit NIK" maxlength="16">
+                  </div>
+                </div>
+                <div class="form-row">
+                  <div class="form-group">
+                    <label>Jenis Kelamin</label>
+                    <select v-model="profile.gender">
+                      <option v-for="opt in genderOptions" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
+                    </select>
+                  </div>
+                  <div class="form-group">
+                    <label>Tanggal Lahir</label>
+                    <input v-model="profile.birth_date" type="date">
+                  </div>
+                </div>
               </div>
             </div>
-          </div>
 
-          <!-- Address -->
-          <div v-show="activeTab === 'address'" class="form-section">
-            <h3 class="section-title">Alamat & Lokasi</h3>
-            <div class="form-grid">
-              <div class="input-group">
-                <label>Provinsi</label>
-                <select :value="profile.province_id" class="input-field" :disabled="loadingProvinces" @change="onProvinceChange">
-                  <option value="">{{ loadingProvinces ? 'Memuat...' : 'Pilih Provinsi' }}</option>
-                  <option v-for="p in provinces" :key="p.id" :value="p.id">{{ p.name }}</option>
-                </select>
-              </div>
-              <div class="input-group">
-                <label>Kota / Kabupaten</label>
-                <select :value="profile.city_id" class="input-field" :disabled="!profile.province_id || loadingCities" @change="onCityChange">
-                  <option value="">{{ loadingCities ? 'Memuat...' : 'Pilih Kota/Kabupaten' }}</option>
-                  <option v-for="c in cities" :key="c.id" :value="c.id">{{ c.name }}</option>
-                </select>
-              </div>
-              <div class="input-group full">
-                <label>Alamat Lengkap</label>
-                <textarea v-model="profile.address" rows="3" class="input-field" placeholder="Nama Jalan, RT/RW, Kelurahan, Kecamatan"></textarea>
+             <!-- Business -->
+            <div v-show="activeTab === 'business'" class="tab-content">
+              <div class="form-section">
+                <div class="section-header">
+                  <h3>Informasi Bisnis</h3>
+                  <p>Detail usaha atau tempat les Anda</p>
+                </div>
+                <div class="form-group">
+                   <label>Nama Usaha / Bimbel</label>
+                   <input v-model="profile.company_name" type="text" placeholder="Contoh: Ganesha Operation Cabang X">
+                </div>
+                 <div class="form-row">
+                  <div class="form-group">
+                     <label>Jenis Usaha</label>
+                     <select v-model="profile.business_type">
+                      <option v-for="opt in businessTypeOptions" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
+                    </select>
+                  </div>
+                  <div class="form-group">
+                     <label>NPWP (Opsional)</label>
+                     <input v-model="profile.npwp" type="text" placeholder="00.000.000.0-000.000">
+                  </div>
+                </div>
               </div>
             </div>
-          </div>
 
-          <!-- Payment Method -->
-          <div v-show="activeTab === 'bank'" class="form-section">
-            <h3 class="section-title">Metode Pembayaran</h3>
-            <p class="section-subtitle">Pilih satu metode yang akan digunakan untuk pencairan dana.</p>
-            
-            <!-- Payment Type Toggle -->
-            <div class="payment-toggle">
-              <button 
-                type="button" 
-                :class="['toggle-btn', { active: profile.payment_type === 'bank' }]"
-                @click="profile.payment_type = 'bank'"
-              >
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect>
-                  <line x1="1" y1="10" x2="23" y2="10"></line>
-                </svg>
-                Transfer Bank
+             <!-- Address -->
+            <div v-show="activeTab === 'address'" class="tab-content">
+              <div class="form-section">
+                <div class="section-header">
+                  <h3>Alamat & Lokasi</h3>
+                  <p>Lokasi basis operasional atau tempat tinggal</p>
+                </div>
+                <div class="form-row">
+                  <div class="form-group">
+                    <label>Provinsi</label>
+                    <select :value="profile.province_id" :disabled="loadingProvinces" @change="onProvinceChange">
+                      <option value="">{{ loadingProvinces ? 'Memuat...' : 'Pilih Provinsi' }}</option>
+                      <option v-for="p in provinces" :key="p.id" :value="p.id">{{ p.name }}</option>
+                    </select>
+                  </div>
+                   <div class="form-group">
+                    <label>Kota / Kabupaten</label>
+                    <select :value="profile.city_id" :disabled="!profile.province_id || loadingCities" @change="onCityChange">
+                      <option value="">{{ loadingCities ? 'Memuat...' : 'Pilih Kota/Kabupaten' }}</option>
+                      <option v-for="c in cities" :key="c.id" :value="c.id">{{ c.name }}</option>
+                    </select>
+                  </div>
+                </div>
+                 <div class="form-group">
+                  <label>Alamat Lengkap</label>
+                  <textarea v-model="profile.address" rows="3" placeholder="Nama Jalan, RT/RW, Kelurahan"></textarea>
+                </div>
+              </div>
+            </div>
+
+            <!-- Bank -->
+            <div v-show="activeTab === 'bank'" class="tab-content">
+              <div class="form-section">
+                <div class="section-header">
+                  <h3>Metode Pembayaran</h3>
+                  <p>Untuk kebutuhan transaksi dan pencairan dana</p>
+                </div>
+                
+                 <div class="payment-type-toggle">
+                  <button type="button" :class="{ active: profile.payment_type === 'bank' }" @click="profile.payment_type = 'bank'">Transfer Bank</button>
+                  <button type="button" :class="{ active: profile.payment_type === 'ewallet' }" @click="profile.payment_type = 'ewallet'">E-Wallet</button>
+                </div>
+
+                 <div v-if="profile.payment_type === 'bank'" class="payment-form">
+                   <div class="form-group">
+                    <label>Nama Bank</label>
+                    <select v-model="profile.bank_name">
+                      <option v-for="opt in bankOptions" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
+                    </select>
+                  </div>
+                  <div class="form-row">
+                    <div class="form-group">
+                      <label>Nomor Rekening</label>
+                      <input v-model="profile.bank_account" type="text" placeholder="Nomor rekening">
+                    </div>
+                     <div class="form-group">
+                      <label>Atas Nama</label>
+                      <input v-model="profile.bank_holder" type="text" placeholder="Nama pemilik rekening">
+                    </div>
+                  </div>
+                  <!-- Card Preview -->
+                   <div v-if="profile.bank_name" class="card-preview bank">
+                      <div class="card-chip"></div>
+                      <div class="card-logo">{{ profile.bank_name }}</div>
+                      <div class="card-number">{{ profile.bank_account || '•••• •••• ••••' }}</div>
+                      <div class="card-holder">{{ profile.bank_holder || 'NAMA PEMILIK' }}</div>
+                   </div>
+                </div>
+
+                <div v-else class="payment-form">
+                   <div class="form-group">
+                    <label>Jenis E-Wallet</label>
+                    <select v-model="profile.ewallet_type">
+                      <option v-for="opt in ewalletOptions" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
+                    </select>
+                  </div>
+                  <div class="form-group">
+                    <label>Nomor E-Wallet</label>
+                    <input v-model="profile.ewallet_number" type="text" placeholder="Nomor HP terdaftar">
+                  </div>
+                   <!-- Ewallet Preview -->
+                   <div v-if="profile.ewallet_type" class="card-preview ewallet">
+                      <div class="ewallet-logo">{{ profile.ewallet_type }}</div>
+                      <div class="card-number">{{ profile.ewallet_number || '08xx-xxxx-xxxx' }}</div>
+                   </div>
+                </div>
+              </div>
+            </div>
+
+             <!-- Account Tab -->
+            <div v-show="activeTab === 'account'" class="tab-content">
+              <div class="form-section">
+                <div class="section-header">
+                  <h3>Pengaturan Akun</h3>
+                  <p>Kelola keamanan akun Anda</p>
+                </div>
+                 <div class="danger-zone">
+                     <h4>Hapus Akun</h4>
+                     <p>Menghapus akun Anda secara permanen. Semua data akan hilang.</p>
+                     <button type="button" class="btn-danger" @click="deleteAccount">Hapus Akun Permanen</button>
+                  </div>
+              </div>
+            </div>
+
+            <div class="form-actions">
+              <button type="submit" class="btn-save" :disabled="saving">
+                <span v-if="saving" class="spinner-sm"></span>
+                {{ saving ? 'Menyimpan...' : 'Simpan Perubahan' }}
               </button>
-              <button 
-                type="button" 
-                :class="['toggle-btn', { active: profile.payment_type === 'ewallet' }]"
-                @click="profile.payment_type = 'ewallet'"
-              >
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <rect x="2" y="3" width="20" height="18" rx="2" ry="2"></rect>
-                  <circle cx="12" cy="12" r="3"></circle>
-                </svg>
-                E-Wallet
-              </button>
             </div>
-            
-            <!-- Bank Form -->
-            <div v-if="profile.payment_type === 'bank'" class="payment-form">
-              <div class="form-grid single-col">
-                <div class="input-group">
-                  <label>Nama Bank *</label>
-                  <select v-model="profile.bank_name" class="input-field">
-                    <option v-for="opt in bankOptions" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
-                  </select>
-                </div>
-                <div class="input-group">
-                  <label>Nomor Rekening *</label>
-                  <input v-model="profile.bank_account" type="text" class="input-field" placeholder="1234567890">
-                </div>
-                <div class="input-group">
-                  <label>Nama Pemilik *</label>
-                  <input v-model="profile.bank_holder" type="text" class="input-field" placeholder="Sesuai Buku Tabungan">
-                </div>
-              </div>
-              
-              <!-- Preview Bank -->
-              <div v-if="profile.bank_name" class="card-preview bank">
-                <div class="card-chip"></div>
-                <div class="card-logo">{{ profile.bank_name }}</div>
-                <div class="card-number">{{ profile.bank_account || '•••• •••• ••••' }}</div>
-                <div class="card-holder">{{ profile.bank_holder || 'NAMA PEMILIK' }}</div>
-              </div>
-            </div>
-
-            <!-- E-Wallet Form -->
-            <div v-else class="payment-form">
-              <div class="form-grid single-col">
-                <div class="input-group">
-                  <label>Jenis E-Wallet *</label>
-                  <select v-model="profile.ewallet_type" class="input-field">
-                    <option v-for="opt in ewalletOptions" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
-                  </select>
-                </div>
-                <div class="input-group">
-                  <label>Nomor HP E-Wallet *</label>
-                  <input v-model="profile.ewallet_number" type="tel" class="input-field" placeholder="08xxxxxxxxxx">
-                </div>
-              </div>
-
-              <!-- Preview E-Wallet -->
-              <div v-if="profile.ewallet_type" class="card-preview ewallet">
-                <div class="ewallet-logo">{{ profile.ewallet_type }}</div>
-                <div class="card-number">{{ profile.ewallet_number || '08xx-xxxx-xxxx' }}</div>
-                <div class="ewallet-badge">Terhubung</div>
-              </div>
-            </div>
-            
-            <div class="payment-note">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <circle cx="12" cy="12" r="10"></circle>
-                <line x1="12" y1="16" x2="12" y2="12"></line>
-                <line x1="12" y1="8" x2="12.01" y2="8"></line>
-              </svg>
-              <p>Metode pembayaran yang dipilih akan digunakan untuk menerima pembayaran dari sistem.</p>
-            </div>
-          </div>
-
-          <!-- Account -->
-          <div v-show="activeTab === 'account'" class="form-section">
-            <h3 class="section-title">Pengaturan Akun</h3>
-            <p class="section-subtitle">Kelola keamanan dan status akun Anda</p>
-            
-            <div class="account-card danger">
-              <h4>Hapus Akun</h4>
-              <p>Menghapus akun Anda secara permanen. Semua data histori les, transaksi, dan profil akan hilang dan tidak dapat dikembalikan.</p>
-              <button type="button" class="btn-delete-account" @click="deleteAccount">Hapus Akun Permanen</button>
-            </div>
-          </div>
+          </form>
         </div>
       </div>
     </main>
@@ -699,173 +673,113 @@ async function deleteAccount() {
 </template>
 
 <style scoped>
-/* Base */
-.dashboard { flex: 1; display: flex; flex-direction: column; width: 100%; min-height: 0; background: #f1f5f9; }
-.main { flex: 1; padding: 24px; width: 100%; overflow-y: auto; }
+.dashboard { display: flex; min-height: 100vh; background: #F1F5F9; }
+.main { flex: 1; padding: 24px; }
+.page-header { margin-bottom: 24px; }
+.page-header h1 { font-size: 24px; font-weight: 700; margin-bottom: 4px; color: #1E293B; }
+.page-header p { color: #64748B; font-size: 14px; }
 
-/* Animation */
+.loading-state { display: flex; flex-direction: column; align-items: center; padding: 60px; }
+.loading-spinner { width: 40px; height: 40px; border: 3px solid #E2E8F0; border-top-color: #0A4568; border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 12px; }
 @keyframes spin { to { transform: rotate(360deg); } }
-.spinning { animation: spin 1s linear infinite; }
-.loading-state { text-align: center; padding: 60px; color: #64748b; }
-.spinner { width: 16px; height: 16px; border: 2px solid rgba(255,255,255,0.4); border-top-color: white; border-radius: 50%; animation: spin 0.6s linear infinite; }
-.spinner-lg { width: 40px; height: 40px; border: 3px solid #e2e8f0; border-top-color: #0c4a6e; border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 16px; }
 
-/* Header */
-.page-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 24px; }
-.header-content h1 { display: flex; align-items: center; gap: 12px; font-size: 24px; font-weight: 800; color: #0f172a; margin-bottom: 4px; }
-.header-content h1 svg { width: 28px; height: 28px; color: #0369a1; }
-.subtitle { color: #64748b; font-size: 14px; margin-left: 40px; }
+.profile-layout { display: grid; grid-template-columns: 280px 1fr; gap: 24px; }
+.profile-sidebar { display: flex; flex-direction: column; gap: 16px; }
 
-/* Buttons */
-.btn-save { display: flex; align-items: center; gap: 8px; padding: 10px 20px; background: #0369a1; color: white; border: none; border-radius: 10px; font-weight: 600; font-size: 14px; cursor: pointer; transition: all 0.2s; box-shadow: 0 4px 6px -1px rgba(3, 105, 161, 0.2); }
-.btn-save:hover { background: #0284c7; transform: translateY(-1px); }
-.btn-save:disabled { background: #94a3b8; cursor: not-allowed; transform: none; }
-.btn-save svg { width: 18px; height: 18px; }
+.avatar-card { background: white; border-radius: 16px; padding: 24px; text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+.avatar { width: 100px; height: 100px; border-radius: 50%; margin: 0 auto 16px; background: #0A4568; display: flex; align-items: center; justify-content: center; overflow: hidden; color: white; font-size: 32px; font-weight: 700; }
+.avatar img { width: 100%; height: 100%; object-fit: cover; }
+.avatar-card h3 { font-size: 18px; font-weight: 600; margin-bottom: 4px; color: #1E293B; }
+.avatar-card .email { font-size: 13px; color: #64748B; margin-bottom: 16px; }
+.badges-row { display: flex; gap: 8px; justify-content: center; margin-bottom: 16px; flex-wrap: wrap; }
+.badge { padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 700; text-transform: uppercase; background: #E2E8F0; color: #64748B; }
+.badge.pribadi { background: #DBEAFE; color: #1E40AF; }
+.badge.umum { background: #E0E7FF; color: #3730A3; }
+.badge.verified { background: #D1FAE5; color: #047857; }
+.badge.pending { background: #FEF3C7; color: #B45309; }
 
-.btn-create { display: inline-block; padding: 10px 20px; background: #0369a1; color: white; text-decoration: none; border-radius: 8px; font-size: 14px; margin-top: 12px; }
+.upload-btn { display: inline-flex; align-items: center; gap: 8px; padding: 10px 20px; background: #F8FAFC; color: #0A4568; border-radius: 10px; font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+.upload-btn:hover { background: #E2E8F0; }
+.upload-btn svg { width: 16px; height: 16px; }
 
-/* Profile Card */
-.profile-header-card { display: flex; justify-content: space-between; align-items: center; background: white; border-radius: 16px; padding: 24px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); margin-bottom: 24px; flex-wrap: wrap; gap: 20px; }
-.profile-main { display: flex; align-items: center; gap: 20px; flex: 1; min-width: 300px; }
-.avatar-wrapper { position: relative; width: 80px; height: 80px; }
-.avatar-wrapper img, .avatar-placeholder { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
-.avatar-placeholder { background: linear-gradient(135deg, #0369a1, #0284c7); color: white; display: flex; align-items: center; justify-content: center; font-size: 32px; font-weight: 700; }
-.btn-edit-avatar { position: absolute; bottom: 0; right: 0; width: 28px; height: 28px; background: white; border: 1px solid #e2e8f0; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #0369a1; cursor: pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
-.btn-edit-avatar svg { width: 14px; height: 14px; }
-.name-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-.name-row h2 { font-size: 20px; font-weight: 700; color: #1e293b; }
-.badge { padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
-.badge.pribadi { background: #f0fdf4; color: #16a34a; }
-.badge.umum { background: #eff6ff; color: #2563eb; }
-.badge.verified { background: #d1fae5; color: #059669; }
-.badge.pending { background: #fef3c7; color: #d97706; }
-.email { color: #64748b; font-size: 14px; margin: 4px 0 8px; }
-.location { display: flex; align-items: center; gap: 6px; font-size: 13px; color: #475569; }
-.location svg { width: 14px; height: 14px; color: #94a3b8; }
+.info-card { background: white; border-radius: 16px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+.info-card h4 { font-size: 15px; font-weight: 600; margin-bottom: 16px; color: #1E293B; }
+.info-item { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; font-size: 14px; }
+.info-item:last-child { margin-bottom: 0; }
+.info-item .label { color: #64748B; }
+.info-item .value { font-weight: 600; color: #1E293B; text-align: right; max-width: 60%; }
 
-.profile-stats { display: flex; gap: 24px; }
-.stat-box { text-align: center; padding: 12px 16px; border-radius: 12px; }
-.stat-box.success { background: #d1fae5; }
-.stat-box.success .stat-num { color: #059669; }
-.stat-box.warning { background: #fef3c7; }
-.stat-box.warning .stat-num { color: #d97706; }
-.stat-num { display: block; font-size: 20px; font-weight: 800; color: #0f172a; margin-bottom: 2px; }
-.stat-label { font-size: 12px; color: #64748b; font-weight: 500; }
-.progress-ring { width: 44px; height: 44px; border-radius: 50%; background: conic-gradient(#0ea5e9 calc(var(--p)*1%), #e2e8f0 0); display: flex; align-items: center; justify-content: center; position: relative; margin: 0 auto 4px; }
-.progress-ring::before { content: ''; position: absolute; inset: 4px; background: white; border-radius: 50%; }
-.progress-ring span { position: relative; font-size: 11px; font-weight: 700; color: #0284c7; }
+.progress-container { width: 100px; display: flex; align-items: center; gap: 8px; }
+.progress-bar { flex: 1; height: 6px; background: #E2E8F0; border-radius: 3px; overflow: hidden; }
+.progress-fill { height: 100%; background: #0A4568; }
 
-/* Tabs Nav */
-.tabs-nav { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; margin-bottom: 24px; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
-.tab-btn { display: flex; align-items: center; gap: 10px; padding: 12px 20px; background: white; border: 1px solid #e2e8f0; border-radius: 12px; color: #64748b; font-weight: 600; font-size: 14px; cursor: pointer; transition: all 0.2s; white-space: nowrap; }
-.tab-btn:hover { border-color: #cbd5e1; color: #475569; }
-.tab-btn.active { background: #0369a1; color: white; border-color: #0369a1; box-shadow: 0 4px 6px -1px rgba(3, 105, 161, 0.2); }
-.tab-icon svg { width: 18px; height: 18px; }
+.status-toggle-box { background: #F8FAFC; border-radius: 12px; padding: 12px; margin: 16px 0; border: 1px solid #E2E8F0; }
+.status-toggle-box .label { font-size: 12px; color: #64748B; display: block; margin-bottom: 8px; font-weight: 600; }
+.toggle-row { display: flex; align-items: center; gap: 12px; }
+.status-text { font-size: 13px; font-weight: 600; }
+.status-text.active { color: #10B981; }
+.status-text.inactive { color: #94A3B8; }
 
-/* Tab Content */
-.tab-content { background: white; border-radius: 16px; padding: 32px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); }
-.section-title { font-size: 18px; font-weight: 700; color: #1e293b; margin-bottom: 24px; padding-bottom: 12px; border-bottom: 1px solid #f1f5f9; }
-.section-subtitle { font-size: 14px; color: #64748b; margin-top: -16px; margin-bottom: 24px; }
-
-/* Form Styles */
-.form-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; }
-.form-grid.single-col { grid-template-columns: 1fr; }
-.input-group { display: flex; flex-direction: column; gap: 8px; }
-.input-group.full { grid-column: span 2; }
-.input-group label { font-size: 13px; font-weight: 600; color: #334155; }
-.req { color: #dc2626; }
-.input-field { padding: 12px 14px; border: 1px solid #cbd5e1; border-radius: 10px; font-size: 14px; transition: border-color 0.2s; background: #fff; }
-.input-field:focus { outline: none; border-color: #0284c7; box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.1); }
-.input-field:disabled { background: #f1f5f9; color: #94a3b8; cursor: not-allowed; }
-
-/* Info Box & Hints */
-.info-box { display: flex; align-items: flex-start; gap: 12px; padding: 14px 16px; background: #DBEAFE; border: 1px solid #93C5FD; border-radius: 10px; margin-bottom: 16px; }
-.info-box svg { width: 20px; height: 20px; color: #2563EB; flex-shrink: 0; margin-top: 2px; }
-.info-box strong { color: #1E40AF; }
-.info-box small { color: #3B82F6; }
-.field-hint { color: #0D5782; font-size: 12px; margin-top: 4px; font-style: italic; }
-
-/* Finance Cards */
-.finance-grid { display: grid; grid-template-columns: 1fr 1px 1fr; gap: 32px; }
-.finance-divider { background: #e2e8f0; height: 100%; }
-.card-preview { margin-top: 24px; border-radius: 16px; padding: 24px; color: white; position: relative; overflow: hidden; height: 180px; display: flex; flex-direction: column; justify-content: space-between; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); }
-.card-preview.bank { background: linear-gradient(135deg, #0c4a6e, #0369a1); }
-.card-preview.ewallet { background: linear-gradient(135deg, #059669, #10b981); }
-.card-chip { width: 40px; height: 28px; background: rgba(255,255,255,0.2); border-radius: 6px; border: 1px solid rgba(255,255,255,0.3); }
-.card-logo, .ewallet-logo { font-weight: 800; font-size: 18px; letter-spacing: 1px; text-align: right; }
-.card-number { font-size: 20px; font-weight: 600; letter-spacing: 2px; text-align: center; margin: 10px 0; }
-.card-holder { font-size: 12px; font-weight: 500; text-transform: uppercase; letter-spacing: 2px; }
-.ewallet-badge { background: rgba(255,255,255,0.2); padding: 4px 10px; border-radius: 20px; font-size: 10px; font-weight: 700; align-self: flex-start; }
-
-/* Payment Toggle */
-.payment-toggle { display: flex; gap: 12px; margin-bottom: 24px; }
-.toggle-btn { flex: 1; display: flex; align-items: center; justify-content: center; gap: 10px; padding: 16px 20px; background: #f8fafc; border: 2px solid #e2e8f0; border-radius: 12px; font-size: 15px; font-weight: 600; color: #64748b; cursor: pointer; transition: all 0.2s; }
-.toggle-btn svg { width: 20px; height: 20px; }
-.toggle-btn:hover { border-color: #0369a1; color: #0369a1; }
-.toggle-btn.active { background: #e0f2fe; border-color: #0369a1; color: #0369a1; }
-.payment-form { margin-top: 16px; }
-.payment-note { display: flex; align-items: flex-start; gap: 12px; padding: 16px; background: #f0f9ff; border-radius: 10px; margin-top: 24px; }
-.payment-note svg { width: 20px; height: 20px; color: #0369a1; flex-shrink: 0; margin-top: 2px; }
-.payment-note p { font-size: 13px; color: #475569; line-height: 1.5; }
-
-/* Invite Cards */
-.invite-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
-.invite-card { background: white; border: 1px solid #e2e8f0; border-radius: 12px; padding: 16px; display: flex; flex-direction: column; gap: 16px; transition: all 0.2s; }
-.invite-card:hover { border-color: #93c5fd; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); }
-.place-details h4 { font-weight: 700; font-size: 15px; margin-bottom: 2px; color: #1e293b; }
-.place-type { font-size: 12px; color: #64748b; background: #f1f5f9; padding: 2px 8px; border-radius: 10px; }
-.code-box { background: #f8fafc; border: 1px dashed #cbd5e1; border-radius: 10px; padding: 12px; text-align: center; position: relative; }
-.code-label { font-size: 10px; font-weight: 700; color: #94a3b8; letter-spacing: 0.5px; display: block; margin-bottom: 4px; }
-.code-value { font-size: 20px; font-weight: 700; color: #0369a1; letter-spacing: 3px; }
-.code-actions { display: flex; justify-content: center; gap: 8px; margin-top: 8px; }
-.action-btn { width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border-radius: 8px; border: 1px solid #e2e8f0; background: white; color: #64748b; cursor: pointer; transition: all 0.2s; }
-.action-btn:hover { background: #0369a1; border-color: #0369a1; color: white; }
-.action-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-.action-btn svg { width: 14px; height: 14px; }
-
-/* Responsive */
-@media (max-width: 1024px) {
-  .finance-grid { grid-template-columns: 1fr; }
-  .finance-divider { width: 100%; height: 1px; }
-}
-
-@media (max-width: 768px) {
-  .page-header { flex-direction: column; gap: 16px; }
-
-  .account-card{background:#f8fafc;padding:24px;border-radius:12px;border:1px solid #e2e8f0;margin-top:20px}
-  .account-card.danger{border-color:#fee2e2;background:#fffafa}
-  .account-card h4{font-size:16px;font-weight:600;margin-bottom:8px;color:#1e293b}
-  .account-card.danger h4{color:#dc2626}
-  .account-card p{font-size:14px;color:#64748b;margin-bottom:16px;line-height:1.5}
-  .account-card.danger p{color:#7f1d1d}
-  .btn-delete-account{padding:10px 20px;background:#dc2626;color:white;border:none;border-radius:8px;font-weight:600;cursor:pointer;font-size:14px;transition:all 0.2s}
-  .btn-delete-account:hover{background:#b91c1c}
-  .profile-header-card { flex-direction: column; align-items: stretch; text-align: center; }
-  .profile-main { flex-direction: column; }
-  .name-row { justify-content: center; }
-  .location { justify-content: center; }
-  .profile-stats { justify-content: center; }
-  .form-grid { grid-template-columns: 1fr; }
-  .input-group.full { grid-column: span 1; }
-}
-
-.toast { position: fixed; bottom: 24px; right: 24px; background: #059669; color: white; padding: 12px 20px; border-radius: 10px; display: flex; align-items: center; gap: 10px; font-weight: 600; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); z-index: 50; }
-.toast-slide-enter-active, .toast-slide-leave-active { transition: all 0.3s ease; }
-.toast-slide-enter-from, .toast-slide-leave-to { transform: translateY(20px); opacity: 0; }
-.alert-box { padding: 12px; border-radius: 8px; margin-bottom: 20px; font-size: 14px; }
-.alert-box.success { background: #dcfce7; color: #166534; }
-.alert-box.error { background: #fee2e2; color: #991b1b; }
-
-/* Toggle Switch for Les Place Active Status */
-.toggle-box { display: flex; flex-direction: column; align-items: center; gap: 8px; }
-.toggle-box.active { background: #d1fae5; }
-.toggle-box.inactive { background: #fee2e2; }
-.toggle-switch { position: relative; display: inline-block; width: 50px; height: 26px; }
+.toggle-switch { position: relative; display: inline-block; width: 44px; height: 24px; }
 .toggle-switch input { opacity: 0; width: 0; height: 0; }
-.toggle-slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #cbd5e1; transition: 0.3s; border-radius: 26px; }
-.toggle-slider:before { position: absolute; content: ""; height: 20px; width: 20px; left: 3px; bottom: 3px; background-color: white; transition: 0.3s; border-radius: 50%; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-.toggle-switch input:checked + .toggle-slider { background-color: #10b981; }
-.toggle-switch input:checked + .toggle-slider:before { transform: translateX(24px); }
-.toggle-switch.disabled { opacity: 0.6; cursor: not-allowed; }
-.toggle-switch.disabled .toggle-slider { cursor: not-allowed; }
+.toggle-slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #CBD5E1; transition: .4s; border-radius: 24px; }
+.toggle-slider:before { position: absolute; content: ""; height: 18px; width: 18px; left: 3px; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%; }
+input:checked + .toggle-slider { background-color: #10B981; }
+input:checked + .toggle-slider:before { transform: translateX(20px); }
+.toggle-switch.disabled { opacity: 0.6; pointer-events: none; }
+
+.profile-form-container { flex: 1; }
+.alert { padding: 12px 16px; border-radius: 10px; margin-bottom: 20px; display: flex; align-items: center; gap: 10px; font-size: 14px; font-weight: 500; }
+.alert.success { background: #D1FAE5; color: #047857; }
+.alert.error { background: #FEE2E2; color: #B91C1C; }
+.alert svg { width: 20px; height: 20px; }
+
+.tabs { display: flex; gap: 8px; margin-bottom: 20px; overflow-x: auto; padding-bottom: 4px; }
+.tab { display: flex; align-items: center; gap: 8px; padding: 10px 16px; background: white; border: 1px solid transparent; border-radius: 10px; font-size: 14px; font-weight: 600; color: #64748B; cursor: pointer; transition: all 0.2s; white-space: nowrap; }
+.tab:hover { background: #F8FAFC; }
+.tab.active { background: #0A4568; color: white; box-shadow: 0 4px 6px -1px rgba(10, 69, 104, 0.1); }
+.tab svg { width: 18px; height: 18px; }
+
+.profile-form { background: white; border-radius: 16px; padding: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+.section-header { margin-bottom: 24px; border-bottom: 1px solid #E2E8F0; padding-bottom: 16px; }
+.section-header h3 { font-size: 18px; font-weight: 700; color: #1E293B; margin-bottom: 4px; }
+.section-header p { font-size: 14px; color: #64748B; }
+
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; }
+.form-group { display: flex; flex-direction: column; gap: 8px; margin-bottom: 20px; }
+.form-group label { font-size: 14px; font-weight: 600; color: #475569; }
+.required { color: #EF4444; }
+.form-group input, .form-group select, .form-group textarea { padding: 12px 14px; border: 1px solid #E2E8F0; border-radius: 10px; font-size: 14px; width: 100%; transition: all 0.2s; }
+.form-group input:focus, .form-group select:focus, .form-group textarea:focus { outline: none; border-color: #0A4568; ring: 2px solid rgba(10, 69, 104, 0.1); }
+.form-group input:disabled { background: #F1F5F9; color: #94A3B8; }
+.hint { font-size: 12px; color: #94A3B8; margin-top: 4px; }
+
+.payment-type-toggle { display: flex; gap: 10px; margin-bottom: 20px; }
+.payment-type-toggle button { flex: 1; padding: 12px; background: #F1F5F9; border: 2px solid transparent; border-radius: 10px; font-weight: 600; color: #64748B; cursor: pointer; }
+.payment-type-toggle button.active { background: #FOF9FF; border-color: #0A4568; color: #0A4568; }
+
+.card-preview { background: linear-gradient(135deg, #0A4568 0%, #062E46 100%); color: white; border-radius: 16px; padding: 20px; max-width: 340px; margin-top: 10px; position: relative; overflow: hidden; }
+.card-preview.ewallet { background: linear-gradient(135deg, #059669 0%, #047857 100%); }
+.card-chip { width: 40px; height: 30px; background: rgba(255,255,255,0.2); border-radius: 6px; margin-bottom: 20px; }
+.card-logo { font-size: 18px; font-weight: 700; position: absolute; top: 20px; right: 20px; opacity: 0.8; }
+.ewallet-logo { font-size: 20px; font-weight: 700; margin-bottom: 20px; }
+.card-number { font-size: 22px; margin-bottom: 12px; letter-spacing: 2px; font-family: monospace; }
+.card-holder { font-size: 14px; text-transform: uppercase; opacity: 0.9; }
+
+.danger-zone h4 { color: #DC2626; margin-bottom: 8px; }
+.danger-zone p { color: #64748B; font-size: 14px; margin-bottom: 16px; }
+
+.form-actions { display: flex; justify-content: flex-end; margin-top: 24px; padding-top: 24px; border-top: 1px solid #E2E8F0; }
+.btn-save { display: flex; align-items: center; gap: 8px; padding: 12px 24px; background: #0A4568; color: white; border: none; border-radius: 10px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+.btn-save:hover { background: #083350; }
+.btn-save:disabled { opacity: 0.7; cursor: not-allowed; }
+.btn-danger { padding: 10px 20px; background: #FEE2E2; color: #DC2626; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; }
+.btn-danger:hover { background: #FECACA; }
+.spinner-sm { width: 16px; height: 16px; border: 2px solid rgba(255,255,255,0.3); border-top-color: white; border-radius: 50%; animation: spin 1s linear infinite; }
+
+@media (max-width: 1024px) {
+  .profile-layout { grid-template-columns: 1fr; }
+  .profile-sidebar { flex-direction: row; flex-wrap: wrap; }
+  .avatar-card, .info-card { flex: 1; min-width: 250px; }
+}
 </style>

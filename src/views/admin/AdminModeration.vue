@@ -153,7 +153,7 @@ async function fetchData() {
     const { data: reportData } = await supabase
       .from('reports')
       .select(`
-        id, target_type, target_id, reason, description, status, created_at,
+        id, target_type, target_id, reason, description, status, created_at, reporter_id,
         users:reporter_id (name, email)
       `)
       .order('created_at', { ascending: false })
