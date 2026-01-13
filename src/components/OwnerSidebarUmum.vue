@@ -1,11 +1,21 @@
 <script setup>
-import { ref, onMounted, watch } from 'vue'
+import { ref, onMounted, onUnmounted, watch } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { supabase } from '@/lib/supabase'
+import { getUnreadCount, subscribeToNotifications } from '@/services/notificationService'
 import LogoutConfirmationModal from '@/components/modals/LogoutConfirmationModal.vue'
 
 const authStore = useAuthStore()
 const lesPlaceName = ref('')
+const unreadCount = ref(0)
+let notificationSubscription = null
+
+async function updateUnreadCount() {
+  if (authStore.user?.id) {
+    const { count } = await getUnreadCount(authStore.user.id)
+    unreadCount.value = count
+  }
+}
 
 async function fetchLesPlace() {
   if (!authStore.user?.id) return
@@ -21,8 +31,28 @@ async function fetchLesPlace() {
   }
 }
 
-onMounted(() => { if (authStore.user?.id) fetchLesPlace() })
-watch(() => authStore.user, (newUser) => { if (newUser?.id) fetchLesPlace() }, { immediate: true })
+onMounted(async () => { 
+  if (authStore.user?.id) {
+    fetchLesPlace()
+    await updateUnreadCount()
+    notificationSubscription = subscribeToNotifications(authStore.user.id, () => {
+      updateUnreadCount()
+    })
+  }
+})
+
+onUnmounted(() => {
+  if (notificationSubscription) {
+    notificationSubscription.unsubscribe()
+  }
+})
+
+watch(() => authStore.user, (newUser) => { 
+  if (newUser?.id) {
+    fetchLesPlace() 
+    updateUnreadCount()
+  }
+}, { immediate: true })
 
 const showLogoutModal = ref(false)
 
@@ -151,6 +181,7 @@ async function confirmLogout() {
             <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
           </svg>
           <span>Notifikasi</span>
+          <span v-if="unreadCount > 0" class="badge">{{ unreadCount }}</span>
         </router-link>
       </div>
     </nav>
@@ -293,4 +324,15 @@ async function confirmLogout() {
 .logout-btn:hover { background: rgba(255, 255, 255, 0.1); color: white; border-color: rgba(255, 255, 255, 0.3); }
 
 @media (max-width: 768px) { .sidebar { display: none; } }
+
+.badge {
+  background: #EF4444;
+  color: white;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 12px;
+  margin-left: auto;
+  line-height: 1.4;
+}
 </style>

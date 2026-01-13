@@ -294,7 +294,7 @@ async function submitResponse() {
       resolved_by: currentUser?.id || null
     }).eq('id', responseReport.value.id)
     
-    // Send notification to reporter
+    // 1. Send notification to REPORTER
     const notifTitle = getNotificationTitle(responseStatus.value)
     const notifMessage = `Laporan Anda tentang ${responseReport.value.target_type === 'les_place' ? 'tempat les' : 'konten'} telah ${getStatusLabel(responseStatus.value).toLowerCase()}. Pesan dari admin: ${responseMessage.value}`
     
@@ -306,10 +306,58 @@ async function submitResponse() {
       is_read: false,
       created_at: new Date().toISOString()
     })
+
+    // 2. Send notification to REPORTED PARTY (Target) if Investigating
+    if (responseStatus.value === 'investigating') {
+      let targetUserId = null
+      let targetTitle = 'Pemberitahuan Investigasi'
+      let targetMessage = 'Akun/Konten Anda sedang dalam proses investigasi oleh tim moderasi terkait adanya laporan pengguna.'
+
+      // Identify target user based on type
+      if (responseReport.value.target_type === 'les_place') {
+        // Fetch owner of the place
+        const { data: placeData } = await supabase
+          .from('les_places')
+          .select('owner_id, owners(user_id)')
+          .eq('id', responseReport.value.target_id)
+          .single()
+        
+        if (placeData?.owners?.user_id) {
+          targetUserId = placeData.owners.user_id
+          targetMessage = `Tempat les Anda dilaporkan oleh pengguna (Alasan: ${responseReport.value.reason}). Tim kami sedang melakukan investigasi. Mohon kooperatif jika dihubungi.`
+        }
+      } 
+      else if (['forum_post', 'forum_comment'].includes(responseReport.value.target_type)) {
+        // Fetch author of the content
+        const table = responseReport.value.target_type === 'forum_post' ? 'forum_posts' : 'forum_comments'
+        const { data: contentData } = await supabase
+          .from(table)
+          .select('user_id')
+          .eq('id', responseReport.value.target_id)
+          .single()
+          
+        if (contentData?.user_id) {
+          targetUserId = contentData.user_id
+          targetMessage = `Konten Anda di forum dilaporkan (Alasan: ${responseReport.value.reason}). Tim kami sedang melakukan pengecekan.`
+        }
+      }
+
+      // Send to target
+      if (targetUserId) {
+        await supabase.from('notifications').insert({
+          user_id: targetUserId,
+          type: 'system', // or specific type like 'investigation_started'
+          title: targetTitle,
+          message: targetMessage,
+          is_read: false,
+          created_at: new Date().toISOString()
+        })
+      }
+    }
     
     await fetchData()
     closeResponseModal()
-    toast('Tanggapan berhasil dikirim ke pelapor', 'success')
+    toast('Tanggapan berhasil dikirim', 'success')
   } catch (err) {
     console.error('Error:', err)
     toast('Gagal mengirim tanggapan', 'error')
