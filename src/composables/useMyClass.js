@@ -11,13 +11,13 @@ export function useMyClass() {
   const loading = ref(false)
   const error = ref(null)
 
-  // Fetch student's enrolled/active courses (paid bookings)
+  // Ambil kursus terdaftar/aktif siswa (booking berbayar)
   async function fetchEnrolledCourses(userId) {
     loading.value = true
     error.value = null
 
     try {
-      // 1. Get Student ID from User ID
+      // 1. Dapatkan ID Siswa dari ID Pengguna
       const { data: studentData, error: studentError } = await supabase
         .from('students')
         .select('id')
@@ -25,14 +25,14 @@ export function useMyClass() {
         .single()
       
       if (studentError || !studentData) {
-        // If no student profile, implies no bookings yet
+        // Jika tidak ada profil siswa, berarti belum ada booking
         enrolledCourses.value = []
         return []
       }
 
       const studentId = studentData.id
 
-      // 2. Fetch Bookings
+      // 2. Ambil Booking
       const { data: bookingsData, error: err } = await supabase
         .from('bookings')
         .select(`
@@ -66,8 +66,8 @@ export function useMyClass() {
 
       if (err) throw err
 
-      // 3. DEFENSIVE CHECK: Fetch approved refunds to exclude them
-      // This handles cases where booking status wasn't updated correctly
+      // 3. CEK DEFENSIF: Ambil refund yang disetujui untuk mengecualikannya
+      // Ini menangani kasus dimana status booking tidak diupdate dengan benar
       const { data: approvedRefunds } = await supabase
         .from('refunds')
         .select('transaction_id, transactions(booking_id, program_id)')
@@ -79,8 +79,8 @@ export function useMyClass() {
       if (approvedRefunds && approvedRefunds.length > 0) {
         console.log('Found approved refunds:', approvedRefunds)
         
-        // Create a set of refunded program IDs and booking IDs
-        // check both program_id and booking_id to be safe
+        // Buat set ID program dan booking yang di-refund
+        // cek keduanya program_id dan booking_id untuk keamanan
         const refundedProgramIds = new Set()
         const refundedBookingIds = new Set()
         
@@ -92,7 +92,7 @@ export function useMyClass() {
         console.log('Refunded Programs:', [...refundedProgramIds])
         console.log('Refunded Bookings:', [...refundedBookingIds])
 
-        // Filter out bookings that match refunded programs
+        // Filter booking yang cocok dengan program yang di-refund
         filteredBookings = filteredBookings.filter(b => {
           const isRefundedBooking = refundedBookingIds.has(b.id)
           const isRefundedProgram = b.program?.id && refundedProgramIds.has(b.program.id)
@@ -116,17 +116,17 @@ export function useMyClass() {
     return enrolledCourses.value
   }
 
-  // Fetch single course details
+  // Ambil detail kursus tunggal
   async function fetchCourseDetail(bookingId, studentId) {
     loading.value = true
     error.value = null
 
     try {
-      // 1. Get Student ID
+      // 1. Dapatkan ID Siswa
       const { data: studentData } = await supabase
         .from('students')
         .select('id')
-        .eq('user_id', studentId) // studentId arg is actually userId from component
+        .eq('user_id', studentId) // arg studentId sebenarnya userId dari komponen
         .single()
       
       const sid = studentData?.id
@@ -179,11 +179,11 @@ export function useMyClass() {
     return currentCourse.value
   }
 
-  // Fetch course materials (modules and videos)
+  // Ambil materi kursus (modul dan video)
   async function fetchMaterials(programId, userId) {
     try {
-      // Get student ID for progress filtering (if needed by RLS or modify query)
-      // Assuming RLS handles visibility of progress, or we filter below
+      // Dapatkan ID siswa untuk filter progres (jika diperlukan RLS atau modifikasi query)
+      // Asumsi RLS menangani visibilitas progres, atau kita filter di bawah
       
       const { data, error: err } = await supabase
         .from('course_materials')
@@ -211,7 +211,7 @@ export function useMyClass() {
       if (err) throw err
       
       materials.value = (data || []).map(m => {
-        // Find progress for this specific student
+        // Cari progres untuk siswa spesifik ini
         const userProgress = Array.isArray(m.progress) 
           ? (m.progress.find(p => p.student_id === userId) || { is_completed: false, progress_percent: 0 })
           : (m.progress || { is_completed: false, progress_percent: 0 })
@@ -229,12 +229,12 @@ export function useMyClass() {
     return materials.value
   }
 
-  // Fetch quizzes for a program (from quizzes table - same as teacher uses)
-  // studentId: the students.id (table ID)
-  // authUserId: optional auth.users.id for fallback matching
+  // Ambil kuis untuk program (dari tabel quizzes - sama dengan yang digunakan pengajar)
+  // studentId: students.id (ID tabel)
+  // authUserId: auth.users.id opsional untuk fallback matching
   async function fetchTests(programId, studentId, authUserId = null) {
     try {
-      // First get les_place_id from program
+      // Pertama dapatkan les_place_id dari program
       const { data: program } = await supabase
         .from('programs')
         .select('les_place_id')
@@ -246,7 +246,7 @@ export function useMyClass() {
         return tests.value
       }
 
-      // Fetch quizzes for this program or general quizzes (program_id = null)
+      // Ambil kuis untuk program ini atau kuis umum (program_id = null)
       const { data, error: err } = await supabase
         .from('quizzes')
         .select(`
@@ -270,19 +270,19 @@ export function useMyClass() {
 
       if (err) throw err
 
-      // Fetch attempts for this student - query with both IDs for legacy support
+      // Ambil percobaan untuk siswa ini - query dengan kedua ID untuk dukungan legacy
       let attemptsMap = {}
       if ((studentId || authUserId) && data?.length) {
         const quizIds = data.map(q => q.id)
         
-        // Build query with OR condition for both IDs
+        // Bangun query dengan kondisi OR untuk kedua ID
         let query = supabase
           .from('quiz_attempts')
           .select('quiz_id, score, passed, completed_at')
           .in('quiz_id', quizIds)
           .not('completed_at', 'is', null)
         
-        // Use OR condition if both IDs are provided and different
+        // Gunakan kondisi OR jika kedua ID disediakan dan berbeda
         if (studentId && authUserId && studentId !== authUserId) {
           query = query.or(`student_id.eq.${studentId},student_id.eq.${authUserId}`)
         } else {
@@ -299,14 +299,14 @@ export function useMyClass() {
         }
       }
 
-      // Map quizzes with attempt info and schedule status
+      // Map kuis dengan info percobaan dan status jadwal
       const now = new Date()
       tests.value = (data || []).map(q => {
         const attempts = attemptsMap[q.id] || []
         const startDate = q.start_date ? new Date(q.start_date) : null
         const endDate = q.end_date ? new Date(q.end_date) : null
         
-        // Determine schedule status
+        // Tentukan status jadwal
         let scheduleStatus = 'available' // no schedule set
         if (startDate && now < startDate) {
           scheduleStatus = 'upcoming'
@@ -320,11 +320,11 @@ export function useMyClass() {
           ...q,
           test_type: 'quiz',
           time_limit_minutes: q.duration_minutes,
-          max_attempts: q.max_attempts || 1, // use database value or default to 1
+          max_attempts: q.max_attempts || 1, // gunakan nilai database atau default ke 1
           attempts,
           bestScore: attempts.length ? Math.max(...attempts.map(a => a.score || 0)) : null,
           attemptCount: attempts.length,
-          isLocked: attempts.length >= (q.max_attempts || 1), // Quiz locked after completing max attempts
+          isLocked: attempts.length >= (q.max_attempts || 1), // Kuis terkunci setelah menyelesaikan percobaan maksimal
           questionCount: q.questions?.length || 0,
           scheduleStatus,
           startDate: q.start_date,
@@ -339,7 +339,7 @@ export function useMyClass() {
     return tests.value
   }
 
-  // Fetch grades for a booking
+  // Ambil nilai untuk booking
   async function fetchGrades(bookingId) {
     try {
       const { data, error: err } = await supabase
@@ -371,7 +371,7 @@ export function useMyClass() {
     return grades.value
   }
 
-  // Fetch attendance for a booking
+  // Ambil kehadiran untuk booking
   async function fetchAttendance(bookingId) {
     try {
       const { data, error: err } = await supabase
@@ -400,7 +400,7 @@ export function useMyClass() {
     return attendance.value
   }
 
-  // Update material progress
+  // Update progres materi
   async function updateMaterialProgress(materialId, studentId, progressData) {
     try {
       if (!studentId) {
@@ -424,7 +424,7 @@ export function useMyClass() {
     }
   }
 
-  // Mark a course/booking as completed
+  // Tandai kursus/booking sebagai selesai
   async function markCourseAsCompleted(bookingId) {
     if (!bookingId) return false
     try {
@@ -442,18 +442,18 @@ export function useMyClass() {
     }
   }
 
-  // Calculate overall course progress
+  // Hitung progres kursus keseluruhan
   function calculateCourseProgress(bookingId = null, currentStatus = null) {
-    // Count all learning items
+    // Hitung semua item pembelajaran
     const moduleVideos = materials.value || []
     const quizList = tests.value || []
     const exerciseList = exercises.value || []
     
-    // Separate modules and videos
+    // Pisahkan modul dan video
     const moduleItems = moduleVideos.filter(m => m.type !== 'video')
     const videoItems = moduleVideos.filter(m => m.type === 'video')
     
-    // Count total items
+    // Hitung total item
     const totalModules = moduleItems.length
     const totalVideos = videoItems.length
     const totalQuizzes = quizList.length
@@ -462,23 +462,23 @@ export function useMyClass() {
     const totalItems = totalModules + totalVideos + totalQuizzes + totalExercises
     if (totalItems === 0) return 0
     
-    // Count completed items
-    // Modules: progress.is_completed or progress.is_read
+    // Hitung item yang selesai
+    // Modul: progress.is_completed atau progress.is_read
     const completedModules = moduleItems.filter(m => 
       m.progress?.is_completed || m.progress?.is_read
     ).length
     
-    // Videos: progress.is_completed (set by openMaterial), is_watched, or watch_percentage >= 80
+    // Video: progress.is_completed (diset oleh openMaterial), is_watched, atau watch_percentage >= 80
     const completedVideos = videoItems.filter(v => 
       v.progress?.is_completed || v.progress?.is_watched || (v.progress?.watch_percentage || 0) >= 80
     ).length
     
-    // Quizzes: have bestScore (completed at least once) or attemptCount > 0
+    // Kuis: punya bestScore (selesai setidaknya sekali) atau attemptCount > 0
     const completedQuizzes = quizList.filter(q => 
       q.bestScore !== null || q.attemptCount > 0
     ).length
     
-    // Exercises: have submission object, submissionCount > 0, or status is 'submitted' or 'graded'
+    // Latihan: punya objek submission, submissionCount > 0, atau status 'submitted' atau 'graded'
     const completedExercises = exerciseList.filter(e => 
       e.submission || e.submissionCount > 0 || e.submissions?.length > 0 || 
       e.status === 'submitted' || e.status === 'graded'
@@ -486,7 +486,7 @@ export function useMyClass() {
     
     const completedItems = completedModules + completedVideos + completedQuizzes + completedExercises
     
-    // Debug log for troubleshooting
+    // Log debug untuk troubleshooting
     console.log('Progress Debug:', {
       modules: `${completedModules}/${totalModules}`,
       videos: `${completedVideos}/${totalVideos}`,
@@ -498,7 +498,7 @@ export function useMyClass() {
     
     const percent = Math.round((completedItems / totalItems) * 100)
     
-    // Auto-complete booking when progress reaches 100%
+    // Auto-selesaikan booking saat progres mencapai 100%
     if (percent === 100 && bookingId && currentStatus !== 'completed') {
       markCourseAsCompleted(bookingId)
     }
@@ -506,7 +506,7 @@ export function useMyClass() {
     return percent
   }
 
-  // Get schedule for display
+  // Dapatkan jadwal untuk tampilan
   function getScheduleDisplay(schedule) {
     if (!schedule) return []
     
@@ -527,10 +527,10 @@ export function useMyClass() {
       minggu: 'Minggu'
     }
 
-    // Helper to format time
+    // Helper untuk format waktu
     function formatTime(time) {
       if (!time) return '-'
-      // If time is an object with start/end
+      // Jika time adalah objek dengan start/end
       if (typeof time === 'object' && time !== null) {
         const start = time.start || time.start_time || ''
         const end = time.end || time.end_time || ''
@@ -538,7 +538,7 @@ export function useMyClass() {
         if (start) return start
         return '-'
       }
-      // If time is already a string
+      // Jika time sudah berupa string
       return time
     }
 
@@ -549,14 +549,14 @@ export function useMyClass() {
       }))
     }
 
-    // Handle object format { "Senin": { start: "09:00", end: "11:00" }, ... }
+    // Tangani format objek { "Senin": { start: "09:00", end: "11:00" }, ... }
     return Object.entries(schedule).map(([day, time]) => ({
       day: days[day.toLowerCase()] || day,
       time: formatTime(time)
     }))
   }
 
-  // Report card data
+  // Data rapor
   const reportCard = ref({
     quizScores: [],
     latihanScores: [],
@@ -567,16 +567,16 @@ export function useMyClass() {
     settings: { passing_grade: 70, quiz_weight: 60, latihan_weight: 40 }
   })
 
-  // Fetch report card data (quiz scores, latihan scores, calculate final grade)
-  // studentId: the students.id (table ID)
-  // authUserId: optional auth.users.id for fallback matching
+  // Ambil data rapor (skor kuis, skor latihan, hitung nilai akhir)
+  // studentId: students.id (ID tabel)
+  // authUserId: auth.users.id opsional untuk fallback matching
   async function fetchReportCard(studentId, program, authUserId = null) {
     if (!program?.les_place_id) return reportCard.value
 
     try {
       loading.value = true
 
-      // 1. Fetch grade settings from les_place
+      // 1. Ambil pengaturan nilai dari les_place
       const { data: lesPlaceData } = await supabase
         .from('les_places')
         .select('settings')
@@ -589,7 +589,7 @@ export function useMyClass() {
         latihan_weight: lesPlaceData?.settings?.latihan_weight ?? 40
       }
 
-      // 2. Fetch quiz attempts for this student (only for this program or general quizzes)
+      // 2. Ambil percobaan kuis untuk siswa ini (hanya untuk program ini atau kuis umum)
       const { data: quizzes } = await supabase
         .from('quizzes')
         .select('id, title, program_id')
@@ -601,7 +601,7 @@ export function useMyClass() {
       let quizScores = []
 
       if (quizIds.length > 0) {
-        // Build query with OR condition for both IDs
+        // Bangun query dengan kondisi OR untuk kedua ID
         let quizQuery = supabase
           .from('quiz_attempts')
           .select('*')
@@ -617,7 +617,7 @@ export function useMyClass() {
 
         const { data: attempts } = await quizQuery
 
-        // Get best score per quiz
+        // Dapatkan skor terbaik per kuis
         const quizBestScores = {}
         attempts?.forEach(a => {
           const quiz = quizzes.find(q => q.id === a.quiz_id)
@@ -634,7 +634,7 @@ export function useMyClass() {
         quizScores = Object.values(quizBestScores)
       }
 
-      // 3. Fetch latihan scores from exercise_submissions
+      // 3. Ambil skor latihan dari exercise_submissions
       const { data: exercises } = await supabase
         .from('course_materials')
         .select('id, title')
@@ -646,7 +646,7 @@ export function useMyClass() {
       let latihanScores = []
 
       if (materialIds.length > 0) {
-        // Build query with OR condition for both IDs
+        // Bangun query dengan kondisi OR untuk kedua ID
         let latihanQuery = supabase
           .from('exercise_submissions')
           .select('*')
@@ -672,7 +672,7 @@ export function useMyClass() {
         }) || []
       }
 
-      // 4. Calculate Final Grade
+      // 4. Hitung Nilai Akhir
       const quizAvg = quizScores.length > 0 
         ? Math.round(quizScores.reduce((sum, q) => sum + q.score, 0) / quizScores.length) 
         : 0
@@ -709,19 +709,19 @@ export function useMyClass() {
     }
   }
 
-  // ==================== EXERCISES (LATIHAN) ====================
+  // ==================== LATIHAN ====================
   const exercises = ref([])
 
-  // Fetch exercises for a program
-  // studentId: the students.id (table ID)
-  // authUserId: optional auth.users.id for fallback matching
+  // Ambil latihan untuk program
+  // studentId: students.id (ID tabel)
+  // authUserId: auth.users.id opsional untuk fallback matching
   async function fetchExercises(programId, studentId, authUserId = null) {
     if (!programId) return []
 
     try {
       loading.value = true
 
-      // Get exercises from course_materials with type='exercise'
+      // Dapatkan latihan dari course_materials dengan type='exercise'
       const { data: exerciseData, error: exErr } = await supabase
         .from('course_materials')
         .select('*')
@@ -732,19 +732,19 @@ export function useMyClass() {
 
       if (exErr) throw exErr
 
-      // Get student's submissions for these exercises
-      // Query with both studentId (table ID) and authUserId (auth ID) to handle legacy data
+      // Dapatkan submission siswa untuk latihan ini
+      // Query dengan studentId (ID tabel) dan authUserId (ID auth) untuk menangani data legacy
       const exerciseIds = exerciseData?.map(e => e.id) || []
       let submissionsMap = {}
 
       if (exerciseIds.length > 0 && (studentId || authUserId)) {
-        // Build query to match either student table ID or auth user ID
+        // Bangun query untuk mencocokkan ID tabel siswa atau ID pengguna auth
         let query = supabase
           .from('exercise_submissions')
           .select('*')
           .in('material_id', exerciseIds)
         
-        // Use OR condition if both IDs are provided
+        // Gunakan kondisi OR jika kedua ID disediakan
         if (studentId && authUserId && studentId !== authUserId) {
           query = query.or(`student_id.eq.${studentId},student_id.eq.${authUserId}`)
         } else {
@@ -758,7 +758,7 @@ export function useMyClass() {
         })
       }
 
-      // Combine exercises with submission status
+      // Gabungkan latihan dengan status submission
       exercises.value = exerciseData?.map(ex => ({
         ...ex,
         submission: submissionsMap[ex.id] || null,
@@ -777,7 +777,7 @@ export function useMyClass() {
     }
   }
 
-  // Submit exercise answer
+  // Submit jawaban latihan
   async function submitExercise(materialId, userId, submissionUrl, notes = '') {
     try {
       const { data, error: err } = await supabase

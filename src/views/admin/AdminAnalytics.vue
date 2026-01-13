@@ -25,7 +25,7 @@ const monthlyData = ref({
 const topLesPlaces = ref([])
 const recentTransactions = ref([])
 
-// Fetch all analytics data
+// Ambil semua data analitik
 async function fetchAnalytics() {
   loading.value = true
   try {
@@ -42,48 +42,48 @@ async function fetchAnalytics() {
   }
 }
 
-// Fetch summary stats
+// Ambil statistik ringkasan
 async function fetchStats() {
-  // Total users
+  // Total pengguna
   const { count: userCount } = await supabase
     .from('users')
     .select('*', { count: 'exact', head: true })
   stats.value.totalUsers = userCount || 0
 
-  // Total les places
+  // Total tempat les
   const { count: lesCount } = await supabase
     .from('les_places')
     .select('*', { count: 'exact', head: true })
   stats.value.totalLesPlaces = lesCount || 0
 
-  // Total bookings
+  // Total booking
   const { count: bookingCount } = await supabase
     .from('bookings')
     .select('*', { count: 'exact', head: true })
   stats.value.totalBookings = bookingCount || 0
 
-  // Total revenue
+  // Total pendapatan
   const { data: revenueData } = await supabase
     .from('transactions')
     .select('amount')
     .eq('payment_status', 'settlement')
   stats.value.totalRevenue = revenueData?.reduce((sum, t) => sum + (t.amount || 0), 0) || 0
 
-  // Pending verifications
+  // Verifikasi tertunda
   const { count: pendingCount } = await supabase
     .from('les_places')
     .select('*', { count: 'exact', head: true })
     .eq('verification_status', 'pending')
   stats.value.pendingVerifications = pendingCount || 0
 
-  // Active students
+  // Siswa aktif
   const { count: studentCount } = await supabase
     .from('students')
     .select('*', { count: 'exact', head: true })
   stats.value.activeStudents = studentCount || 0
 }
 
-// Fetch monthly trend data (last 6 months)
+// Ambil data tren bulanan (6 bulan terakhir)
 async function fetchMonthlyData() {
   const months = []
   const now = new Date()
@@ -99,7 +99,7 @@ async function fetchMonthlyData() {
 
   monthlyData.value.labels = months.map(m => m.label)
   
-  // Fetch data for each month
+  // Ambil data untuk setiap bulan
   const usersPromises = months.map(m => 
     supabase.from('users').select('*', { count: 'exact', head: true })
       .gte('created_at', m.start).lte('created_at', m.end)
@@ -127,7 +127,7 @@ async function fetchMonthlyData() {
   )
 }
 
-// Fetch top 5 les places by bookings
+// Ambil 5 tempat les teratas berdasarkan booking
 async function fetchTopLesPlaces() {
   const { data } = await supabase
     .from('les_places')
@@ -138,7 +138,7 @@ async function fetchTopLesPlaces() {
   topLesPlaces.value = data || []
 }
 
-// Fetch recent transactions
+// Ambil transaksi terbaru
 async function fetchRecentTransactions() {
   const { data } = await supabase
     .from('transactions')
@@ -155,17 +155,17 @@ async function fetchRecentTransactions() {
   recentTransactions.value = data || []
 }
 
-// Format currency
+// Format mata uang
 function formatCurrency(amount) {
   return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(amount)
 }
 
-// Format date
+// Format tanggal
 function formatDate(date) {
   return new Date(date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })
 }
 
-// Get max value for chart scaling
+// Dapatkan nilai maksimum untuk skala grafik
 const maxChartValue = computed(() => {
   return Math.max(...monthlyData.value.bookings, ...monthlyData.value.users, 1)
 })
@@ -380,7 +380,7 @@ onMounted(fetchAnalytics)
   width: 100%;
 }
 
-/* StatCard styling handled by component */
+/* Styling StatCard ditangani oleh komponen */
 
 .charts-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 20px; margin-bottom: 24px; }
 .chart-card { background: white; border-radius: 16px; padding: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }

@@ -9,21 +9,21 @@ const isOwner = computed(() => route.path.startsWith('/owner'))
 
 const { loading, schedule, lesPlace, fetchTeacherSchedule, fetchTeacherProfile } = useTeacherData()
 
-// View mode: 'week' or 'list'
+// Mode tampilan: 'week' atau 'list'
 const viewMode = ref('week')
 
-// Modal state
+// State modal
 const showModal = ref(false)
 const selectedClass = ref(null)
 const meetingLink = ref('')
 const savingLink = ref(false)
 
-// Notification state
+// State notifikasi
 const notification = ref({ show: false, type: '', message: '' })
 
 function showNotification(type, message) {
   notification.value = { show: true, type, message }
-  // Auto-hide after 3 seconds
+  // Sembunyikan otomatis setelah 3 detik
   setTimeout(() => {
     notification.value.show = false
   }, 3000)
@@ -47,13 +47,13 @@ async function updateMeetingLink() {
       
     if (error) throw error
     
-    // Update local data
+    // Update data lokal
     const idx = schedule.value.findIndex(s => s.id === selectedClass.value.id)
     if (idx !== -1) {
       schedule.value[idx].meeting_url = meetingLink.value
     }
     
-    // Also update all items with same program_id
+    // Juga update semua item dengan program_id yang sama
     schedule.value.forEach(s => {
       if (s.program_id === selectedClass.value.program_id) {
         s.meeting_url = meetingLink.value
@@ -71,7 +71,7 @@ async function updateMeetingLink() {
 }
 
 
-// Current week date
+// Tanggal minggu saat ini
 const currentWeekStart = ref(getWeekStart(new Date()))
 
 const selectedDay = ref(new Date().getDay() || 7)
@@ -85,7 +85,7 @@ const days = [
   { short: 'Min', full: 'Minggu', index: 7 },
 ]
 
-// Stats
+// Statistik
 const weeklyStats = computed(() => {
   const totalClasses = schedule.value.length
   const todayClasses = schedule.value.filter(s => s.day === (new Date().getDay() || 7)).length
@@ -97,14 +97,14 @@ const weeklyStats = computed(() => {
 
 const filteredSchedule = computed(() => {
   return schedule.value.filter(s => s.day === selectedDay.value).sort((a, b) => {
-    // Sort by time
+    // Urutkan berdasarkan waktu
     const timeA = a.time?.split(' - ')[0] || '00:00'
     const timeB = b.time?.split(' - ')[0] || '00:00'
     return timeA.localeCompare(timeB)
   })
 })
 
-// Get schedule for a specific day (for week view)
+// Dapatkan jadwal untuk hari tertentu (untuk tampilan minggu)
 function getScheduleForDay(dayIndex) {
   return schedule.value.filter(s => s.day === dayIndex).sort((a, b) => {
     const timeA = a.time?.split(' - ')[0] || '00:00'
@@ -113,7 +113,7 @@ function getScheduleForDay(dayIndex) {
   })
 }
 
-// Get week dates
+// Dapatkan tanggal minggu
 function getWeekStart(date) {
   const d = new Date(date)
   const day = d.getDay()
@@ -200,17 +200,17 @@ function getSubjectColor(subject) {
 function formatScheduleTime(time) {
   if (!time || time === '-') return '-'
   
-  // If it's a simple string like "08:00-10:00", return as is
+  // Jika format string sederhana seperti "08:00-10:00", kembalikan apa adanya
   if (typeof time === 'string' && !time.includes('{') && !time.includes('start')) {
     return time
   }
   
-  // If it's an object with start/end
+  // Jika objek dengan start/end
   if (typeof time === 'object') {
     if (time.start && time.end) {
       return `${time.start} - ${time.end}`
     }
-    // If it's day:time format
+    // Jika format hari:waktu
     return Object.entries(time)
       .map(([day, t]) => typeof t === 'object' ? `${t.start} - ${t.end}` : t)
       .join(', ')

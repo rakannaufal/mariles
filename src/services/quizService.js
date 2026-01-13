@@ -1,19 +1,19 @@
 /**
- * Quiz Service
+ * Layanan Kuis
  * ============
  * 
- * Handles quiz operations for teachers and students
+ * Menangani operasi kuis untuk pengajar dan siswa
  */
 
 import { supabase } from '@/lib/supabase'
 
 // ============================================================
-// QUIZ MANAGEMENT (Teacher)
+// MANAJEMEN KUIS (Pengajar)
 // ============================================================
 
 /**
- * Create a new quiz
- * @param {Object} quizData - Quiz data
+ * Buat kuis baru
+ * @param {Object} quizData - Data kuis
  */
 export async function createQuiz({
   lesPlaceId,
@@ -22,7 +22,7 @@ export async function createQuiz({
   title,
   description = '',
   questions = [],
-  duration = 30, // minutes
+  duration = 30, // menit
   passingScore = 70,
   isPublished = false,
   startDate = null,
@@ -57,9 +57,9 @@ export async function createQuiz({
 }
 
 /**
- * Update a quiz
- * @param {string} quizId - Quiz ID
- * @param {Object} updates - Fields to update
+ * Update kuis
+ * @param {string} quizId - ID Kuis
+ * @param {Object} updates - Field yang akan diupdate
  */
 export async function updateQuiz(quizId, updates) {
   try {
@@ -80,8 +80,8 @@ export async function updateQuiz(quizId, updates) {
 }
 
 /**
- * Delete a quiz
- * @param {string} quizId - Quiz ID
+ * Hapus kuis
+ * @param {string} quizId - ID Kuis
  */
 export async function deleteQuiz(quizId) {
   try {
@@ -100,8 +100,8 @@ export async function deleteQuiz(quizId) {
 }
 
 /**
- * Get quizzes for a teacher
- * @param {string} teacherId - Teacher ID
+ * Dapatkan kuis untuk pengajar
+ * @param {string} teacherId - ID Pengajar
  */
 export async function getTeacherQuizzes(teacherId) {
   try {
@@ -121,17 +121,17 @@ export async function getTeacherQuizzes(teacherId) {
 }
 
 // ============================================================
-// QUIZ TAKING (Student)
+// MENGERJAKAN KUIS (Siswa)
 // ============================================================
 
 /**
- * Start a quiz attempt
- * @param {string} quizId - Quiz ID
- * @param {string} studentId - Student ID
+ * Mulai percobaan kuis
+ * @param {string} quizId - ID Kuis
+ * @param {string} studentId - ID Siswa
  */
 export async function startQuizAttempt(quizId, studentId) {
   try {
-    // Check for existing incomplete attempt
+    // Cek percobaan yang belum selesai
     const { data: existing } = await supabase
       .from('quiz_attempts')
       .select('id')
@@ -144,7 +144,7 @@ export async function startQuizAttempt(quizId, studentId) {
       return { success: false, error: 'Anda sudah memiliki percobaan yang belum selesai' }
     }
 
-    // Get quiz details
+    // Dapatkan detail kuis
     const { data: quiz } = await supabase
       .from('quizzes')
       .select('*')
@@ -155,7 +155,7 @@ export async function startQuizAttempt(quizId, studentId) {
       return { success: false, error: 'Quiz tidak ditemukan atau belum dipublikasikan' }
     }
 
-    // Create attempt
+    // Buat percobaan
     const endTime = new Date(Date.now() + quiz.duration_minutes * 60 * 1000)
     
     const { data: attempt, error } = await supabase
@@ -177,7 +177,7 @@ export async function startQuizAttempt(quizId, studentId) {
       attempt,
       quiz: {
         ...quiz,
-        // Don't send correct answers to client
+        // Jangan kirim jawaban benar ke client
         questions: quiz.questions.map(q => ({
           ...q,
           correctAnswer: undefined
@@ -192,14 +192,14 @@ export async function startQuizAttempt(quizId, studentId) {
 }
 
 /**
- * Save answer for a question
- * @param {string} attemptId - Attempt ID
- * @param {string} questionId - Question ID
- * @param {any} answer - Student's answer
+ * Simpan jawaban untuk pertanyaan
+ * @param {string} attemptId - ID Percobaan
+ * @param {string} questionId - ID Pertanyaan
+ * @param {any} answer - Jawaban siswa
  */
 export async function saveAnswer(attemptId, questionId, answer) {
   try {
-    // Get current answers
+    // Dapatkan jawaban saat ini
     const { data: attempt } = await supabase
       .from('quiz_attempts')
       .select('answers')
@@ -210,7 +210,7 @@ export async function saveAnswer(attemptId, questionId, answer) {
       return { success: false, error: 'Attempt tidak ditemukan' }
     }
 
-    // Update answers
+    // Update jawaban
     const updatedAnswers = {
       ...attempt.answers,
       [questionId]: answer
@@ -231,12 +231,12 @@ export async function saveAnswer(attemptId, questionId, answer) {
 }
 
 /**
- * Submit quiz attempt
- * @param {string} attemptId - Attempt ID
+ * Kirim percobaan kuis
+ * @param {string} attemptId - ID Percobaan
  */
 export async function submitQuizAttempt(attemptId) {
   try {
-    // Get attempt with quiz
+    // Dapatkan percobaan dengan kuis
     const { data: attempt } = await supabase
       .from('quiz_attempts')
       .select('*, quizzes(*)')
@@ -247,7 +247,7 @@ export async function submitQuizAttempt(attemptId) {
       return { success: false, error: 'Attempt tidak ditemukan' }
     }
 
-    // Calculate score
+    // Hitung skor
     const quiz = attempt.quizzes
     const questions = quiz.questions
     const answers = attempt.answers || {}
@@ -268,7 +268,7 @@ export async function submitQuizAttempt(attemptId) {
     const score = Math.round((correctCount / questions.length) * 100)
     const passed = score >= quiz.passing_score
 
-    // Update attempt
+    // Update percobaan
     const { error } = await supabase
       .from('quiz_attempts')
       .update({
@@ -296,8 +296,8 @@ export async function submitQuizAttempt(attemptId) {
 }
 
 /**
- * Get quiz attempts for a student
- * @param {string} studentId - Student ID
+ * Dapatkan percobaan kuis untuk siswa
+ * @param {string} studentId - ID Siswa
  */
 export async function getStudentAttempts(studentId) {
   try {
@@ -318,8 +318,8 @@ export async function getStudentAttempts(studentId) {
 }
 
 /**
- * Get quiz statistics for a quiz (Teacher)
- * @param {string} quizId - Quiz ID
+ * Dapatkan statistik kuis (Pengajar)
+ * @param {string} quizId - ID Kuis
  */
 export async function getQuizStatistics(quizId) {
   try {

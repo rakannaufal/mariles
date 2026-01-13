@@ -20,7 +20,7 @@ const {
   unsubscribe
 } = useChat()
 
-// Use shared presence tracking
+// Gunakan tracking kehadiran bersama
 const { 
   isUserOnline, 
   getStatusText,
@@ -40,7 +40,7 @@ const currentParticipant = computed(() => {
   return selectedRoom.value.otherParticipant
 })
 
-// Get role label in Indonesian
+// Dapatkan label role dalam bahasa Indonesia
 function getRoleLabel(role) {
   switch(role) {
     case 'teacher': return 'Guru'

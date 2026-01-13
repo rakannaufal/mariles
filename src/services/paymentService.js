@@ -1,14 +1,14 @@
 /**
- * Payment Service
- * ===============
+ * Layanan Pembayaran
+ * ==================
  *
- * Handles all payment operations:
- * - Creating payments (Student → Owner)
- * - Processing withdrawals (Owner/Teacher → Bank)
- * - Payment status updates
- * - Platform revenue tracking
+ * Menangani semua operasi pembayaran:
+ * - Membuat pembayaran (Siswa → Pemilik)
+ * - Memproses pencairan (Pemilik/Pengajar → Bank)
+ * - Pembaruan status pembayaran
+ * - Pelacakan pendapatan platform
  *
- * Uses Midtrans for payment gateway integration.
+ * Menggunakan Midtrans untuk integrasi gateway pembayaran.
  */
 
 import { supabase } from "@/lib/supabase";
@@ -23,13 +23,13 @@ import {
   isWithinRefundWindow,
 } from "./balanceService";
 
-// PLATFORM SETTINGS HELPER
+// HELPER PENGATURAN PLATFORM
 
 const { getSetting } = usePlatformSettings();
 
 /**
- * Load platform fee settings
- * @returns {Promise<Object>} Platform fee settings
+ * Muat pengaturan biaya platform
+ * @returns {Promise<Object>} Pengaturan biaya platform
  */
 async function loadPlatformFees() {
   try {
@@ -53,18 +53,18 @@ async function loadPlatformFees() {
   }
 }
 
-// PAYMENT CREATION (Student pays for class/program)
+// PEMBUATAN PEMBAYARAN (Siswa membayar kelas/program)
 
 /**
- * Create a payment transaction for student booking
- * @param {Object} params - Payment parameters
- * @param {string} params.lesPlaceId - Les place ID
- * @param {string} params.studentId - Student user ID
- * @param {string} params.bookingId - Booking ID (optional)
- * @param {string} params.programId - Program ID
- * @param {number} params.amount - Payment amount
- * @param {string} params.description - Payment description
- * @param {Object} params.customerDetails - Customer info for Midtrans
+ * Buat transaksi pembayaran untuk booking siswa
+ * @param {Object} params - Parameter pembayaran
+ * @param {string} params.lesPlaceId - ID Tempat Les
+ * @param {string} params.studentId - ID Pengguna Siswa
+ * @param {string} params.bookingId - ID Booking (opsional)
+ * @param {string} params.programId - ID Program
+ * @param {number} params.amount - Jumlah pembayaran
+ * @param {string} params.description - Deskripsi pembayaran
+ * @param {Object} params.customerDetails - Info pelanggan untuk Midtrans
  */
 export async function createPayment({
   lesPlaceId,
@@ -79,7 +79,7 @@ export async function createPayment({
   try {
     const orderId = generateOrderId("TXN");
 
-    // Handle free payment (e.g. 100% discount or free course)
+    // Tangani pembayaran gratis (misal diskon 100% atau kursus gratis)
     if (amount <= 0) {
       const { data: transaction, error: dbError } = await supabase
         .from("transactions")
@@ -91,7 +91,7 @@ export async function createPayment({
           amount: 0,
           platform_fee: 0,
           net_amount: 0,
-          payment_status: "completed", // Instantly completed
+          payment_status: "completed", // Langsung selesai
           midtrans_order_id: orderId,
           description: description,
           payment_date: new Date().toISOString(),
@@ -105,19 +105,19 @@ export async function createPayment({
         success: true,
         transaction: transaction,
         orderId: orderId,
-        isFree: true, // Flag to indicate free payment
+        isFree: true, // Flag untuk menandakan pembayaran gratis
       };
     }
 
-    // Load dynamic platform fee from settings
+    // Muat biaya platform dinamis dari pengaturan
     const feeSettings = await loadPlatformFees();
     const feePercent = feeSettings.platform_fee_percent / 100;
     const platformFee = Math.round(amount * feePercent);
     const netAmount = amount - platformFee;
 
-    // REAL MODE - Use Supabase Edge Function
+    // MODE REAL - Gunakan Supabase Edge Function
 
-    // 1. Create transaction record in database
+    // 1. Buat catatan transaksi di database
     const { data: transaction, error: dbError } = await supabase
       .from("transactions")
       .insert({
@@ -137,14 +137,14 @@ export async function createPayment({
 
     if (dbError) throw dbError;
 
-    // 2. Call Supabase Edge Function to create Snap Token
+    // 2. Panggil Supabase Edge Function untuk membuat Snap Token
     const { data: snapData, error: funcError } =
       await supabase.functions.invoke("create-snap-token", {
         body: {
           orderId,
           amount,
           customerDetails,
-          preferredPayment, // Pass the selected payment method
+          preferredPayment, // Teruskan metode pembayaran yang dipilih
           itemDetails: [
             {
               id: programId || "program-1",
@@ -165,7 +165,7 @@ export async function createPayment({
       throw new Error(snapData?.error || "Gagal membuat snap token");
     }
 
-    // 3. Update transaction with snap token and hold period fields
+    // 3. Update transaksi dengan snap token dan field periode hold
     const now = new Date();
     await supabase
       .from("transactions")
@@ -199,11 +199,11 @@ export async function createPayment({
 }
 
 /**
- * Open Midtrans Snap payment popup
- * @param {string} snapToken - Snap token from createPayment
- * @param {Function} onSuccess - Success callback
- * @param {Function} onPending - Pending callback
- * @param {Function} onError - Error callback
+ * Buka popup pembayaran Midtrans Snap
+ * @param {string} snapToken - Snap token dari createPayment
+ * @param {Function} onSuccess - Callback sukses
+ * @param {Function} onPending - Callback pending
+ * @param {Function} onError - Callback error
  */
 export async function payWithSnap(
   snapToken,
@@ -242,10 +242,10 @@ export async function payWithSnap(
 }
 
 /**
- * Update payment status after Midtrans callback
- * @param {string} orderId - Midtrans order ID
- * @param {string} status - New payment status
- * @param {Object} midtransResult - Midtrans response
+ * Update status pembayaran setelah callback Midtrans
+ * @param {string} orderId - ID Order Midtrans
+ * @param {string} status - Status pembayaran baru
+ * @param {Object} midtransResult - Respons Midtrans
  */
 export async function updatePaymentStatus(
   orderId,
@@ -272,11 +272,11 @@ export async function updatePaymentStatus(
 
     if (error) throw error;
 
-    // If completed, update owner's balance, increment students, and record revenue
+    // Jika selesai, update saldo pemilik, tambah siswa, dan catat pendapatan
     if (status === "completed") {
       await updateOwnerBalance(orderId);
       await incrementProgramStudents(orderId);
-      await recordPlatformRevenue(orderId); // Record platform fee as revenue
+      await recordPlatformRevenue(orderId); // Catat biaya platform sebagai pendapatan
     }
 
     return { success: true };
@@ -287,12 +287,12 @@ export async function updatePaymentStatus(
 }
 
 /**
- * Record platform fee as revenue
- * @param {string} orderId - Midtrans order ID
+ * Catat biaya platform sebagai pendapatan
+ * @param {string} orderId - ID Order Midtrans
  */
 async function recordPlatformRevenue(orderId) {
   try {
-    // Get transaction details
+    // Dapatkan detail transaksi
     const { data: txn } = await supabase
       .from("transactions")
       .select("id, platform_fee, description, les_place_id")
@@ -301,16 +301,16 @@ async function recordPlatformRevenue(orderId) {
 
     if (!txn || txn.platform_fee <= 0) return;
 
-    // Check if already recorded
+    // Cek jika sudah dicatat
     const { data: existing } = await supabase
       .from("platform_revenue")
       .select("id")
       .eq("transaction_id", txn.id)
       .single();
 
-    if (existing) return; // Already recorded
+    if (existing) return; // Sudah dicatat
 
-    // Insert platform revenue record
+    // Masukkan catatan pendapatan platform
     await supabase.from("platform_revenue").insert({
       transaction_id: txn.id,
       amount: txn.platform_fee,
@@ -324,16 +324,16 @@ async function recordPlatformRevenue(orderId) {
     );
   } catch (error) {
     console.error("Record platform revenue error:", error);
-    // Don't throw - this shouldn't block the main flow
+    // Jangan throw - ini tidak boleh memblokir alur utama
   }
 }
 
 /**
- * Update owner balance after successful payment
+ * Update saldo pemilik setelah pembayaran berhasil
  */
 async function updateOwnerBalance(orderId) {
   try {
-    // Get transaction details
+    // Dapatkan detail transaksi
     const { data: txn } = await supabase
       .from("transactions")
       .select("les_place_id, net_amount, les_places(owner_id)")
@@ -345,7 +345,7 @@ async function updateOwnerBalance(orderId) {
     const ownerId = txn.les_places?.owner_id;
     if (!ownerId) return;
 
-    // Update or create balance
+    // Update atau buat saldo
     const { data: existingBalance } = await supabase
       .from("balances")
       .select("*")
@@ -375,14 +375,14 @@ async function updateOwnerBalance(orderId) {
   }
 }
 
-// WITHDRAWALS (Owner/Teacher → Bank)
+// PENCAIRAN (Pemilik/Pengajar → Bank)
 
 /**
- * Increment program's current_students and les_place's total_students after successful payment
+ * Tambah current_students program dan total_students les_place setelah pembayaran sukses
  */
 async function incrementProgramStudents(orderId) {
   try {
-    // Get transaction with program_id and les_place_id
+    // Dapatkan transaksi dengan program_id dan les_place_id
     const { data: txn } = await supabase
       .from("transactions")
       .select("program_id, les_place_id")
@@ -391,7 +391,7 @@ async function incrementProgramStudents(orderId) {
 
     if (!txn?.program_id) return;
 
-    // Increment program's current_students
+    // Tambah current_students program
     const { data: program } = await supabase
       .from("programs")
       .select("current_students")
@@ -408,7 +408,7 @@ async function incrementProgramStudents(orderId) {
 
     console.log(`Program ${txn.program_id} student count incremented`);
 
-    // Also increment les_place's total_students
+    // Juga tambah total_students les_place
     if (txn.les_place_id) {
       const { data: lesPlace } = await supabase
         .from("les_places")
@@ -432,15 +432,15 @@ async function incrementProgramStudents(orderId) {
 }
 
 /**
- * Decrement program's current_students and les_place's total_students after refund
- * @param {string} programId - Program ID
- * @param {string} lesPlaceId - Les place ID
+ * Kurangi current_students program dan total_students les_place setelah pengembalian dana
+ * @param {string} programId - ID Program
+ * @param {string} lesPlaceId - ID Tempat Les
  */
 async function decrementProgramStudents(programId, lesPlaceId) {
   try {
     if (!programId) return;
 
-    // Decrement program's current_students
+    // Kurangi current_students program
     const { data: program } = await supabase
       .from("programs")
       .select("current_students")
@@ -459,7 +459,7 @@ async function decrementProgramStudents(programId, lesPlaceId) {
       console.log(`Program ${programId} student count decremented`);
     }
 
-    // Also decrement les_place's total_students
+    // Juga kurangi total_students les_place
     if (lesPlaceId) {
       const { data: lesPlace } = await supabase
         .from("les_places")
@@ -485,14 +485,14 @@ async function decrementProgramStudents(programId, lesPlaceId) {
 }
 
 /**
- * Request a withdrawal
- * @param {Object} params - Withdrawal parameters
- * @param {string} params.userId - User requesting withdrawal
- * @param {string} params.lesPlaceId - Les place ID (for owner)
- * @param {number} params.amount - Withdrawal amount
- * @param {string} params.bankName - Bank name
- * @param {string} params.bankAccount - Bank account number
- * @param {string} params.bankHolder - Account holder name
+ * Minta pencairan
+ * @param {Object} params - Parameter pencairan
+ * @param {string} params.userId - User yang meminta pencairan
+ * @param {string} params.lesPlaceId - ID Tempat Les (untuk pemilik)
+ * @param {number} params.amount - Jumlah pencairan
+ * @param {string} params.bankName - Nama bank
+ * @param {string} params.bankAccount - Nomor rekening
+ * @param {string} params.bankHolder - Nama pemilik rekening
  */
 export async function requestWithdrawal({
   userId,
@@ -503,11 +503,11 @@ export async function requestWithdrawal({
   bankHolder,
 }) {
   try {
-    // Load platform fee settings for validation
+    // Muat pengaturan biaya platform untuk validasi
     const feeSettings = await loadPlatformFees();
     const { min_withdrawal, max_withdrawal, withdrawal_fee } = feeSettings;
 
-    // Validate min/max withdrawal (frontend validation)
+    // Validasi min/max pencairan (validasi frontend)
     if (amount < min_withdrawal) {
       return {
         success: false,
@@ -560,17 +560,17 @@ export async function requestWithdrawal({
 }
 
 /**
- * Process withdrawal via Midtrans Iris (Disbursement)
- * Calls the Supabase Edge Function which handles the Iris API
- * @param {string} withdrawalId - Withdrawal record ID
+ * Proses pencairan via Midtrans Iris (Disbursement)
+ * Memanggil Supabase Edge Function yang menangani Iris API
+ * @param {string} withdrawalId - ID catatan pencairan
  */
 export async function processWithdrawal(withdrawalId) {
   try {
-    // Check if using dummy mode
+    // Cek jika menggunakan mode dummy
     const USE_DUMMY = isDummyEnabled("payment");
 
     if (USE_DUMMY) {
-      // Simulate Iris processing
+      // Simulasikan pemrosesan Iris
       console.log("DUMMY MODE: Simulating Iris disbursement");
 
       // Update to processing
@@ -582,7 +582,7 @@ export async function processWithdrawal(withdrawalId) {
         })
         .eq("id", withdrawalId);
 
-      // Simulate delay then complete
+      // Simulasikan delay lalu selesaikan
       setTimeout(async () => {
         await supabase
           .from("withdrawals")
@@ -602,7 +602,7 @@ export async function processWithdrawal(withdrawalId) {
       };
     }
 
-    // REAL MODE - Call Supabase Edge Function
+    // MODE REAL - Panggil Supabase Edge Function
     const { data, error } = await supabase.functions.invoke(
       "process-disbursement",
       {
@@ -631,7 +631,7 @@ export async function processWithdrawal(withdrawalId) {
   } catch (error) {
     console.error("Process withdrawal error:", error);
 
-    // Revert status on error
+    // Kembalikan status saat error
     await supabase
       .from("withdrawals")
       .update({ status: "failed" })
@@ -642,8 +642,8 @@ export async function processWithdrawal(withdrawalId) {
 }
 
 /**
- * Check withdrawal status from Midtrans Iris
- * @param {string} withdrawalId - Withdrawal record ID
+ * Cek status pencairan dari Midtrans Iris
+ * @param {string} withdrawalId - ID catatan pencairan
  */
 export async function checkWithdrawalStatus(withdrawalId) {
   try {
@@ -670,11 +670,11 @@ export async function checkWithdrawalStatus(withdrawalId) {
   }
 }
 
-// TEACHER SALARY PAYMENT
+// PEMBAYARAN GAJI PENGAJAR
 
 /**
- * Pay teacher salary from owner's balance
- * @param {Object} params - Payment parameters
+ * Bayar gaji pengajar dari saldo pemilik
+ * @param {Object} params - Parameter pembayaran
  */
 export async function payTeacherSalary({
   ownerId,
@@ -687,7 +687,7 @@ export async function payTeacherSalary({
   bankHolder,
 }) {
   try {
-    // Check owner's balance
+    // Cek saldo pemilik
     const { data: balance } = await supabase
       .from("balances")
       .select("available_balance")
@@ -698,7 +698,7 @@ export async function payTeacherSalary({
       return { success: false, error: "Saldo owner tidak mencukupi" };
     }
 
-    // Create teacher payment record
+    // Buat catatan pembayaran pengajar
     const { data: payment, error: dbError } = await supabase
       .from("teacher_payments")
       .insert({
@@ -719,7 +719,7 @@ export async function payTeacherSalary({
 
     if (dbError) throw dbError;
 
-    // Deduct from owner's balance
+    // Kurangi dari saldo pemilik
     await supabase
       .from("balances")
       .update({
@@ -728,7 +728,7 @@ export async function payTeacherSalary({
       })
       .eq("user_id", ownerId);
 
-    // Add to teacher's balance
+    // Tambah ke saldo pengajar
     const { data: teacherBalance } = await supabase
       .from("balances")
       .select("*")
@@ -754,7 +754,7 @@ export async function payTeacherSalary({
       });
     }
 
-    // Mark payment as completed
+    // Tandai pembayaran sebagai selesai
     await supabase
       .from("teacher_payments")
       .update({
@@ -774,11 +774,11 @@ export async function payTeacherSalary({
   }
 }
 
-// UTILITY FUNCTIONS
+// FUNGSI UTILITAS
 
 /**
- * Get user's balance
- * @param {string} userId - User ID
+ * Dapatkan saldo pengguna
+ * @param {string} userId - ID Pengguna
  */
 export async function getUserBalance(userId) {
   try {

@@ -31,7 +31,7 @@ const authStore = useAuthStore()
 const debugRole = computed(() => authStore.userRole)
 const userEmail = computed(() => authStore.user?.email)
 
-// Response Modal
+// Modal Respons
 const showResponseModal = ref(false)
 const responseReport = ref(null)
 const responseStatus = ref('')
@@ -43,7 +43,7 @@ const statusOptions = [
   { value: 'dismissed', label: 'Ditolak', desc: 'Laporan tidak valid atau tidak cukup bukti' }
 ]
 
-// Flag Modal
+// Modal Flag
 const showFlagModal = ref(false)
 const flaggingReview = ref(null)
 const flagReason = ref('')
@@ -71,7 +71,7 @@ async function fetchData() {
 
     if (reviewError) {
       console.error('Review fetch error:', reviewError)
-      // If is_flagged column doesn't exist, fallback to query without it
+      // Jika kolom is_flagged tidak ada, fallback ke query tanpa itu
       if (reviewError.code === '42703') {
         const { data: fallbackData, count: fallbackCount } = await supabase
           .from('reviews')
@@ -112,18 +112,18 @@ async function fetchData() {
       }
     }
 
-    // Fetch student and les_place names separately
+    // Ambil nama student dan les_place secara terpisah
     if (reviewData && reviewData.length > 0) {
       const studentIds = [...new Set(reviewData.map(r => r.student_id).filter(Boolean))]
       const lesPlaceIds = [...new Set(reviewData.map(r => r.les_place_id).filter(Boolean))]
       
-      // Fetch students with users
+      // Ambil students dengan users
       const { data: studentsData } = await supabase
         .from('students')
         .select('id, users(name)')
         .in('id', studentIds.length > 0 ? studentIds : ['00000000-0000-0000-0000-000000000000'])
       
-      // Fetch les_places
+      // Ambil les_places
       const { data: lesPlacesData } = await supabase
         .from('les_places')
         .select('id, name')
@@ -135,7 +135,7 @@ async function fetchData() {
       ;(studentsData || []).forEach(s => { studentMap[s.id] = s.users?.name || 'Anonim' })
       ;(lesPlacesData || []).forEach(l => { lesPlaceMap[l.id] = l.name })
       
-      // Enrich reviews
+      // Perkaya reviews
       reviews.value = reviewData.map(r => ({
         ...r,
         is_flagged: r.is_flagged ?? false,
@@ -175,7 +175,7 @@ async function fetchData() {
         comments = data || []
       }
       
-      // Map details to reports
+      // Map detail ke reports
       reports.value = reportData.map(r => {
         let details = null
         if (r.target_type === 'forum_post') details = posts.find(p => p.id === r.target_id)
@@ -251,7 +251,7 @@ async function deleteReportedContent(report) {
   }
 }
 
-// Actions
+// Aksi
 function openModal(item, type) {
   selectedItem.value = item
   modalType.value = type
@@ -286,7 +286,7 @@ async function submitResponse() {
   try {
     const currentUser = (await supabase.auth.getUser()).data.user
     
-    // Update report status
+    // Update status laporan
     await supabase.from('reports').update({ 
       status: responseStatus.value,
       admin_response: responseMessage.value,
@@ -313,9 +313,9 @@ async function submitResponse() {
       let targetTitle = 'Pemberitahuan Investigasi'
       let targetMessage = 'Akun/Konten Anda sedang dalam proses investigasi oleh tim moderasi terkait adanya laporan pengguna.'
 
-      // Identify target user based on type
+      // Identifikasi pengguna target berdasarkan tipe
       if (responseReport.value.target_type === 'les_place') {
-        // Fetch owner of the place
+        // Ambil owner dari tempat
         const { data: placeData } = await supabase
           .from('les_places')
           .select('owner_id, owners(user_id)')
@@ -328,7 +328,7 @@ async function submitResponse() {
         }
       } 
       else if (['forum_post', 'forum_comment'].includes(responseReport.value.target_type)) {
-        // Fetch author of the content
+        // Ambil author dari konten
         const table = responseReport.value.target_type === 'forum_post' ? 'forum_posts' : 'forum_comments'
         const { data: contentData } = await supabase
           .from(table)
@@ -342,7 +342,7 @@ async function submitResponse() {
         }
       }
 
-      // Send to target
+      // Kirim ke target
       if (targetUserId) {
         await supabase.from('notifications').insert({
           user_id: targetUserId,
@@ -373,7 +373,7 @@ function getNotificationTitle(status) {
   return titles[status] || 'Update Laporan'
 }
 
-// Open flag modal
+// Buka modal flag
 function openFlagModal(review) {
   flaggingReview.value = review
   flagReason.value = ''
@@ -386,7 +386,7 @@ function closeFlagModal() {
   flagReason.value = ''
 }
 
-// Enhanced flag with reason, visibility toggle, and notification
+// Flag yang ditingkatkan dengan alasan, toggle visibility, dan notifikasi
 async function submitFlag() {
   if (!flagReason.value) {
     toast('Pilih alasan flag', 'error')
@@ -396,18 +396,18 @@ async function submitFlag() {
   try {
     const currentUser = (await supabase.auth.getUser()).data.user
     
-    // Update review: flag it, hide from public, add reason
+    // Update review: flag, sembunyikan dari publik, tambah alasan
     await supabase.from('reviews').update({ 
       is_flagged: true,
-      is_visible: false, // Hide from public
+      is_visible: false, // Sembunyikan dari publik
       flag_reason: flagReason.value,
       flagged_at: new Date().toISOString(),
       flagged_by: currentUser?.id || null
     }).eq('id', flaggingReview.value.id)
     
-    // Send notification to the student
+    // Kirim notifikasi ke siswa
     if (flaggingReview.value.student_id) {
-      // Get student's user_id
+      // Dapatkan user_id siswa
       const { data: studentData } = await supabase
         .from('students')
         .select('user_id')
@@ -435,18 +435,18 @@ async function submitFlag() {
   }
 }
 
-// Unflag and make visible again
+// Unflag dan tampilkan kembali
 async function unflagReview(review) {
   try {
     await supabase.from('reviews').update({ 
       is_flagged: false,
-      is_visible: true, // Show again
+      is_visible: true, // Tampilkan lagi
       flag_reason: null,
       flagged_at: null,
       flagged_by: null
     }).eq('id', review.id)
     
-    // Notify student that their review is restored
+    // Notifikasi siswa bahwa review mereka dipulihkan
     if (review.student_id) {
       const { data: studentData } = await supabase
         .from('students')
@@ -473,11 +473,11 @@ async function unflagReview(review) {
   }
 }
 
-// Delete with notification
+// Hapus dengan notifikasi
 async function deleteReview(review) {
   if (!confirm('Hapus review ini secara permanen? Siswa akan diberitahu.')) return
   try {
-    // Notify student before deleting
+    // Notifikasi siswa sebelum menghapus
     if (review.student_id) {
       const { data: studentData } = await supabase
         .from('students')
@@ -513,7 +513,7 @@ function toast(msg, type = 'success') {
   setTimeout(() => showToast.value = false, 3000)
 }
 
-// Helpers
+// Helper
 function formatDate(date) {
   if (!date) return '-'
   return new Date(date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })

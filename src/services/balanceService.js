@@ -1,14 +1,14 @@
 import { supabase } from '@/lib/supabase'
 
 /**
- * Get available balance for withdrawal (total balance - locked balance)
- * @param {string} userId - User ID
- * @param {string} lesPlaceId - Les Place ID
- * @returns {Promise<number>} Available balance amount
+ * Dapatkan saldo yang tersedia untuk penarikan (total saldo - saldo terkunci)
+ * @param {string} userId - ID Pengguna
+ * @param {string} lesPlaceId - ID Tempat Les
+ * @returns {Promise<number>} Jumlah saldo tersedia
  */
 export async function getAvailableBalance(userId, lesPlaceId) {
   try {
-    // Get total balance
+    // Dapatkan total saldo
     const { data: balance, error: balanceError } = await supabase
       .from('balances')
       .select('available_balance')
@@ -23,7 +23,7 @@ export async function getAvailableBalance(userId, lesPlaceId) {
     
     const totalBalance = balance.available_balance || 0
     
-    // Get locked amount from transactions still in hold period
+    // Dapatkan jumlah terkunci dari transaksi yang masih dalam periode hold
     const { data: lockedTxns, error: lockError } = await supabase
       .from('transactions')
       .select('net_amount')
@@ -34,7 +34,7 @@ export async function getAvailableBalance(userId, lesPlaceId) {
     
     if (lockError) {
       console.error('Error fetching locked transactions:', lockError)
-      return totalBalance // Return total if can't get locked
+      return totalBalance // Kembalikan total jika tidak bisa mendapatkan yang terkunci
     }
     
     const lockedAmount = lockedTxns?.reduce((sum, t) => sum + (t.net_amount || 0), 0) || 0
@@ -47,10 +47,10 @@ export async function getAvailableBalance(userId, lesPlaceId) {
 }
 
 /**
- * Get locked balance details
- * @param {string} userId - User ID  
- * @param {string} lesPlaceId - Les Place ID
- * @returns {Promise<Array>} Array of locked transactions
+ * Dapatkan detail saldo terkunci
+ * @param {string} userId - ID Pengguna  
+ * @param {string} lesPlaceId - ID Tempat Les
+ * @returns {Promise<Array>} Array transaksi terkunci
  */
 export async function getLockedBalance(userId, lesPlaceId) {
   try {
@@ -86,9 +86,9 @@ export async function getLockedBalance(userId, lesPlaceId) {
 }
 
 /**
- * Calculate days until a date
- * @param {string} dateString - ISO date string
- * @returns {number} Days remaining (rounded up)
+ * Hitung hari hingga tanggal tertentu
+ * @param {string} dateString - String tanggal ISO
+ * @returns {number} Sisa hari (dibulatkan ke atas)
  */
 export function daysUntil(dateString) {
   if (!dateString) return 0
@@ -100,9 +100,9 @@ export function daysUntil(dateString) {
 }
 
 /**
- * Check if transaction is still in hold period
- * @param {string} hold_until - Hold until timestamp
- * @returns {boolean} True if still in hold period
+ * Cek apakah transaksi masih dalam periode hold
+ * @param {string} hold_until - Timestamp hold sampai
+ * @returns {boolean} Benar jika masih dalam periode hold
  */
 export function isInHoldPeriod(hold_until) {
   if (!hold_until) return false
@@ -110,18 +110,18 @@ export function isInHoldPeriod(hold_until) {
 }
 
 /**
- * Check if transaction is within refund window
- * @param {string} refund_deadline - Refund deadline timestamp
- * @param {string} created_at - Transaction creation timestamp (fallback if refund_deadline is null)
- * @returns {boolean} True if still within window
+ * Cek apakah transaksi masih dalam jendela pengembalian dana
+ * @param {string} refund_deadline - Timestamp batas waktu pengembalian
+ * @param {string} created_at - Timestamp pembuatan transaksi (fallback jika refund_deadline null)
+ * @returns {boolean} Benar jika masih dalam jendela
  */
 export function isWithinRefundWindow(refund_deadline, created_at = null) {
-  // If refund_deadline exists, use it
+  // Jika refund_deadline ada, gunakan itu
   if (refund_deadline) {
     return new Date() < new Date(refund_deadline)
   }
   
-  // Fallback: Calculate from created_at + 90 days
+  // Fallback: Hitung dari created_at + 90 hari
   if (created_at) {
     const deadline = new Date(created_at)
     deadline.setDate(deadline.getDate() + 90)

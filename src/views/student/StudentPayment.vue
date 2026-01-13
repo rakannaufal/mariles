@@ -9,7 +9,7 @@ import { supabase } from '@/lib/supabase'
 import { loadSnapScript } from '@/lib/midtrans'
 import { getLevelLabel, getLevelColor, getTypeLabel, getTypeColor, getTypeBgColor } from '@/utils/badgeUtils'
 
-// Import logos
+// Import logo
 import qrisLogo from '@/assets/payment-logos/qris.png'
 import gopayLogo from '@/assets/payment-logos/gopay.png'
 import shopeepayLogo from '@/assets/payment-logos/shopeepay.png'
@@ -25,7 +25,7 @@ const authStore = useAuthStore()
 const SERVICE_FEE = 5000
 const isDev = import.meta.env.DEV
 
-// States
+// State
 const loading = ref(true)
 const processing = ref(false)
 const booking = ref(null)
@@ -35,18 +35,18 @@ const paymentResult = ref(null)
 const errorMessage = ref('')
 const selectedPaymentMethod = ref('qris')
 
-// Voucher states
+// State voucher
 const voucherCode = ref('')
 const voucherApplied = ref(null)
 const voucherError = ref('')
 const applyingVoucher = ref(false)
 
-// Steps: 'checkout' | 'success' | 'pending' | 'error'
+// Langkah: 'checkout' | 'success' | 'pending' | 'error'
 const currentStep = ref('checkout')
 
 
 
-// Payment methods with local logos
+// Metode pembayaran dengan logo lokal
 const paymentMethods = [
   { id: 'qris', name: 'QRIS', desc: 'Scan QR dari aplikasi apapun', logo: qrisLogo, type: 'qris' },
   { id: 'gopay', name: 'GoPay', desc: 'Bayar dengan GoPay', logo: gopayLogo, type: 'ewallet' },
@@ -57,7 +57,7 @@ const paymentMethods = [
   { id: 'mandiri_va', name: 'Mandiri Virtual Account', desc: 'Transfer via ATM/Mobile Banking', logo: mandiriLogo, type: 'va' },
 ]
 
-// Grouped methods
+// Metode yang dikelompokkan
 const qrisMethods = computed(() => paymentMethods.filter(m => m.type === 'qris'))
 const ewalletMethods = computed(() => paymentMethods.filter(m => m.type === 'ewallet'))
 const vaMethods = computed(() => paymentMethods.filter(m => m.type === 'va'))
@@ -83,7 +83,7 @@ const formatPrice = (p) => new Intl.NumberFormat('id-ID', {
   minimumFractionDigits: 0 
 }).format(p)
 
-// Fetch booking data
+// Ambil data booking
 async function fetchData() {
   loading.value = true
   errorMessage.value = ''
@@ -125,7 +125,7 @@ async function fetchData() {
   }
 }
 
-// Voucher functions
+// Fungsi voucher
 async function applyVoucher() {
   voucherError.value = ''
   
@@ -139,13 +139,13 @@ async function applyVoucher() {
   try {
     const code = voucherCode.value.trim().toUpperCase()
     
-    // Check voucher in database
+    // Cek voucher di database
     const { data: voucher, error } = await supabase
       .from('vouchers')
       .select('*')
       .eq('code', code)
       .eq('is_active', true)
-      // Match either global voucher (null) or specific to this les place
+      // Cocokkan voucher global (null) atau spesifik untuk tempat les ini
       .or(`les_place_id.is.null,les_place_id.eq.${lesPlace.value.id}`)
       .single()
     
@@ -153,7 +153,7 @@ async function applyVoucher() {
       throw new Error('Kode voucher tidak valid atau tidak ditemukan')
     }
 
-    // Check date validity
+    // Cek validitas tanggal
     const now = new Date()
     if (new Date(voucher.start_date) > now) {
       throw new Error('Voucher belum berlaku')
@@ -162,12 +162,12 @@ async function applyVoucher() {
       throw new Error('Voucher sudah kadaluarsa')
     }
 
-    // Check usage limit
+    // Cek batas penggunaan
     if (voucher.usage_limit && voucher.usage_count >= voucher.usage_limit) {
       throw new Error('Kuota voucher sudah habis')
     }
 
-    // Check minimum purchase
+    // Cek minimal pembelian
     if (voucher.min_purchase && subtotal.value < voucher.min_purchase) {
       throw new Error(`Minimal pembelian untuk voucher ini adalah ${formatPrice(voucher.min_purchase)}`)
     }
@@ -189,7 +189,7 @@ function removeVoucher() {
   voucherError.value = ''
 }
 
-// Handle payment with Midtrans Snap
+// Tangani pembayaran dengan Midtrans Snap
 async function handlePayment() {
   if (!booking.value || !program.value) {
     errorMessage.value = 'Data pembayaran tidak lengkap'
@@ -200,13 +200,13 @@ async function handlePayment() {
   errorMessage.value = ''
   
   try {
-    // Use user ID directly (not students.id) because transactions RLS expects auth.uid()
+    // Gunakan ID pengguna langsung (bukan students.id) karena RLS transactions mengharapkan auth.uid()
     const userId = authStore.user?.id
     if (!userId) throw new Error('Silakan login terlebih dahulu')
     
     const result = await createPayment({
       lesPlaceId: lesPlace.value?.id,
-      studentId: userId, // Use user_id directly for RLS compatibility
+      studentId: userId, // Gunakan user_id langsung untuk kompatibilitas RLS
       bookingId: booking.value?.id,
       programId: program.value?.id,
       amount: total.value,
@@ -216,12 +216,12 @@ async function handlePayment() {
         email: authStore.user?.email,
         phone: authStore.userProfile?.phone || ''
       },
-      preferredPayment: selectedPaymentMethod.value // Pass selected payment method
+      preferredPayment: selectedPaymentMethod.value // Kirim metode pembayaran yang dipilih
     })
     
     if (!result.success) throw new Error(result.error || 'Gagal membuat pembayaran')
     
-    // Handle Free Payment (amount 0)
+    // Tangani Pembayaran Gratis (jumlah 0)
     if (result.isFree) {
       paymentResult.value = {
         orderId: result.orderId,
@@ -230,7 +230,7 @@ async function handlePayment() {
         paymentType: 'free'
       }
       currentStep.value = 'success'
-      await updateBookingStatus('confirmed') // Wait for status update
+      await updateBookingStatus('confirmed') // Tunggu update status
       processing.value = false
       return
     }
@@ -277,7 +277,7 @@ async function handlePayment() {
   }
 }
 
-// Dev function to simulate success
+// Fungsi dev untuk simulasi sukses
 async function simulateDevSuccess() {
   if (!import.meta.env.DEV) return
   if (!booking.value) return
@@ -287,10 +287,10 @@ async function simulateDevSuccess() {
 
   processing.value = true
   try {
-    // Simulate transaction
+    // Simulasi transaksi
     const orderId = `DEV-${Date.now()}`
     
-    // Create completed transaction in DB
+    // Buat transaksi selesai di DB
     await supabase.from('transactions').insert({
       les_place_id: lesPlace.value?.id,
       student_id: authStore.user?.id,
@@ -571,118 +571,286 @@ onMounted(fetchData)
 </template>
 
 <style scoped>
-.payment-page{min-height:100vh;background:var(--background)}
-.payment-main{padding-top:100px;padding-bottom:60px}
-.container{max-width:1000px;margin:0 auto;padding:0 var(--spacing-xl)}
-.loading-state{text-align:center;padding:80px 0}
-.loader{width:40px;height:40px;border:3px solid var(--border);border-top-color:var(--primary);border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 16px}
-@keyframes spin{to{transform:rotate(360deg)}}
+/* Page Layout - Use flexbox to push footer to bottom */
+.payment-page {
+  display: flex;
+  flex-direction: column;
+  height: 100vh; /* Force full height */
+  overflow-y: auto; /* Handle scrolling internally */
+  background: var(--background);
+}
+
+.payment-main {
+  flex: 1;
+  padding-top: 100px;
+  padding-bottom: 60px;
+  /* Remove min-height calculation as the container handles scrolling */
+}
+
+.container {
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 0 var(--spacing-xl);
+}
+
+.loading-state {
+  text-align: center;
+  padding: 80px 0;
+}
+
+.loader {
+  width: 40px;
+  height: 40px;
+  border: 3px solid var(--border);
+  border-top-color: var(--primary);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin: 0 auto 16px;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
 
 /* Result States */
-.result-state{text-align:center;padding:60px 20px;max-width:500px;margin:0 auto}
-.result-icon{width:80px;height:80px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:40px;margin:0 auto 24px;animation:scaleIn .3s ease}
-.result-icon.success{background:var(--success);color:white}
-.result-icon.pending{background:#f59e0b;color:white}
-.result-icon.error{background:var(--error);color:white}
-@keyframes scaleIn{from{transform:scale(0)}to{transform:scale(1)}}
-.result-state h1{font-size:28px;margin-bottom:8px}
-.result-state.success h1{color:var(--success)}
-.result-state.pending h1{color:#f59e0b}
-.result-state.error h1{color:var(--error)}
-.result-subtitle{color:var(--text-muted);margin-bottom:24px}
-.result-details{background:white;border-radius:var(--radius-xl);padding:20px;margin-bottom:24px;text-align:left;box-shadow:var(--shadow-sm)}
-.detail-row{display:flex;justify-content:space-between;padding:12px 0;border-bottom:1px solid var(--border-light);font-size:14px}
-.detail-row:last-child{border:none}
-.detail-row.total{font-weight:700;font-size:18px;color:var(--primary);padding-top:16px}
-.result-note{background:#fef3c7;padding:20px;border-radius:16px;margin-bottom:24px;text-align:left}
-.result-note p{font-size:14px;margin:8px 0;color:#92400e}
-.result-actions{display:flex;flex-direction:column;gap:12px}
+.result-state {
+  text-align: center;
+  padding: 60px 20px;
+  max-width: 500px;
+  margin: 0 auto;
+}
+
+.result-icon {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 40px;
+  margin: 0 auto 24px;
+  animation: scaleIn .3s ease;
+}
+
+.result-icon.success { background: var(--success); color: white; }
+.result-icon.pending { background: #f59e0b; color: white; }
+.result-icon.error { background: var(--error); color: white; }
+
+@keyframes scaleIn {
+  from { transform: scale(0); }
+  to { transform: scale(1); }
+}
+
+.result-state h1 { font-size: 28px; margin-bottom: 8px; }
+.result-state.success h1 { color: var(--success); }
+.result-state.pending h1 { color: #f59e0b; }
+.result-state.error h1 { color: var(--error); }
+
+.result-subtitle { color: var(--text-muted); margin-bottom: 24px; }
+
+.result-details {
+  background: white;
+  border-radius: var(--radius-xl);
+  padding: 20px;
+  margin-bottom: 24px;
+  text-align: left;
+  box-shadow: var(--shadow-sm);
+}
+
+.detail-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border-light);
+  font-size: 14px;
+}
+
+.detail-row:last-child { border: none; }
+.detail-row.total { font-weight: 700; font-size: 18px; color: var(--primary); padding-top: 16px; }
+
+.result-note {
+  background: #fef3c7;
+  padding: 20px;
+  border-radius: 16px;
+  margin-bottom: 24px;
+  text-align: left;
+}
+
+.result-note p { font-size: 14px; margin: 8px 0; color: #92400e; }
+.result-actions { display: flex; flex-direction: column; gap: 12px; }
 
 /* Error Banner */
-.error-banner{display:flex;align-items:center;gap:12px;background:var(--error-bg);border:1px solid var(--error);color:var(--error);padding:12px 16px;border-radius:var(--radius-lg);margin-bottom:20px}
-.error-banner span{font-size:20px}
-.error-banner p{flex:1;font-size:14px;margin:0}
-.error-banner button{background:none;border:none;font-size:20px;cursor:pointer;color:var(--error)}
+.error-banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--error-bg);
+  border: 1px solid var(--error);
+  color: var(--error);
+  padding: 12px 16px;
+  border-radius: var(--radius-lg);
+  margin-bottom: 20px;
+}
 
-/* Layout */
-.payment-layout{display:grid;grid-template-columns:1fr 360px;gap:var(--spacing-xl);align-items:start}
-.payment-content h1{font-size:28px;margin-bottom:24px;color:var(--text)}
-.section-card{background:white;border-radius:var(--radius-xl);padding:var(--spacing-lg);margin-bottom:var(--spacing-lg);box-shadow:var(--shadow-sm)}
-.section-card h2{font-size:16px;font-weight:600;margin-bottom:16px;color:var(--text)}
+.error-banner span { font-size: 20px; }
+.error-banner p { flex: 1; font-size: 14px; margin: 0; }
+.error-banner button { background: none; border: none; font-size: 20px; cursor: pointer; color: var(--error); }
+
+/* Layout - Two columns */
+.payment-layout {
+  display: grid;
+  grid-template-columns: 1fr 360px;
+  gap: var(--spacing-xl);
+  align-items: start;
+}
+
+.payment-content h1 { font-size: 28px; margin-bottom: 24px; color: var(--text); }
+
+.section-card {
+  background: white;
+  border-radius: var(--radius-xl);
+  padding: var(--spacing-lg);
+  margin-bottom: var(--spacing-lg);
+  box-shadow: var(--shadow-sm);
+}
+
+.section-card h2 { font-size: 16px; font-weight: 600; margin-bottom: 16px; color: var(--text); }
 
 /* Program Info */
-.program-header{display:flex;align-items:center;gap:12px;margin-bottom:8px;flex-wrap:wrap}
-.program-header h3{font-size:20px;margin:0;color:var(--text)}
-.badges-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-.level-badge{padding:4px 12px;border-radius:var(--radius-full);color:white;font-size:12px;font-weight:600}
-.type-badge{padding:4px 12px;border-radius:var(--radius-full);font-size:12px;font-weight:600}
-.les-name{font-weight:600;color:var(--text-secondary);margin-bottom:4px}
-.les-address{font-size:14px;color:var(--text-muted);margin-bottom:12px}
-.program-meta{display:flex;gap:32px;padding-top:12px;border-top:1px solid var(--border-light)}
-.meta-item{display:flex;flex-direction:column;gap:4px}
-.meta-item .label{font-size:12px;color:var(--text-muted)}
-.meta-item .value{font-weight:600;font-size:15px;color:var(--text)}
+.program-header { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; flex-wrap: wrap; }
+.program-header h3 { font-size: 20px; margin: 0; color: var(--text); }
+.badges-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.level-badge { padding: 4px 12px; border-radius: var(--radius-full); color: white; font-size: 12px; font-weight: 600; }
+.type-badge { padding: 4px 12px; border-radius: var(--radius-full); font-size: 12px; font-weight: 600; }
+.les-name { font-weight: 600; color: var(--text-secondary); margin-bottom: 4px; }
+.les-address { font-size: 14px; color: var(--text-muted); margin-bottom: 12px; }
+.program-meta { display: flex; gap: 32px; padding-top: 12px; border-top: 1px solid var(--border-light); }
+.meta-item { display: flex; flex-direction: column; gap: 4px; }
+.meta-item .label { font-size: 12px; color: var(--text-muted); }
+.meta-item .value { font-weight: 600; font-size: 15px; color: var(--text); }
 
 /* Payment Methods */
-.method-group{margin-bottom:20px;padding-bottom:20px;border-bottom:1px solid var(--border-light)}
-.method-group:last-child{margin-bottom:0;padding-bottom:0;border-bottom:none}
-.group-title{font-size:14px;font-weight:600;color:var(--text);margin-bottom:12px;display:flex;align-items:center;gap:6px}
-.method-list{display:flex;flex-direction:column;gap:8px}
-.method-option{display:flex;align-items:center;gap:12px;padding:14px 16px;border:2px solid var(--border-light);border-radius:var(--radius-lg);cursor:pointer;transition:all .2s;background:white}
-.method-option:hover{border-color:var(--primary)}
-.method-option.selected{border-color:var(--primary);background:rgba(136,208,228,0.08)}
-.method-option input{display:none}
-.method-logo{width:48px;height:32px;object-fit:contain;flex-shrink:0}
-.method-info{flex:1;display:flex;flex-direction:column}
-.method-name{font-weight:500;font-size:14px;color:var(--text)}
-.method-desc{font-size:12px;color:var(--text-muted)}
-.check{width:22px;height:22px;background:var(--primary);color:white;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:bold}
+.method-group { margin-bottom: 20px; padding-bottom: 20px; border-bottom: 1px solid var(--border-light); }
+.method-group:last-child { margin-bottom: 0; padding-bottom: 0; border-bottom: none; }
+.group-title { font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: 12px; display: flex; align-items: center; gap: 6px; }
+.method-list { display: flex; flex-direction: column; gap: 8px; }
 
-/* Sidebar */
-.payment-sidebar{position:sticky;top:100px}
-.summary-card{background:white;border-radius:var(--radius-xl);padding:var(--spacing-lg);box-shadow:var(--shadow-lg)}
-.summary-card h3{font-size:18px;font-weight:600;margin-bottom:20px}
-.summary-item{display:flex;justify-content:space-between;padding:10px 0;font-size:14px;color:var(--text-secondary)}
-.summary-item.total{font-size:20px;font-weight:700;color:var(--text);padding-top:16px}
-.summary-item.discount{color:#22c55e;font-weight:600}
-.summary-divider{height:1px;background:var(--border-light);margin:8px 0}
+.method-option {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  border: 2px solid var(--border-light);
+  border-radius: var(--radius-lg);
+  cursor: pointer;
+  transition: all .2s;
+  background: white;
+}
+
+.method-option:hover { border-color: var(--primary); }
+.method-option.selected { border-color: var(--primary); background: rgba(136,208,228,0.08); }
+.method-option input { display: none; }
+.method-logo { width: 48px; height: 32px; object-fit: contain; flex-shrink: 0; }
+.method-info { flex: 1; display: flex; flex-direction: column; }
+.method-name { font-weight: 500; font-size: 14px; color: var(--text); }
+.method-desc { font-size: 12px; color: var(--text-muted); }
+.check { width: 22px; height: 22px; background: var(--primary); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: bold; }
+
+/* Sidebar - Remove sticky, let it scroll naturally */
+.payment-sidebar {
+  align-self: start;
+}
+
+.summary-card {
+  background: white;
+  border-radius: var(--radius-xl);
+  padding: var(--spacing-lg);
+  box-shadow: var(--shadow-lg);
+  position: sticky;
+  top: 100px;
+}
+
+.summary-card h3 { font-size: 18px; font-weight: 600; margin-bottom: 20px; }
+.summary-item { display: flex; justify-content: space-between; padding: 10px 0; font-size: 14px; color: var(--text-secondary); }
+.summary-item.total { font-size: 20px; font-weight: 700; color: var(--text); padding-top: 16px; }
+.summary-item.discount { color: #22c55e; font-weight: 600; }
+.summary-divider { height: 1px; background: var(--border-light); margin: 8px 0; }
 
 /* Voucher */
-.voucher-section{margin-top:16px;padding-top:16px;border-top:1px dashed var(--border-light)}
-.voucher-input-wrap{display:flex;gap:8px}
-.voucher-input{flex:1;padding:12px;border:2px solid var(--border-light);border-radius:var(--radius-lg);font-size:14px;text-transform:uppercase}
-.voucher-input:focus{outline:none;border-color:var(--primary)}
-.voucher-input::placeholder{text-transform:none}
-.voucher-btn{padding:12px 20px;background:var(--secondary);color:white;border:none;border-radius:var(--radius-lg);font-weight:600;cursor:pointer;transition:all .2s}
-.voucher-btn:hover:not(:disabled){background:var(--primary)}
-.voucher-btn:disabled{opacity:0.6}
-.voucher-error{color:var(--error);font-size:12px;margin-top:8px}
-.voucher-hint{font-size:11px;color:var(--text-muted);margin-top:8px}
-.voucher-applied{margin-top:12px;padding:12px;background:rgba(34,197,94,0.08);border-radius:var(--radius-lg);border:1px solid rgba(34,197,94,0.2)}
-.voucher-info{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
-.voucher-tag{font-size:13px;font-weight:600;color:#22c55e}
-.voucher-remove{background:none;border:none;font-size:20px;color:var(--text-muted);cursor:pointer;line-height:1}
-.voucher-remove:hover{color:var(--error)}
+.voucher-section { margin-top: 16px; padding-top: 16px; border-top: 1px dashed var(--border-light); }
+.voucher-input-wrap { display: flex; gap: 8px; }
+.voucher-input { flex: 1; padding: 12px; border: 2px solid var(--border-light); border-radius: var(--radius-lg); font-size: 14px; text-transform: uppercase; }
+.voucher-input:focus { outline: none; border-color: var(--primary); }
+.voucher-input::placeholder { text-transform: none; }
+.voucher-btn { padding: 12px 20px; background: var(--secondary); color: white; border: none; border-radius: var(--radius-lg); font-weight: 600; cursor: pointer; transition: all .2s; }
+.voucher-btn:hover:not(:disabled) { background: var(--primary); }
+.voucher-btn:disabled { opacity: 0.6; }
+.voucher-error { color: var(--error); font-size: 12px; margin-top: 8px; }
+.voucher-hint { font-size: 11px; color: var(--text-muted); margin-top: 8px; }
+.voucher-applied { margin-top: 12px; padding: 12px; background: rgba(34,197,94,0.08); border-radius: var(--radius-lg); border: 1px solid rgba(34,197,94,0.2); }
+.voucher-info { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+.voucher-tag { font-size: 13px; font-weight: 600; color: #22c55e; }
+.voucher-remove { background: none; border: none; font-size: 20px; color: var(--text-muted); cursor: pointer; line-height: 1; }
+.voucher-remove:hover { color: var(--error); }
 
-.pay-btn{width:100%;padding:16px;margin-top:20px;font-size:16px;font-weight:600;display:flex;align-items:center;justify-content:center;gap:8px;border-radius:var(--radius-lg);transition:all .2s}
-.pay-btn:hover:not(:disabled){transform:translateY(-1px);box-shadow:0 4px 12px rgba(136,208,228,0.4)}
-.spinner{width:18px;height:18px;border:2px solid rgba(255,255,255,.3);border-top-color:white;border-radius:50%;animation:spin 1s linear infinite}
-.secure-text{text-align:center;font-size:12px;color:var(--text-muted);margin-top:16px}
+.pay-btn {
+  width: 100%;
+  padding: 16px;
+  margin-top: 20px;
+  font-size: 16px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border-radius: var(--radius-lg);
+  transition: all .2s;
+}
+
+.pay-btn:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(136,208,228,0.4); }
+.spinner { width: 18px; height: 18px; border: 2px solid rgba(255,255,255,.3); border-top-color: white; border-radius: 50%; animation: spin 1s linear infinite; }
+.secure-text { text-align: center; font-size: 12px; color: var(--text-muted); margin-top: 16px; }
 
 /* Buttons */
-.btn{padding:14px 24px;border-radius:var(--radius-lg);font-weight:600;font-size:15px;cursor:pointer;transition:all .2s;border:none}
-.btn-primary{background:var(--primary);color:white}
-.btn-primary:hover:not(:disabled){background:var(--primary-dark)}
-.btn-primary:disabled{opacity:0.6;cursor:not-allowed}
-.btn-outline{background:transparent;border:2px solid var(--border);color:var(--text)}
-.btn-outline:hover{border-color:var(--primary);color:var(--primary)}
+.btn { padding: 14px 24px; border-radius: var(--radius-lg); font-weight: 600; font-size: 15px; cursor: pointer; transition: all .2s; border: none; }
+.btn-primary { background: var(--primary); color: white; }
+.btn-primary:hover:not(:disabled) { background: var(--primary-dark); }
+.btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
+.btn-outline { background: transparent; border: 2px solid var(--border); color: var(--text); }
+.btn-outline:hover { border-color: var(--primary); color: var(--primary); }
 
-@media(max-width:900px){
-  .payment-layout{grid-template-columns:1fr}
-  .payment-sidebar{position:fixed;bottom:0;left:0;right:0;z-index:100}
-  .summary-card{border-radius:var(--radius-xl) var(--radius-xl) 0 0;padding:20px}
-  .payment-content{padding-bottom:240px}
-  .summary-card h3,.summary-item:not(.total){display:none}
-  .summary-divider{display:none}
+/* Responsive - Mobile */
+@media (max-width: 900px) {
+  .payment-layout {
+    grid-template-columns: 1fr;
+  }
+  
+  .payment-sidebar {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 1000;
+  }
+  
+  .summary-card {
+    position: static;
+    border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+    padding: 20px;
+    box-shadow: 0 -4px 20px rgba(0,0,0,0.1);
+  }
+  
+  .payment-content {
+    padding-bottom: 200px; /* Space for fixed sidebar */
+  }
+  
+  .summary-card h3,
+  .summary-item:not(.total) {
+    display: none;
+  }
+  
+  .summary-divider {
+    display: none;
+  }
 }
 </style>

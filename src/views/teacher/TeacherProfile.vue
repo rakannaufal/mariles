@@ -9,7 +9,7 @@ const router = useRouter()
 const isOwner = computed(() => route.path.startsWith('/owner'))
 const authStore = useAuthStore()
 
-// Form State
+// State Form
 const profile = ref({
   name: '', avatar_url: '', email: '', phone: '', gender: '', birth_date: '', nik: '',
   specialization: [], experience_years: 0, qualification: '', bio: '',
@@ -32,7 +32,7 @@ const loadingCities = ref(false)
 const newSpec = ref('')
 const showSaved = ref(false)
 
-// Completion percentage
+// Persentase kelengkapan
 const completionPercent = computed(() => {
   const baseFields = [
     profile.value.name, profile.value.phone, profile.value.gender, profile.value.birth_date,
@@ -40,7 +40,7 @@ const completionPercent = computed(() => {
     profile.value.province_id, profile.value.city_id, profile.value.address
   ]
   
-  // Check payment method based on selected type
+  // Cek metode pembayaran berdasarkan tipe yang dipilih
   const hasPayment = profile.value.payment_type === 'bank' 
     ? (profile.value.bank_name && profile.value.bank_account && profile.value.bank_holder)
     : (profile.value.ewallet_type && profile.value.ewallet_number)
@@ -208,7 +208,7 @@ async function handleSave() {
   saving.value = true
   message.value = { type: '', text: '' }
   try {
-    // Update users table
+    // Update tabel users
     const { error: userError } = await supabase.from('users').update({
       name: profile.value.name, 
       phone: profile.value.phone, 
@@ -219,10 +219,10 @@ async function handleSave() {
     
     if (userError) throw userError
     
-    // Check if profile is complete (100%)
+    // Cek apakah profil lengkap (100%)
     const isComplete = completionPercent.value >= 100
     
-    // Upsert teachers table with onConflict
+    // Upsert tabel teachers dengan onConflict
     const { error: teacherError } = await supabase.from('teachers').upsert({
       user_id: authStore.user.id, 
       specialization: profile.value.specialization,
@@ -256,7 +256,7 @@ async function handleSave() {
 
 }
 
-// Account Functions
+// Fungsi Akun
 const passwordForm = ref({ newPassword: '', confirmPassword: '' })
 const passwordMsg = ref({ type: '', text: '' })
 

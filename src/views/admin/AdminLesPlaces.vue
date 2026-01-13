@@ -11,7 +11,7 @@ const currentPage = ref(1)
 const itemsPerPage = 10
 const totalItems = ref(0)
 
-// Stats
+// Statistik
 const stats = ref({
   total: 0,
   verified: 0,
@@ -21,7 +21,7 @@ const stats = ref({
   tidakAktif: 0
 })
 
-// Rejection modal
+// Modal penolakan
 const showRejectModal = ref(false)
 const rejectingPlace = ref(null)
 const rejectionReason = ref('')
@@ -127,7 +127,7 @@ async function viewDetails(place) {
 }
 
 async function verifyPlace(place) {
-  // Check if profile is 100% complete using helper
+  // Cek apakah profil 100% lengkap menggunakan helper
   const completion = getProfileCompletion(place)
   if (completion < 100) {
     toast(`Profil pemilik belum lengkap (${completion}%). Harus 100% untuk verifikasi.`, 'error')
@@ -141,7 +141,7 @@ async function verifyPlace(place) {
       rejection_reason: null 
     }).eq('id', place.id)
     
-    // Send notification logic encapsulated
+    // Logika kirim notifikasi yang dienkapsulasi
     await sendNotification(place.id, 'verification_approved', 
       'Tempat Les Terverifikasi!', 
       `Selamat! Tempat les "${place.name}" telah diverifikasi dan sekarang tampil di pencarian publik.`
@@ -181,7 +181,7 @@ async function rejectPlace() {
       rejection_reason: rejectionReason.value 
     }).eq('id', rejectingPlace.value.id)
     
-    // Send notification
+    // Kirim notifikasi
     await sendNotification(rejectingPlace.value.id, 'verification_rejected', 
       'Verifikasi Ditolak', 
       `Tempat les "${rejectingPlace.value.name}" tidak dapat diverifikasi. Alasan: ${rejectionReason.value}`
@@ -199,7 +199,7 @@ async function rejectPlace() {
   }
 }
 
-// Helper to reliably send notification
+// Helper untuk kirim notifikasi dengan andal
 async function sendNotification(lesPlaceId, type, title, message) {
   try {
     // 1. Fetch fresh owner info from the VIEW to ensure we have the ID
@@ -241,7 +241,7 @@ async function sendNotification(lesPlaceId, type, title, message) {
     }
   } catch (err) {
     console.error('Notification system error:', err)
-    // Don't throw here, just log, so the main action (verify/reject) still succeeds visually
+    // Jangan throw di sini, log saja, sehingga aksi utama (verify/reject) tetap berhasil secara visual
   }
 }
 
@@ -278,7 +278,7 @@ async function toggleHide(place) {
       is_active: newStatus 
     }).eq('id', place.id)
     
-    // Send notification to owner
+    // Kirim notifikasi ke owner
     await sendNotification(place.id, newStatus ? 'place_unhidden' : 'place_hidden', 
       newStatus ? 'Tempat Les Ditampilkan' : 'Tempat Les Disembunyikan', 
       newStatus 
@@ -289,7 +289,7 @@ async function toggleHide(place) {
     await fetchStats()
     await fetchLesPlaces()
     
-    // Update modal if open
+    // Update modal jika terbuka
     if (placeDetails.value && placeDetails.value.id === place.id) {
       placeDetails.value = { ...placeDetails.value, is_active: newStatus }
     }
@@ -329,11 +329,11 @@ function getOwnerEmail(place) {
   return place?.owner_email || '-'
 }
 
-// Helper to translate old abbreviated business type to full label
+// Helper untuk menerjemahkan tipe bisnis singkat lama ke label lengkap
 function getBusinessTypeLabel(value) {
   if (!value) return '❌ Belum diisi'
   
-  // Map old abbreviated values to full labels
+  // Map nilai singkat lama ke label lengkap
   const legacyMap = {
     'bimbel': 'Bimbingan Belajar',
     'kursus': 'Kursus/Lembaga Pelatihan',
@@ -342,7 +342,7 @@ function getBusinessTypeLabel(value) {
     'lainnya': 'Lainnya'
   }
   
-  // Return mapped value if exists, otherwise return original value
+  // Return nilai yang di-map jika ada, jika tidak return nilai asli
   return legacyMap[value.toLowerCase()] || value
 }
 

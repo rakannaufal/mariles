@@ -11,7 +11,7 @@ const showModal = ref(false)
 const editMode = ref(false)
 const searchQuery = ref('')
 
-// Form data
+// Data form
 const formData = ref({
   id: null,
   name: '',
@@ -20,7 +20,7 @@ const formData = ref({
   is_active: true
 })
 
-// Icon options
+// Opsi ikon
 const iconOptions = [
   { value: '📚', label: '📚 Akademik' },
   { value: '🎨', label: '🎨 Seni' },
@@ -35,7 +35,7 @@ const iconOptions = [
   { value: '✏️', label: '✏️ Umum' }
 ]
 
-// Fetch categories
+// Ambil kategori
 async function fetchCategories() {
   loading.value = true
   try {
@@ -53,7 +53,7 @@ async function fetchCategories() {
   }
 }
 
-// Open modal for add/edit
+// Buka modal untuk tambah/edit
 function openModal(category = null) {
   if (category) {
     editMode.value = true
@@ -71,7 +71,7 @@ function openModal(category = null) {
   showModal.value = true
 }
 
-// Save category
+// Simpan kategori
 async function saveCategory() {
   if (!formData.value.name.trim()) {
     alert('Nama kategori harus diisi')
@@ -115,7 +115,7 @@ async function saveCategory() {
   }
 }
 
-// Toggle active status
+// Toggle status aktif
 async function toggleActive(category) {
   try {
     const { error } = await supabase
@@ -130,7 +130,7 @@ async function toggleActive(category) {
   }
 }
 
-// Delete category
+// Hapus kategori
 async function deleteCategory(category) {
   if (!confirm(`Hapus kategori "${category.name}"?`)) return
   
@@ -148,7 +148,7 @@ async function deleteCategory(category) {
   }
 }
 
-// Filtered categories
+// Kategori yang difilter
 const filteredCategories = computed(() => {
   if (!searchQuery.value) return categories.value
   const q = searchQuery.value.toLowerCase()

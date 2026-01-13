@@ -18,13 +18,13 @@ const showToast = ref(false)
 const toastMessage = ref('')
 const toastType = ref('success')
 
-// Results modal
+// Modal hasil
 const showResultsModal = ref(false)
 const selectedQuiz = ref(null)
 const quizResults = ref([])
 const resultsLoading = ref(false)
 
-// Quiz form
+// Form quiz
 const quizForm = ref({
   title: '',
   description: '',
@@ -36,7 +36,7 @@ const quizForm = ref({
   endDate: ''
 })
 
-// Current question being edited
+// Pertanyaan yang sedang diedit
 const currentQuestion = ref({
   id: '',
   question: '',
@@ -49,13 +49,13 @@ onMounted(async () => {
   await Promise.all([fetchQuizzes(), fetchPrograms()])
 })
 
-// Fetch programs for dropdown
+// Ambil program untuk dropdown
 async function fetchPrograms() {
   try {
     let lesPlaceId = null
     
     if (isOwner.value) {
-      // Owner: get les_place_id from owners table
+      // Owner: dapatkan les_place_id dari tabel owners
       const { data: owner } = await supabase
         .from('owners')
         .select('id')
@@ -71,7 +71,7 @@ async function fetchPrograms() {
         lesPlaceId = lesPlace?.id
       }
     } else {
-      // Teacher: get les_place_id from teachers table
+      // Teacher: dapatkan les_place_id dari tabel teachers
       const { data: teacher } = await supabase
         .from('teachers')
         .select('les_place_id')
@@ -181,11 +181,11 @@ async function handleSaveQuiz() {
       })
       showSuccess('Quiz berhasil diperbarui')
     } else {
-      // Get les_place_id based on role
+      // Dapatkan les_place_id berdasarkan role
       let lesPlaceId = null
       
       if (isOwner.value) {
-        // Owner: get les_place_id from owners table
+        // Owner: dapatkan les_place_id dari tabel owners
         const { data: owner } = await supabase
           .from('owners')
           .select('id')
@@ -201,7 +201,7 @@ async function handleSaveQuiz() {
           lesPlaceId = lesPlace?.id
         }
       } else {
-        // Teacher: get les_place_id from teachers table
+        // Teacher: dapatkan les_place_id dari tabel teachers
         const { data: teacher } = await supabase
           .from('teachers')
           .select('les_place_id')
@@ -279,7 +279,7 @@ async function openResultsModal(quiz) {
   resultsLoading.value = true
   
   try {
-    // Fetch quiz attempts - student name is now stored in results field
+    // Ambil percobaan quiz - nama siswa sekarang disimpan di field results
     const { data: attempts, error: attemptsError } = await supabase
       .from('quiz_attempts')
       .select('*')
@@ -289,7 +289,7 @@ async function openResultsModal(quiz) {
     
     if (attemptsError) throw attemptsError
     
-    // Map attempts with student info from results field
+    // Map percobaan dengan info siswa dari field results
     quizResults.value = (attempts || []).map(a => ({
       ...a,
       student: {
@@ -327,7 +327,7 @@ async function deleteAttempt(attemptId) {
     
     if (error) throw error
     
-    // Remove from local state
+    // Hapus dari state lokal
     quizResults.value = quizResults.value.filter(r => r.id !== attemptId)
     showToastMessage('Hasil quiz berhasil dihapus', 'success')
   } catch (err) {

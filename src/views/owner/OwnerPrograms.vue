@@ -27,14 +27,14 @@ const academicCategories = computed(() =>
   dbCategories.value.map(c => c.name)
 )
 
-// Filtered categories based on search
+// Filter kategori berdasarkan pencarian
 const filteredCategories = computed(() => {
   const search = categorySearch.value.toLowerCase()
   if (!search) return academicCategories.value
   return academicCategories.value.filter(cat => cat.toLowerCase().includes(search))
 })
 
-// Form data
+// Data form
 const form = ref({
   name: '',
   description: '',
@@ -55,13 +55,13 @@ const form = ref({
   is_active: true
 })
 
-// Check if les place is Hybrid (owner needs to choose class_type per program)
+// Cek apakah tempat les Hybrid (pemilik perlu memilih class_type per program)
 const isHybridLesPlace = computed(() => {
   const type = lesPlace.value?.type
   return type && ['Hybrid', 'hybrid'].includes(type)
 })
 
-// Get auto class_type for non-Hybrid les places
+// Dapatkan class_type otomatis untuk tempat les non-Hybrid
 const autoClassType = computed(() => {
   const type = lesPlace.value?.type
   if (!type) return 'offline'
@@ -70,7 +70,7 @@ const autoClassType = computed(() => {
   return 'offline' // fallback
 })
 
-// Schedule form
+// Form jadwal
 const scheduleForm = ref({
   monday: { enabled: false, start: '09:00', end: '11:00' },
   tuesday: { enabled: false, start: '09:00', end: '11:00' },
@@ -99,7 +99,7 @@ const priceTypeOptions = [
   { value: 'package', label: 'Per Paket' }
 ]
 
-// Computed values
+// Nilai computed
 const totalSessions = computed(() => {
   return form.value.duration_months * form.value.sessions_per_week * 4
 })
@@ -110,7 +110,7 @@ const availableSlots = computed(() => {
   return form.value.capacity - current
 })
 
-// Click outside handler untuk tutup dropdown
+// Handler klik di luar untuk tutup dropdown
 function handleClickOutside(e) {
   const categoryGroup = document.querySelector('.category-group')
   if (categoryGroup && !categoryGroup.contains(e.target)) {
@@ -178,7 +178,7 @@ async function fetchPrograms() {
         .in('status', ['confirmed', 'active'])
         .in('payment_status', ['paid', 'settlement', 'capture'])
       
-      // Count bookings per program
+      // Hitung booking per program
       const countMap = {}
       if (bookingCounts) {
         bookingCounts.forEach(b => {
@@ -186,7 +186,7 @@ async function fetchPrograms() {
         })
       }
       
-      // Attach counts to programs
+      // Lampirkan hitungan ke program
       data.forEach(p => {
         p.current_students = countMap[p.id] || 0
       })
@@ -209,7 +209,7 @@ function openAddModal() {
 function openEditModal(program) {
   editingProgram.value = program
   
-  // Get category name from relation or category_name field
+  // Dapatkan nama kategori dari relasi atau field category_name
   const catName = program.categories?.name || program.category_name || ''
   
   form.value = {
@@ -232,11 +232,11 @@ function openEditModal(program) {
     is_active: program.is_active !== false
   }
   
-  // Set category search field
+  // Set field pencarian kategori
   categorySearch.value = catName
   showCategoryDropdown.value = false
   
-  // Load schedule into form
+  // Muat jadwal ke form
   Object.keys(scheduleForm.value).forEach(day => {
     if (program.schedule && program.schedule[day]) {
       scheduleForm.value[day] = {
@@ -253,7 +253,7 @@ function openEditModal(program) {
 }
 
 function resetForm() {
-  // Auto-determine class_type based on les place type
+  // Tentukan class_type otomatis berdasarkan tipe tempat les
   const classType = isHybridLesPlace.value ? '' : autoClassType.value
   
   form.value = {

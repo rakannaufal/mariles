@@ -25,7 +25,7 @@ async function handleLogin() {
     if (redirect) {
       router.push(redirect)
     } else {
-      // Student goes to home, other roles go to dashboard
+      // Siswa ke home, role lain ke dashboard
       console.log('Login Success. User:', authStore.user)
       console.log('User Profile:', authStore.userProfile)
       console.log('Detected Role:', authStore.userRole)
@@ -43,8 +43,8 @@ async function handleLogin() {
 
 async function handleGoogleLogin() {
   try {
-    // Clear pendingRole to indicate this is a LOGIN attempt, not registration
-    // This way AuthCallback will know to reject unregistered accounts
+    // Hapus pendingRole untuk menunjukkan ini adalah percobaan LOGIN, bukan registrasi
+    // Dengan cara ini AuthCallback akan tahu untuk menolak akun yang tidak terdaftar
     localStorage.removeItem('pendingRole')
     localStorage.removeItem('pendingOwnerType')
     localStorage.removeItem('pendingInviteCode')

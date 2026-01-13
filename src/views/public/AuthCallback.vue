@@ -11,16 +11,16 @@ const error = ref('')
 
 const handleLoginSuccess = async (user) => {
   try {
-    // Get pending role and owner type from localStorage
+    // Ambil role dan owner type yang menunggu dari localStorage
     const pendingRole = localStorage.getItem('pendingRole')
     const pendingOwnerType = localStorage.getItem('pendingOwnerType') || 'umum'
-    // For teachers - get invite code data
+    // Untuk pengajar - ambil data kode undangan
     const pendingInviteCode = localStorage.getItem('pendingInviteCode')
     
-    // Determine if this is a registration (has pendingRole) or login attempt (no pendingRole)
+    // Tentukan apakah ini percobaan registrasi (punya pendingRole) atau percobaan login (tidak punya pendingRole)
     const isRegistrationAttempt = !!pendingRole
     
-    // 1. Check if user already exists in DB
+    // 1. Cek apakah pengguna sudah ada di DB
     const { data: existingUser, error: fetchError } = await supabase
       .from('users')
       .select('role, name')
@@ -32,23 +32,23 @@ const handleLoginSuccess = async (user) => {
     const userName = user.user_metadata?.name || user.user_metadata?.full_name || user.email?.split('@')[0]
 
     if (existingUser) {
-      // EXISTING USER: Use their actual role from DB (which should be correct now thanks to Trigger + Metadata)
+      // PENGGUNA SUDAH ADA: Gunakan role aktual mereka dari DB (yang seharusnya sudah benar berkat Trigger + Metadata)
       console.log('User found in DB, using existing role:', existingUser.role)
       roleToUse = existingUser.role
       
-      // If this is a registration attempt, we MUST ensure profile data (like les_places) is created
-      // The trigger creates public.users and simple role entries, but misses complex data like les_places
+      // Jika ini percobaan registrasi, kita HARUS memastikan data profil (seperti les_places) dibuat
+      // Trigger membuat public.users dan entri role sederhana, tapi melewatkan data kompleks seperti les_places
       
-      // If roles match, treat as login unless we suspect incomplete profile
+      // Jika role cocok, perlakukan sebagai login kecuali kita curiga profil tidak lengkap
       if (isRegistrationAttempt && pendingRole === existingUser.role) {
          status.value = `Selamat datang kembali, ${existingUser.name || userName}!`
       } else if (isRegistrationAttempt && pendingRole !== existingUser.role) {
-        // Role mismatch on registration = Role Upgrade/Check
+        // Role tidak cocok saat registrasi = Upgrade/Cek Role
         console.log(`User intent to change role from ${existingUser.role} to ${pendingRole}`)
         
         status.value = `Mengupdate profil ke ${getRoleLabel(pendingRole)}...`
         
-        // Call RPC to upgrade role
+        // Panggil RPC untuk upgrade role
         const { data: upgradeResult, error: upgradeError } = await supabase.rpc('upgrade_user_role', {
           target_user_id: user.id,
           new_role: pendingRole,
@@ -57,29 +57,29 @@ const handleLoginSuccess = async (user) => {
         
         if (upgradeError) {
           console.error('Failed to upgrade role:', upgradeError)
-          // Fallback to existing role if upgrade fails
+          // Fallback ke role yang ada jika upgrade gagal
           roleToUse = existingUser.role 
           error.value = 'Gagal memperbarui role akun. Masuk sebagai role lama.'
         } else {
            console.log('Role upgrade success:', upgradeResult)
            roleToUse = pendingRole
-           isNewUser = true // Treat as new to ensure extra profile setup if needed
+           isNewUser = true // Perlakukan sebagai baru untuk memastikan setup profil tambahan jika diperlukan
         }
       } else {
-        // Standard login
+        // Login standar
         status.value = `Selamat datang kembali, ${existingUser.name || userName}!`
       }
     } else {
-      // NEW USER (Not found in public.users yet - possibly trigger lag, or truly new)
+      // PENGGUNA BARU (Tidak ditemukan di public.users - mungkin delay trigger, atau benar-benar baru)
       
-      // ... (Login attempt check omitted for brevity, logic remains same)
+      // ... (Pengecekan percobaan login disingkat, logika tetap sama)
       if (!isRegistrationAttempt) {
-         // ... (Login attempt w/o account logic)
+         // ... (Logika percobaan login tanpa akun)
          console.log('Login attempt with unregistered Google account')
          error.value = 'Akun Google ini belum terdaftar. Silakan daftar terlebih dahulu.'
          await supabase.auth.signOut()
          localStorage.removeItem('pendingRole')
-         // ... clear others
+         // ... bersihkan lainnya
          setTimeout(() => router.push('/register'), 3000)
          return
       }
@@ -88,7 +88,7 @@ const handleLoginSuccess = async (user) => {
       console.log('New user detected, registering as:', pendingRole)
       status.value = 'Membuat profil pengguna baru...'
       
-      // Initial user upsert (Redundant if trigger ran, but safe)
+      // Upsert pengguna awal (Redundan jika trigger berjalan, tapi aman)
       const { error: upsertError } = await supabase.from('users').upsert({
         id: user.id,
         email: user.email,
@@ -98,12 +98,12 @@ const handleLoginSuccess = async (user) => {
       if (upsertError) throw upsertError
     }
 
-    // --- PROFILE CREATION / ENSURANCE LOGIC ---
-    // Runs if isNewUser (which is true for actual new users OR registration attempts on existing users)
+    // --- LOGIKA PEMBUATAN/PENJAMINAN PROFIL ---
+    // Berjalan jika isNewUser (yang true untuk pengguna benar-benar baru ATAU percobaan registrasi pada pengguna yang ada)
     if (isNewUser) {
-       // Create/Ensure role-specific records
+       // Buat/Pastikan catatan khusus role
       if (pendingRole === 'owner') {
-        // Create owner record
+        // Buat catatan owner
         const { data: ownerData, error: ownerError } = await supabase
           .from('owners')
           .upsert({
@@ -115,7 +115,7 @@ const handleLoginSuccess = async (user) => {
           .single()
         
         if (ownerData && !ownerError) {
-          // AUTO CREATE LES_PLACE for owner
+          // BUAT OTOMATIS LES_PLACE untuk owner
           await supabase.from('les_places').upsert({
             owner_id: ownerData.id,
             name: userName + "'s Les",
@@ -124,13 +124,13 @@ const handleLoginSuccess = async (user) => {
             address: 'Alamat belum diisi',
             is_verified: false,
             is_active: true,
-            // ... (defaults)
+            // ... (default)
             total_students: 0,
             rating: 0,
             total_reviews: 0
           }, { onConflict: 'owner_id' }) // Only insert if not exists (or update)
           
-           // If pribadi owner, also create teacher record
+           // Jika owner pribadi, juga buat catatan teacher
           if (pendingOwnerType === 'pribadi') {
             await supabase.from('teachers').upsert({
               user_id: user.id,
@@ -151,28 +151,28 @@ const handleLoginSuccess = async (user) => {
         await supabase.from('teachers').upsert(teacherData, { onConflict: 'user_id' })
         
         if (pendingInviteCode) {
-           // We can call RPC or trust that it's handled
+           // Kita bisa panggil RPC atau percaya bahwa sudah ditangani
         }
       }
     }
     
-    // Clean up localStorage
+    // Bersihkan localStorage
     localStorage.removeItem('pendingRole')
     localStorage.removeItem('pendingOwnerType')
     localStorage.removeItem('pendingInviteCode')
     localStorage.removeItem('pendingLesPlaceId')
     localStorage.removeItem('pendingOwnerId')
     
-    // Refresh auth store profile
+    // Refresh profil auth store
     await authStore.fetchUserProfile()
     
     status.value = 'Selesai! Mengalihkan...'
     
-    // Redirect based on FINAL role
+    // Redirect berdasarkan role FINAL
     const targetPath = roleToUse === 'student' ? '/' : `/${roleToUse}/dashboard`
     console.log('Redirecting to:', targetPath)
     
-    // Use hard redirect to ensure clean state and avoid router stuck issues
+    // Gunakan hard redirect untuk memastikan state bersih dan menghindari masalah router stuck
     window.location.href = targetPath
   } catch (err) {
     console.error('Auth callback error:', err)
@@ -184,7 +184,7 @@ const handleLoginSuccess = async (user) => {
 onMounted(async () => {
   status.value = 'Memvalidasi sesi login...'
   
-  // 1. Check direct session first
+  // 1. Cek sesi langsung terlebih dahulu
   const { data: { session }, error: sessionError } = await supabase.auth.getSession()
   
   if (session?.user) {
@@ -192,17 +192,17 @@ onMounted(async () => {
     return
   }
 
-  // 2. If no direct session, listen for auth state change (Hash processing)
+  // 2. Jika tidak ada sesi langsung, dengarkan perubahan state auth (Pemrosesan Hash)
   const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
     if (event === 'SIGNED_IN' && session?.user) {
       await handleLoginSuccess(session.user)
     } else if (event === 'SIGNED_OUT') {
-      // Optional: Handle sign out if needed, but primarily we wait for SIGNED_IN
-      // Don't error immediately, wait a bit
+      // Opsional: Tangani sign out jika diperlukan, tapi utamanya kita tunggu SIGNED_IN
+      // Jangan error langsung, tunggu sebentar
     }
   })
 
-  // 3. Fallback timeout if nothing happens
+  // 3. Fallback timeout jika tidak terjadi apa-apa
   setTimeout(() => {
     if (status.value === 'Memvalidasi sesi login...') {
       error.value = 'Gagal memvalidasi login Google. Waktu habis.'
@@ -210,7 +210,7 @@ onMounted(async () => {
     }
   }, 10000) // 10 seconds timeout
 })
-// Helper to get role label
+// Helper untuk mendapatkan label role
 function getRoleLabel(role) {
   const labels = {
     'student': 'Siswa',

@@ -1,0 +1,431 @@
+{
+  "info": {
+    "name": "Mariles API Collection",
+    "description": "Complete API collection for testing Mariles platform",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "SUPABASE_URL",
+      "value": "https://mfjjgykoxwboaulqseoe.supabase.co",
+      "type": "string"
+    },
+    {
+      "key": "SUPABASE_ANON_KEY",
+      "value": "YOUR_ANON_KEY_HERE",
+      "type": "string"
+    },
+    {
+      "key": "ACCESS_TOKEN",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Authentication",
+      "item": [
+        {
+          "name": "Sign In (Get Token)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "apikey", "value": "{{SUPABASE_ANON_KEY}}"},
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"test@example.com\",\n  \"password\": \"password123\"\n}"
+            },
+            "url": {
+              "raw": "{{SUPABASE_URL}}/auth/v1/token?grant_type=password",
+              "host": ["{{SUPABASE_URL}}"],
+              "path": ["auth", "v1", "token"],
+              "query": [{"key": "grant_type", "value": "password"}]
+            }
+          }
+        },
+        {
+          "name": "Sign Up",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "apikey", "value": "{{SUPABASE_ANON_KEY}}"},
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"newuser@example.com\",\n  \"password\": \"password123\"\n}"
+            },
+            "url": "{{SUPABASE_URL}}/auth/v1/signup"
+          }
+        },
+        {
+          "name": "Get Current User",
+          "request": {
+            "method": "GET",
+            "header": [
+              {"key": "apikey", "value": "{{SUPABASE_ANON_KEY}}"},
+              {"key": "Authorization", "value": "Bearer {{ACCESS_TOKEN}}"}
+            ],
+            "url": "{{SUPABASE_URL}}/auth/v1/user"
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. Les Places",
+      "item": [
+        {
+          "name": "Get All Les Places",
+          "request": {
+            "method": "GET",
+            "header": [
+              {"key": "apikey", "value": "{{SUPABASE_ANON_KEY}}"}
+            ],
+            "url": "{{SUPABASE_URL}}/rest/v1/les_places?select=*"
+          }
+        },
+        {
+          "name": "Get Les Place by ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {"key": "apikey", "value": "{{SUPABASE_ANON_KEY}}"}
+            ],
+            "url": "{{SUPABASE_URL}}/rest/v1/les_places?id=eq.c2e95136-cde4-4081-b099-109db95c9421&select=*"
+          }
+        },
+        {
+          "name": "Get Les Place with Programs",
+          "request": {
+            "method": "GET",
+            "header": [
+              {"key": "apikey", "value": "{{SUPABASE_ANON_KEY}}"}
+            ],
+            "url": "{{SUPABASE_URL}}/rest/v1/les_places?id=eq.c2e95136-cde4-4081-b099-109db95c9421&select=*,programs(*)"
+          }
+        },
+        {
+          "name": "Search Les Places by City",
+          "request": {
+            "method": "GET",
+            "header": [
+              {"key": "apikey", "value": "{{SUPABASE_ANON_KEY}}"}
+            ],
+            "url": "{{SUPABASE_URL}}/rest/v1/les_places?city=ilike.*jakarta*&select=*"
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. Programs",
+      "item": [
+        {
+          "name": "Get All Programs",
+          "request": {
+            "method": "GET",
+            "header": [
+              {"key": "apikey", "value": "{{SUPABASE_ANON_KEY}}"}
+            ],
+            "url": "{{SUPABASE_URL}}/rest/v1/programs?select=*"
+          }
+        },
+        {
+          "name": "Get Programs by Les Place",
+          "request": {
+            "method": "GET",
+            "header": [
+              {"key": "apikey", "value": "{{SUPABASE_ANON_KEY}}"}
+            ],
+            "url": "{{SUPABASE_URL}}/rest/v1/programs?les_place_id=eq.c2e95136-cde4-4081-b099-109db95c9421&select=*"
+          }
+        },
+        {
+          "name": "Get Program with Les Place Info",
+          "request": {
+            "method": "GET",
+            "header": [
+              {"key": "apikey", "value": "{{SUPABASE_ANON_KEY}}"}
+            ],
+            "url": "{{SUPABASE_URL}}/rest/v1/programs?select=*,les_places(name,city)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "4. Users",
+      "item": [
+        {
+          "name": "Get All Users (Admin)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {"key": "apikey", "value": "{{SUPABASE_ANON_KEY}}"},
+              {"key": "Authorization", "value": "Bearer {{ACCESS_TOKEN}}"}
+            ],
+            "url": "{{SUPABASE_URL}}/rest/v1/users?select=*"
+          }
+        },
+        {
+          "name": "Get User by ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {"key": "apikey", "value": "{{SUPABASE_ANON_KEY}}"},
+              {"key": "Authorization", "value": "Bearer {{ACCESS_TOKEN}}"}
+            ],
+            "url": "{{SUPABASE_URL}}/rest/v1/users?id=eq.YOUR_USER_ID&select=*"
+          }
+        },
+        {
+          "name": "Update User Profile",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {"key": "apikey", "value": "{{SUPABASE_ANON_KEY}}"},
+              {"key": "Authorization", "value": "Bearer {{ACCESS_TOKEN}}"},
+              {"key": "Content-Type", "value": "application/json"},
+              {"key": "Prefer", "value": "return=representation"}
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Updated Name\",\n  \"phone\": \"081234567890\"\n}"
+            },
+            "url": "{{SUPABASE_URL}}/rest/v1/users?id=eq.YOUR_USER_ID"
+          }
+        }
+      ]
+    },
+    {
+      "name": "5. Bookings",
+      "item": [
+        {
+          "name": "Get My Bookings",
+          "request": {
+            "method": "GET",
+            "header": [
+              {"key": "apikey", "value": "{{SUPABASE_ANON_KEY}}"},
+              {"key": "Authorization", "value": "Bearer {{ACCESS_TOKEN}}"}
+            ],
+            "url": "{{SUPABASE_URL}}/rest/v1/bookings?student_id=eq.YOUR_USER_ID&select=*,programs(name,price),les_places(name)"
+          }
+        },
+        {
+          "name": "Create Booking",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "apikey", "value": "{{SUPABASE_ANON_KEY}}"},
+              {"key": "Authorization", "value": "Bearer {{ACCESS_TOKEN}}"},
+              {"key": "Content-Type", "value": "application/json"},
+              {"key": "Prefer", "value": "return=representation"}
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"student_id\": \"YOUR_USER_ID\",\n  \"program_id\": \"PROGRAM_UUID\",\n  \"les_place_id\": \"LES_PLACE_UUID\",\n  \"status\": \"pending\"\n}"
+            },
+            "url": "{{SUPABASE_URL}}/rest/v1/bookings"
+          }
+        },
+        {
+          "name": "Get Active Bookings",
+          "request": {
+            "method": "GET",
+            "header": [
+              {"key": "apikey", "value": "{{SUPABASE_ANON_KEY}}"},
+              {"key": "Authorization", "value": "Bearer {{ACCESS_TOKEN}}"}
+            ],
+            "url": "{{SUPABASE_URL}}/rest/v1/bookings?status=eq.active&select=*"
+          }
+        }
+      ]
+    },
+    {
+      "name": "6. Transactions",
+      "item": [
+        {
+          "name": "Get Transactions by Les Place",
+          "request": {
+            "method": "GET",
+            "header": [
+              {"key": "apikey", "value": "{{SUPABASE_ANON_KEY}}"},
+              {"key": "Authorization", "value": "Bearer {{ACCESS_TOKEN}}"}
+            ],
+            "url": "{{SUPABASE_URL}}/rest/v1/transactions?les_place_id=eq.LES_PLACE_UUID&select=*"
+          }
+        },
+        {
+          "name": "Get Completed Transactions",
+          "request": {
+            "method": "GET",
+            "header": [
+              {"key": "apikey", "value": "{{SUPABASE_ANON_KEY}}"},
+              {"key": "Authorization", "value": "Bearer {{ACCESS_TOKEN}}"}
+            ],
+            "url": "{{SUPABASE_URL}}/rest/v1/transactions?payment_status=eq.completed&select=*"
+          }
+        }
+      ]
+    },
+    {
+      "name": "7. Notifications",
+      "item": [
+        {
+          "name": "Get My Notifications",
+          "request": {
+            "method": "GET",
+            "header": [
+              {"key": "apikey", "value": "{{SUPABASE_ANON_KEY}}"},
+              {"key": "Authorization", "value": "Bearer {{ACCESS_TOKEN}}"}
+            ],
+            "url": "{{SUPABASE_URL}}/rest/v1/notifications?user_id=eq.YOUR_USER_ID&order=created_at.desc&select=*"
+          }
+        },
+        {
+          "name": "Mark Notification as Read",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {"key": "apikey", "value": "{{SUPABASE_ANON_KEY}}"},
+              {"key": "Authorization", "value": "Bearer {{ACCESS_TOKEN}}"},
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"is_read\": true\n}"
+            },
+            "url": "{{SUPABASE_URL}}/rest/v1/notifications?id=eq.NOTIFICATION_ID"
+          }
+        }
+      ]
+    },
+    {
+      "name": "8. Edge Functions",
+      "item": [
+        {
+          "name": "Create Snap Token (Payment)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Authorization", "value": "Bearer {{ACCESS_TOKEN}}"},
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"orderId\": \"TXN-1705123456789\",\n  \"amount\": 100000,\n  \"customerDetails\": {\n    \"first_name\": \"Test User\",\n    \"email\": \"test@example.com\",\n    \"phone\": \"081234567890\"\n  },\n  \"preferredPayment\": \"qris\"\n}"
+            },
+            "url": "{{SUPABASE_URL}}/functions/v1/create-snap-token"
+          }
+        },
+        {
+          "name": "Delete User",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Authorization", "value": "Bearer {{ACCESS_TOKEN}}"},
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"user_id\": \"UUID_TO_DELETE\"\n}"
+            },
+            "url": "{{SUPABASE_URL}}/functions/v1/delete-user"
+          }
+        },
+        {
+          "name": "Process Disbursement",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Authorization", "value": "Bearer {{ACCESS_TOKEN}}"},
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"withdrawalId\": \"WITHDRAWAL_UUID\",\n  \"action\": \"create_payout\"\n}"
+            },
+            "url": "{{SUPABASE_URL}}/functions/v1/process-disbursement"
+          }
+        }
+      ]
+    },
+    {
+      "name": "9. Categories",
+      "item": [
+        {
+          "name": "Get All Categories",
+          "request": {
+            "method": "GET",
+            "header": [
+              {"key": "apikey", "value": "{{SUPABASE_ANON_KEY}}"}
+            ],
+            "url": "{{SUPABASE_URL}}/rest/v1/categories?select=*"
+          }
+        }
+      ]
+    },
+    {
+      "name": "10. Reviews",
+      "item": [
+        {
+          "name": "Get Reviews by Les Place",
+          "request": {
+            "method": "GET",
+            "header": [
+              {"key": "apikey", "value": "{{SUPABASE_ANON_KEY}}"}
+            ],
+            "url": "{{SUPABASE_URL}}/rest/v1/reviews?les_place_id=eq.LES_PLACE_UUID&select=*,users(name,avatar_url)"
+          }
+        },
+        {
+          "name": "Create Review",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "apikey", "value": "{{SUPABASE_ANON_KEY}}"},
+              {"key": "Authorization", "value": "Bearer {{ACCESS_TOKEN}}"},
+              {"key": "Content-Type", "value": "application/json"},
+              {"key": "Prefer", "value": "return=representation"}
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"user_id\": \"YOUR_USER_ID\",\n  \"les_place_id\": \"LES_PLACE_UUID\",\n  \"rating\": 5,\n  \"comment\": \"Great tutoring service!\"\n}"
+            },
+            "url": "{{SUPABASE_URL}}/rest/v1/reviews"
+          }
+        }
+      ]
+    },
+    {
+      "name": "11. External APIs",
+      "item": [
+        {
+          "name": "Get Indonesia Provinces",
+          "request": {
+            "method": "GET",
+            "url": "https://www.emsifa.com/api-wilayah-indonesia/api/provinces.json"
+          }
+        },
+        {
+          "name": "Get Regencies by Province",
+          "request": {
+            "method": "GET",
+            "url": "https://www.emsifa.com/api-wilayah-indonesia/api/regencies/11.json"
+          }
+        },
+        {
+          "name": "Midtrans Check Status (Sandbox)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {"key": "Accept", "value": "application/json"},
+              {"key": "Authorization", "value": "Basic YOUR_BASE64_SERVER_KEY"}
+            ],
+            "url": "https://api.sandbox.midtrans.com/v2/ORDER_ID/status"
+          }
+        }
+      ]
+    }
+  ]
+}

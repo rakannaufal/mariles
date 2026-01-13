@@ -1,16 +1,16 @@
 -- =============================================================================
 -- 03_functions_crud.sql
--- Description: RPCs, Triggers, and Business Logic for 39-Table Schema
--- Created: 2026-01-12
--- Detail: STRICT Compliance with ALUR_REGISTRASI_GURU.md & 01_tables_relasi.sql
+-- Deskripsi: RPC, Trigger, dan Logika Bisnis untuk Skema 34 Tabel yang Dibersihkan
+-- Dibuat: 2026-01-13
+-- Diperbarui: DISESUAIKAN DENGAN SKEMA DIBERSIHKAN (Strict UUID & 34 Tablet)
 -- =============================================================================
 
 -- =============================================================================
--- 1. NOTIFICATION SYSTEM
+-- 1. SISTEM NOTIFIKASI
 -- =============================================================================
 
--- Helper: Create Notification
--- Usage: Used by triggers and internal logic to create alerts.
+-- Helper: Buat Notifikasi
+-- Penggunaan: Digunakan oleh triggers dan logika internal untuk membuat alert.
 CREATE OR REPLACE FUNCTION create_notification(
     p_user_id UUID,
     p_title TEXT,
@@ -29,36 +29,15 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- Trigger: Notify on Booking Status Change
--- Logic: Alerts the student when their booking status changes (e.g., active -> completed, pending -> active).
-CREATE OR REPLACE FUNCTION notify_on_booking_status_change()
-RETURNS TRIGGER AS $$
-BEGIN
-    IF OLD.status IS DISTINCT FROM NEW.status THEN
-        -- Notify Student
-        PERFORM create_notification(
-            NEW.student_id, -- student_id in bookings maps to students.id, need USER_ID
-            'Booking Status Update',
-            'Your booking status is now: ' || NEW.status,
-            'booking',
-            jsonb_build_object('booking_id', NEW.id),
-            '/student/bookings'
-        );
-        -- WAIT: bookings.student_id is UUID referencing students(id). We need USERS.id for notification.
-        -- FIX: Join to get user_id.
-    END IF;
-    RETURN NEW;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
-
--- FIXING THE TRIGGER LOGIC ABOVE TO BE CORRECT WITH SCHEMA
+-- Trigger: Notifikasi saat Status Booking Berubah
+-- Logika: Memberi tahu siswa ketika status booking mereka berubah.
 CREATE OR REPLACE FUNCTION notify_on_booking_status_change()
 RETURNS TRIGGER AS $$
 DECLARE
     v_student_user_id UUID;
 BEGIN
     IF OLD.status IS DISTINCT FROM NEW.status THEN
-        -- Get User ID from Student ID
+        -- Ambil User ID dari Student ID
         SELECT user_id INTO v_student_user_id FROM students WHERE id = NEW.student_id;
         
         IF v_student_user_id IS NOT NULL THEN
@@ -82,14 +61,14 @@ FOR EACH ROW
 EXECUTE FUNCTION notify_on_booking_status_change();
 
 
--- Trigger: Notify on New Review
--- Logic: Alerts the Owner when a new review is posted for their Les Place.
+-- Trigger: Notifikasi saat Ada Ulasan Baru
+-- Logika: Memberi tahu Pemilik ketika ulasan baru diposting untuk Tempat Les mereka.
 CREATE OR REPLACE FUNCTION notify_on_new_review()
 RETURNS TRIGGER AS $$
 DECLARE
     v_owner_user_id UUID;
 BEGIN
-    -- Find Owner User ID via Les Place -> Owner -> User
+    -- Cari User ID Pemilik via Les Place -> Owner -> User
     SELECT o.user_id INTO v_owner_user_id
     FROM les_places lp
     JOIN owners o ON lp.owner_id = o.id
@@ -116,27 +95,26 @@ EXECUTE FUNCTION notify_on_new_review();
 
 
 -- =============================================================================
--- 2. USER MANAGEMENT (AUTH HOOK)
+-- 2. MANAJEMEN PENGGUNA (AUTH HOOK)
 -- =============================================================================
 
--- Logic: Handles new signup.
--- CRITICAL: For Teachers, it performs a "Pre-check" but strictly creates a basic profile
--- to facilitate the "Join via Code" later. It does NOT automatically link them.
+-- Logika: Menangani pendaftaran baru.
+-- KRITIS: Untuk Pengajar, ini melakukan "Pre-check" tetapi secara ketat membuat profil dasar
+-- untuk memfasilitasi "Gabung via Kode" nanti. Ini TIDAK secara otomatis menghubungkan mereka.
 CREATE OR REPLACE FUNCTION handle_new_user() 
 RETURNS TRIGGER AS $$
 DECLARE
     v_role TEXT;
     v_name TEXT;
-    v_existing_invite RECORD;
 BEGIN
     v_role := COALESCE(NEW.raw_user_meta_data->>'role', 'student');
     v_name := COALESCE(NEW.raw_user_meta_data->>'full_name', NEW.email);
 
-    -- 1. Insert into Public Users (Base Table)
+    -- 1. Masukkan ke Public Users (Tabel Dasar)
     INSERT INTO users (id, email, name, role, created_at, updated_at, is_active)
     VALUES (NEW.id, NEW.email, v_name, v_role, NOW(), NOW(), true);
 
-    -- 2. Role Specific Profile Creation
+    -- 2. Pembuatan Profil Spesifik Role
     IF v_role = 'student' THEN
         INSERT INTO students (id, user_id, created_at) VALUES (gen_random_uuid(), NEW.id, NOW());
         INSERT INTO balances (id, user_id, total_balance, available_balance, pending_balance, created_at) 
@@ -149,18 +127,18 @@ BEGIN
         VALUES (gen_random_uuid(), NEW.id, 0, 0, 0, NOW());
 
     ELSIF v_role = 'teacher' THEN
-        -- For 'teacher', we create a standard profile first. 
-        -- Linking to an owner happens via 'join_teacher_via_code' RPC.
+        -- Untuk 'teacher', kita buat profil standar dulu. 
+        -- Menghubungkan ke owner terjadi via RPC 'join_teacher_via_code'.
         INSERT INTO teachers (id, user_id, created_at, is_active) 
         VALUES (gen_random_uuid(), NEW.id, NOW(), true);
         
-        -- Also give them a balance account for Salary
+        -- Juga berikan mereka akun saldo untuk Gaji
         INSERT INTO balances (id, user_id, total_balance, available_balance, pending_balance, created_at) 
         VALUES (gen_random_uuid(), NEW.id, 0, 0, 0, NOW());
     
     ELSIF v_role = 'admin' THEN
-        -- Admin usually defined via direct DB insert or specific flow, but safe to allow user entry 
-        -- if Auth permits. No extra profile needed.
+        -- Admin biasanya didefinisikan via insert DB langsung atau alur khusus, tapi aman untuk mengizinkan entri user
+        -- jika Auth mengizinkan. Tidak perlu profil tambahan.
         NULL;
     END IF;
 
@@ -170,11 +148,11 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 
 -- =============================================================================
--- 3. FINANCIAL LOGIC (Withdrawals & Payments)
+-- 3. LOGIKA KEUANGAN (Penarikan & Pembayaran)
 -- =============================================================================
 
--- RPC: Process Withdrawal Request
--- Logic: Atomically checks balance, validates amount, locks funds (deducts), and creates withdrawal record.
+-- RPC: Proses Permintaan Penarikan
+-- Logika: Secara atomik memeriksa saldo, memvalidasi jumlah, mengunci dana (mengurangi), dan membuat catatan penarikan.
 CREATE OR REPLACE FUNCTION process_withdrawal_request(
     p_amount NUMERIC,
     p_bank_name TEXT,
@@ -192,7 +170,7 @@ DECLARE
     v_les_id UUID;
     v_requester_type TEXT;
 BEGIN
-    -- 1. Lock Balance Row
+    -- 1. Kunci Baris Saldo
     SELECT * INTO v_balance FROM balances WHERE user_id = v_user_id FOR UPDATE;
     
     IF v_balance IS NULL THEN
@@ -203,10 +181,10 @@ BEGIN
         RETURN jsonb_build_object('success', false, 'message', 'Insufficient available balance');
     END IF;
 
-    -- 2. Determine User Type
+    -- 2. Tentukan Tipe User
     IF EXISTS (SELECT 1 FROM owners WHERE user_id = v_user_id) THEN
         v_requester_type := 'owner';
-        -- Optional: Link to a specific Les Place if needed, currently loose link
+        -- Opsional: Hubungkan ke Les Place tertentu jika perlu, saat ini link longgar
         SELECT id INTO v_les_id FROM les_places WHERE owner_id = (SELECT id FROM owners WHERE user_id = v_user_id) LIMIT 1;
     ELSIF EXISTS (SELECT 1 FROM teachers WHERE user_id = v_user_id) THEN
         v_requester_type := 'teacher';
@@ -215,7 +193,7 @@ BEGIN
         RETURN jsonb_build_object('success', false, 'message', 'Unauthorized role for withdrawal');
     END IF;
 
-    -- 3. Insert Withdrawal Record
+    -- 3. Masukkan Catatan Penarikan
     INSERT INTO withdrawals (
         id, user_id, les_place_id, amount, fee, net_amount, 
         bank_name, bank_account, bank_holder, 
@@ -228,7 +206,7 @@ BEGIN
     )
     RETURNING id INTO v_wd_id;
 
-    -- 4. Atomic Deduct Balance
+    -- 4. Kurangi Saldo Secara Atomik
     UPDATE balances 
     SET available_balance = available_balance - p_amount,
         pending_balance = pending_balance + p_amount
@@ -239,8 +217,8 @@ END;
 $$;
 
 
--- RPC: Pay Teacher Salary (Owner -> Teacher)
--- Logic: Moves funds from Owner Balance to Teacher Balance & Logs Transaction.
+-- RPC: Bayar Gaji Pengajar (Pemilik -> Pengajar)
+-- Logika: Memindahkan dana dari Saldo Pemilik ke Saldo Pengajar & Mencatat Transaksi.
 CREATE OR REPLACE FUNCTION pay_teacher_salary(
     p_teacher_id UUID, -- This is the 'teachers.id' UUID
     p_amount NUMERIC,
@@ -257,14 +235,14 @@ DECLARE
     v_payment_id UUID;
     v_les_id UUID;
 BEGIN
-    -- 1. Verify Owner Funds
+    -- 1. Verifikasi Dana Pemilik
     SELECT * INTO v_owner_balance FROM balances WHERE user_id = v_owner_user_id FOR UPDATE;
     
     IF v_owner_balance.available_balance < p_amount THEN
         RETURN jsonb_build_object('success', false, 'message', 'Insufficient funds');
     END IF;
 
-    -- 2. Get Teacher Details (User ID for balance)
+    -- 2. Ambil Detail Pengajar (User ID untuk saldo)
     SELECT user_id, les_place_id INTO v_teacher_user_id, v_les_id 
     FROM teachers WHERE id = p_teacher_id;
     
@@ -272,7 +250,7 @@ BEGIN
         RETURN jsonb_build_object('success', false, 'message', 'Teacher not found');
     END IF;
 
-    -- 3. Insert Payment Record
+    -- 3. Masukkan Catatan Pembayaran
     INSERT INTO teacher_payments (
         id, les_place_id, teacher_id, owner_id, amount, payment_status, payment_period, paid_date, created_at
     )
@@ -281,13 +259,13 @@ BEGIN
     )
     RETURNING id INTO v_payment_id;
 
-    -- 4. Transfer Funds
-    -- Deduct Owner
+    -- 4. Transfer Dana
+    -- Kurangi Pemilik
     UPDATE balances SET available_balance = available_balance - p_amount WHERE user_id = v_owner_user_id;
-    -- Add to Teacher
+    -- Tambah ke Pengajar
     UPDATE balances SET available_balance = available_balance + p_amount, total_balance = total_balance + p_amount WHERE user_id = v_teacher_user_id;
 
-    -- 5. Notify Teacher
+    -- 5. Beri Tahu Pengajar
     PERFORM create_notification(
         v_teacher_user_id,
         'Salary Payment Received',
@@ -303,11 +281,11 @@ $$;
 
 
 -- =============================================================================
--- 4. TEACHER JOIN LOGIC (INVITE CODE)
+-- 4. LOGIKA GABUNG PENGAJAR (KODE UNDANGAN)
 -- =============================================================================
 
--- RPC: Join Teacher via Code
--- Logic: Validate code from `teacher_invite_codes`, link teacher profile to owner/les_place, consume code.
+-- RPC: Gabung Pengajar via Kode
+-- Logika: Validasi kode dari `teacher_invite_codes`, hubungkan profil pengajar ke pemilik/les_place, gunakan kode.
 CREATE OR REPLACE FUNCTION join_teacher_via_code(p_code TEXT)
 RETURNS JSONB
 LANGUAGE plpgsql
@@ -318,7 +296,7 @@ DECLARE
     v_invite RECORD;
     v_teacher_id UUID;
 BEGIN
-    -- 1. Validate Invite Code
+    -- 1. Validasi Kode Undangan
     SELECT * INTO v_invite FROM teacher_invite_codes 
     WHERE code = p_code AND is_used = false AND expires_at > NOW();
 
@@ -326,29 +304,29 @@ BEGIN
         RETURN jsonb_build_object('success', false, 'message', 'Invalid or expired code');
     END IF;
 
-    -- 2. Get Teacher Profile ID
+    -- 2. Ambil ID Profil Pengajar
     SELECT id INTO v_teacher_id FROM teachers WHERE user_id = v_user_id;
     
     IF v_teacher_id IS NULL THEN
-        -- Fallback: Create profile if missing (should exist from handle_new_user)
+        -- Fallback: Buat profil jika hilang (seharusnya ada dari handle_new_user)
         INSERT INTO teachers (id, user_id, created_at, is_active) 
         VALUES (gen_random_uuid(), v_user_id, NOW(), true)
         RETURNING id INTO v_teacher_id;
     END IF;
 
-    -- 3. Consume Code
+    -- 3. Gunakan Kode
     UPDATE teacher_invite_codes 
     SET is_used = true, used_by = v_teacher_id, used_at = NOW() 
     WHERE id = v_invite.id;
 
-    -- 4. Link Teacher to Owner & Les Place
+    -- 4. Hubungkan Pengajar ke Pemilik & Les Place
     UPDATE teachers 
     SET owner_id = v_invite.owner_id, 
         les_place_id = v_invite.les_place_id,
         is_active = true
     WHERE id = v_teacher_id;
 
-    -- 5. Notify Owner
+    -- 5. Beri Tahu Pemilik
     PERFORM create_notification(
         (SELECT user_id FROM owners WHERE id = v_invite.owner_id),
         'New Teacher Joined',
@@ -363,11 +341,11 @@ $$;
 
 
 -- =============================================================================
--- 5. UTILITY & MAINTENANCE
+-- 5. UTILITAS & PEMELIHARAAN
 -- =============================================================================
 
 -- RPC: Upgrade User Role
--- Logic: Validates permissions (if any needed, usually handled by Gateway or Paywall), updates role, creates profile.
+-- Logika: Memvalidasi izin (jika ada yang diperlukan, biasanya ditangani oleh Gateway atau Paywall), update role, buat profil.
 CREATE OR REPLACE FUNCTION upgrade_user_role(
     p_new_role TEXT
 )
@@ -378,16 +356,16 @@ AS $$
 DECLARE
     v_user_id UUID := auth.uid();
 BEGIN
-    -- 1. Start Transaction (implied)
+    -- 1. Mulai Transaksi (implisit)
     
     -- 2. Update User Role
     UPDATE users SET role = p_new_role WHERE id = v_user_id;
 
-    -- 3. Create Missing Profiles
+    -- 3. Buat Profil yang Hilang
     IF p_new_role = 'owner' AND NOT EXISTS (SELECT 1 FROM owners WHERE user_id = v_user_id) THEN
         INSERT INTO owners (id, user_id, created_at, verification_status) 
         VALUES (gen_random_uuid(), v_user_id, NOW(), 'pending');
-        -- Ensure balance exists
+        -- Pastikan saldo ada
         IF NOT EXISTS (SELECT 1 FROM balances WHERE user_id = v_user_id) THEN
             INSERT INTO balances (id, user_id, total_balance, available_balance, pending_balance, created_at) 
             VALUES (gen_random_uuid(), v_user_id, 0, 0, 0, NOW());
@@ -396,7 +374,7 @@ BEGIN
     ELSIF p_new_role = 'teacher' AND NOT EXISTS (SELECT 1 FROM teachers WHERE user_id = v_user_id) THEN
         INSERT INTO teachers (id, user_id, created_at, is_active) 
         VALUES (gen_random_uuid(), v_user_id, NOW(), true);
-         -- Ensure balance exists
+         -- Pastikan saldo ada
         IF NOT EXISTS (SELECT 1 FROM balances WHERE user_id = v_user_id) THEN
             INSERT INTO balances (id, user_id, total_balance, available_balance, pending_balance, created_at) 
             VALUES (gen_random_uuid(), v_user_id, 0, 0, 0, NOW());
@@ -404,5 +382,43 @@ BEGIN
     END IF;
 
     RETURN jsonb_build_object('success', true, 'role', p_new_role);
+END;
+$$;
+
+-- RPC: Hentikan Booking (Batalkan Langganan)
+-- Digunakan oleh: Pemilik atau Pengajar untuk menghentikan booking siswa secara manual.
+CREATE OR REPLACE FUNCTION terminate_booking(
+  p_booking_id UUID,
+  p_reason TEXT
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+  v_booking bookings%ROWTYPE;
+BEGIN
+  SELECT * INTO v_booking FROM bookings WHERE id = p_booking_id;
+  
+  IF v_booking IS NULL THEN
+    RETURN jsonb_build_object('success', false, 'message', 'Booking not found');
+  END IF;
+
+  UPDATE bookings 
+  SET status = 'terminated',
+      notes = COALESCE(notes, '') || E'\n[Terminated]: ' || p_reason,
+      updated_at = NOW()
+  WHERE id = p_booking_id;
+  
+  -- Beri Tahu Siswa
+  PERFORM create_notification(
+    (SELECT user_id FROM students WHERE id = v_booking.student_id),
+    'Booking Terminated',
+    'Your learning program subscription has been terminated. Reason: ' || p_reason,
+    'booking_terminated',
+    jsonb_build_object('booking_id', p_booking_id)
+  );
+  
+  RETURN jsonb_build_object('success', true);
 END;
 $$;

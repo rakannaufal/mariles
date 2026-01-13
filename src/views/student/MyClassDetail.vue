@@ -38,22 +38,22 @@ const reportCardLoaded = ref(false)
 const activeTab = ref('jadwal')
 const tabsLoading = ref(false)
 
-// Check if class is Online (has materials) vs Offline (jadwal + nilai only)
-// Priority: program.class_type (new) → les_place.type (fallback)
+// Cek apakah kelas Online (punya materi) vs Offline (jadwal + nilai saja)
+// Prioritas: program.class_type (baru) → les_place.type (fallback)
 const isOnlineClass = computed(() => {
   const p = currentCourse.value?.program
   
-  // Use program.class_type if available (new system)
+  // Gunakan program.class_type jika tersedia (sistem baru)
   if (p?.class_type) {
     return p.class_type === 'online'
   }
   
-  // Fallback to les_place.type for older programs
+  // Fallback ke les_place.type untuk program lama
   const type = p?.les_place?.type || p?.type
   return type && ['Online', 'online', 'Hybrid', 'hybrid'].includes(type)
 })
 
-// Dynamic tabs based on class type
+// Tab dinamis berdasarkan tipe kelas
 const tabs = computed(() => {
   const allTabs = [
     { id: 'jadwal', label: 'Jadwal', icon: 'calendar' },
@@ -64,7 +64,7 @@ const tabs = computed(() => {
     { id: 'latihan', label: 'Latihan', icon: 'edit' }
   ]
   
-  // For Offline classes, only show Jadwal
+  // Untuk kelas Offline, hanya tampilkan Jadwal
   if (!isOnlineClass.value) {
     return allTabs.filter(t => ['jadwal'].includes(t.id))
   }
@@ -72,7 +72,7 @@ const tabs = computed(() => {
   return allTabs
 })
 
-// Include all document types (module, PDF, document, etc.)
+// Sertakan semua tipe dokumen (module, PDF, document, dll.)
 const modules = computed(() => materials.value.filter(m => 
   m.type === 'module' || m.type === 'document' || m.type === 'pdf' || m.type === 'PDF' || m.type === 'DOC' || !['video'].includes(m.type)
 ))
@@ -97,7 +97,7 @@ onMounted(async () => {
 async function loadCourse() {
   const bookingId = route.params.bookingId
   
-  // Load course detail
+  // Muat detail kursus
   if (authStore.user?.id) {
     await fetchCourseDetail(bookingId, authStore.user.id)
   }
@@ -115,27 +115,27 @@ async function loadTabData() {
   const bookingId = currentCourse.value.id
   
   if (authStore.user?.id) {
-    // Get student_id (table ID) from currentCourse
+    // Dapatkan student_id (ID tabel) dari currentCourse
     let studentId = currentCourse.value?.student_id 
     
-    // Fallback if student_id is consumed by relation alias
+    // Fallback jika student_id terpakai oleh alias relasi
     if (!studentId && currentCourse.value?.students) {
       studentId = currentCourse.value.students.id || currentCourse.value.students.user_id
     }
     
     if (!studentId) {
       console.error('CRITICAL: Student ID missing from course data!')
-       // Try fallback to auth id if we suspect they are same (temporary fix)
+       // Coba fallback ke auth id jika diduga sama (perbaikan sementara)
        // studentId = authStore.user.id 
     }
 
     await Promise.all([
       fetchMaterials(programId, studentId),
-      fetchTests(programId, studentId, authStore.user.id), // Pass both IDs for legacy data support
+      fetchTests(programId, studentId, authStore.user.id), // Kirim kedua ID untuk dukungan data lama
       fetchGrades(bookingId),
       fetchAttendance(bookingId),
-      fetchExercises(programId, studentId, authStore.user.id), // Pass both IDs for legacy data support
-      fetchReportCard(studentId, currentCourse.value.program, authStore.user.id) // Pass both IDs for legacy data support
+      fetchExercises(programId, studentId, authStore.user.id), // Kirim kedua ID untuk dukungan data lama
+      fetchReportCard(studentId, currentCourse.value.program, authStore.user.id) // Kirim kedua ID untuk dukungan data lama
     ])
   }
   
@@ -154,7 +154,7 @@ function formatDate(date) {
   })
 }
 
-// Upload modal for exercise
+// Modal upload untuk latihan
 const showUploadModal = ref(false)
 const selectedExercise = ref(null)
 const uploadFile = ref(null)
@@ -173,7 +173,7 @@ async function handleExerciseSubmit() {
   
   uploading.value = true
   try {
-    // Upload file to storage
+    // Upload file ke storage
     const fileName = `exercise_${selectedExercise.value.id}_${authStore.user.id}_${Date.now()}`
     const { data: fileData, error: uploadErr } = await supabase.storage
       .from('submissions')
@@ -181,12 +181,12 @@ async function handleExerciseSubmit() {
     
     if (uploadErr) throw uploadErr
     
-    // Get public URL
+    // Dapatkan URL publik
     const { data: urlData } = supabase.storage
       .from('submissions')
       .getPublicUrl(fileName)
     
-    // Submit to database - use student table ID (not auth ID)
+    // Submit ke database - gunakan ID tabel siswa (bukan auth ID)
     const studentId = currentCourse.value?.student_id || currentCourse.value?.students?.id
     await submitExercise(
       selectedExercise.value.id,
@@ -195,7 +195,7 @@ async function handleExerciseSubmit() {
       uploadNotes.value
     )
     
-    // Refresh exercises with proper student ID (and auth ID for legacy support)
+    // Refresh latihan dengan ID siswa yang benar (dan auth ID untuk dukungan lama)
     await fetchExercises(currentCourse.value.program.id, studentId, authStore.user.id)
     
     showUploadModal.value = false
@@ -229,31 +229,31 @@ function getTestTypeLabel(type) {
   return labels[type] || type
 }
 
-// Check if a material/video has been completed
+// Cek apakah materi/video sudah selesai
 function isItemCompleted(item) {
   return item.progress?.is_completed || item.progress?.is_read || item.progress?.is_watched
 }
 
-// Check if an item is locked (previous item not completed)
+// Cek apakah item terkunci (item sebelumnya belum selesai)
 function isItemLocked(items, index) {
-  if (index === 0) return false // First item is never locked
+  if (index === 0) return false // Item pertama tidak pernah terkunci
   const prevItem = items[index - 1]
   return !isItemCompleted(prevItem)
 }
 
-// Open material (PDF, document, etc.) and track progress
-// Open material (PDF, document, etc.) and track progress
+// Buka materi (PDF, dokumen, dll.) dan lacak progres
+// Buka materi (PDF, dokumen, dll.) dan lacak progres
 async function openMaterial(material) {
   const contentUrl = material.content || material.video_url || material.url
   
   if (contentUrl) {
     // 1. Optimistic Update (Immediate UI response)
-    // Create progress object if it doesn't exist
+    // Buat objek progres jika belum ada
     if (!material.progress) {
       material.progress = {}
     }
     
-    // Mark as completed locally immediately
+    // Tandai selesai secara lokal langsung
     material.progress = {
       ...material.progress,
       is_completed: true,
@@ -267,7 +267,7 @@ async function openMaterial(material) {
 
     // 3. Update Database in Background
     try {
-      // Get student_id from booking
+      // Dapatkan student_id dari booking
       const studentId = currentCourse.value?.student_id || currentCourse.value?.students?.id
       if (studentId) {
         await updateMaterialProgress(material.id, studentId, {
@@ -278,14 +278,14 @@ async function openMaterial(material) {
       }
     } catch (err) {
       console.error('Error tracking progress:', err)
-      // Silently fail or revert if strictly needed, but for read status it's usually fine
+      // Gagal diam-diam atau kembalikan jika benar-benar diperlukan, tapi untuk status baca biasanya tidak masalah
     }
   } else {
     alert('Materi tidak tersedia. URL materi kosong.')
   }
 }
 
-// Open video
+// Buka video
 function openVideo(video) {
   if (video.video_url) {
     window.open(video.video_url, '_blank')
@@ -296,7 +296,7 @@ function openVideo(video) {
   }
 }
 
-// Get YouTube thumbnail
+// Dapatkan thumbnail YouTube
 function getYouTubeThumbnail(url) {
   if (!url) return null
   const patterns = [
@@ -312,7 +312,7 @@ function getYouTubeThumbnail(url) {
   return null
 }
 
-// Start quiz
+// Mulai quiz
 function startQuiz(quiz) {
   if (quiz.scheduleStatus === 'upcoming') {
     alert('Quiz belum dimulai')
@@ -326,19 +326,19 @@ function startQuiz(quiz) {
     alert('Anda sudah mencapai batas percobaan maksimal')
     return
   }
-  // Navigate to quiz page
+  // Navigasi ke halaman quiz
   router.push(`/student/quiz/${quiz.id}`)
-  // Navigate to quiz page
+  // Navigasi ke halaman quiz
   router.push(`/student/quiz/${quiz.id}`)
 }
 
-// Online Class Meeting Logic
+// Logika Meeting Kelas Online
 const showMeetingButton = computed(() => {
   const p = currentCourse.value?.program
-  // Only for Online or Hybrid
+  // Hanya untuk Online atau Hybrid
   if (!p || (p.type !== 'Online' && p.type !== 'Hybrid') || !p.meeting_url) return false
   
-  // Check if today matches schedule
+  // Cek apakah hari ini cocok dengan jadwal
   return isClassToday(p.schedule)
 })
 
@@ -352,7 +352,7 @@ function isClassToday(schedule) {
      // Format 3: { "day": "Senin", ... }
      if (schedule.day) return schedule.day === todayName
      
-     // Format 2: { "start": "...", "end": "..." } (No day specified -> assume daily or handled elsewhere, but for safety let's say true or check context. 'Setiap Hari' logic)
+     // Format 2: { "start": "...", "end": "..." } (Tidak ada hari ditentukan -> asumsikan harian atau ditangani di tempat lain, tapi untuk keamanan anggap true atau cek konteks. Logika 'Setiap Hari')
      if (schedule.start && schedule.end && !schedule.day) return true 
      
      // Format 1: { "Senin": "..." }

@@ -11,7 +11,7 @@ const currentPage = ref(1)
 const itemsPerPage = 10
 const totalUsers = ref(0)
 
-// Stats
+// Statistik
 const stats = ref({
   total: 0,
   students: 0,
@@ -89,7 +89,7 @@ async function viewUserDetails(user) {
   loadingDetails.value = true
 
   try {
-    // Fetch additional details based on role
+    // Ambil detail tambahan berdasarkan role
     if (user.role === 'student') {
       const { data } = await supabase
         .from('students')
@@ -128,10 +128,10 @@ async function deleteUser(user) {
     })
 
     if (error) {
-      // Try to parse the error body if available
+      // Coba parse body error jika tersedia
       let errorBody = ''
       try {
-         // Supabase functions error context might contain the body
+         // Konteks error Supabase functions mungkin berisi body
          if (error.context && typeof error.context.json === 'function') {
            const body = await error.context.json()
            errorBody = body.error || body.message || JSON.stringify(body)

@@ -16,7 +16,7 @@ onMounted(async () => {
 async function fetchReviews() {
   loading.value = true
   try {
-    // Get owner
+    // Dapatkan owner
     const { data: owner } = await supabase
       .from('owners')
       .select('id')
@@ -25,7 +25,7 @@ async function fetchReviews() {
     
     if (!owner) return
 
-    // Get les place
+    // Dapatkan tempat les
     const { data: place } = await supabase
       .from('les_places')
       .select('id, name')
@@ -39,7 +39,7 @@ async function fetchReviews() {
       return
     }
 
-    // Get reviews using les_place_id (only visible ones - not flagged)
+    // Dapatkan ulasan menggunakan les_place_id (hanya yang terlihat - tidak ditandai)
     const { data, error } = await supabase
       .from('reviews')
       .select(`
@@ -50,7 +50,7 @@ async function fetchReviews() {
         )
       `)
       .eq('les_place_id', place.id)
-      .neq('is_visible', false) // Only show visible reviews (null or true)
+      .neq('is_visible', false) // Hanya tampilkan ulasan yang terlihat (null atau true)
       .order('created_at', { ascending: false })
 
     if (error) {
@@ -65,7 +65,7 @@ async function fetchReviews() {
   }
 }
 
-// Statistics
+// Statistik
 const averageRating = computed(() => {
   if (!reviews.value.length) return 0
   return reviews.value.reduce((sum, r) => sum + r.rating, 0) / reviews.value.length

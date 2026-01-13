@@ -23,7 +23,7 @@ const viewMode = ref('grid') // 'grid' or 'table'
 const showStudentModal = ref(false)
 const selectedStudent = ref(null)
 
-// Complete/Terminate modal states
+// State modal selesai/terminate
 const showCompleteModal = ref(false)
 const showTerminateModal = ref(false)
 const completeStudent = ref(null)
@@ -32,7 +32,7 @@ const completeForm = ref({ result: 'passed', notes: '' })
 const terminateForm = ref({ reason: 'tidak_hadir', customReason: '' })
 const notification = ref({ show: false, type: '', message: '' })
 
-// Stats
+// Statistik
 const studentStats = computed(() => {
   const total = students.value.length
   const active = students.value.filter(s => s.status === 'active').length
@@ -50,18 +50,18 @@ const studentStats = computed(() => {
   return { total, active, avgProgress, newThisMonth, needsAttention }
 })
 
-// Get all programs - combine from students (for filtering) and teacherPrograms (for showing all)
+// Dapatkan semua program - gabungkan dari siswa (untuk filter) dan teacherPrograms (untuk tampilkan semua)
 const programs = computed(() => {
   const programMap = new Map()
   
-  // First, add programs from students data (these have correct IDs that match student.program_id)
+  // Pertama, tambahkan program dari data siswa (ini punya ID yang benar sesuai student.program_id)
   students.value.forEach(s => {
     if (s.program_id && s.program?.name) {
       programMap.set(s.program_id, s.program.name)
     }
   })
   
-  // Also add from teacherPrograms (in case some programs have no students yet)
+  // Juga tambahkan dari teacherPrograms (kalau ada program tanpa siswa)
   teacherPrograms.value.forEach(p => {
     if (p.id && p.name && !programMap.has(p.id)) {
       programMap.set(p.id, p.name)
@@ -71,7 +71,7 @@ const programs = computed(() => {
   return Array.from(programMap.entries()).map(([id, name]) => ({ id, name }))
 })
 
-// Get unique subjects
+// Dapatkan subjek unik
 const subjects = computed(() => {
   const unique = [...new Set(students.value.map(s => s.subject))]
   return unique.filter(s => s && s !== '-')
@@ -109,7 +109,7 @@ function openStudentDetail(student) {
   fetchStudentReport(student)
 }
 
-// Student report data
+// Data laporan siswa
 const studentReport = ref({
   quizScores: [],
   latihanScores: [],
@@ -165,13 +165,13 @@ function getGradeFromScore(score) {
   return 'D'
 }
 
-// Notification helper
+// Helper notifikasi
 function showNotification(type, message) {
   notification.value = { show: true, type, message }
   setTimeout(() => notification.value.show = false, 4000)
 }
 
-// Complete functions
+// Fungsi selesaikan
 function openCompleteModal(student, event) {
   event?.stopPropagation()
   completeStudent.value = student
@@ -200,7 +200,7 @@ async function submitComplete() {
   }
 }
 
-// Terminate functions  
+// Fungsi terminate  
 function openTerminateModal(student, event) {
   event?.stopPropagation()
   terminateStudent.value = student

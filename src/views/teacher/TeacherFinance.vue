@@ -12,7 +12,7 @@ const route = useRoute()
 const isOwner = computed(() => route.path.startsWith('/owner'))
 const authStore = useAuthStore()
 
-// Tabs - guru can withdraw their earnings
+// Tab - guru bisa mencairkan pendapatan mereka
 const activeTab = ref('overview')
 const tabs = [
   { id: 'overview', label: 'Ringkasan', icon: 'chart' },
@@ -31,7 +31,7 @@ const platformFees = ref({
   max_withdrawal: 10000000
 })
 
-// Summary
+// Ringkasan
 const summary = ref({
   totalEarnings: 0,
   monthlyEarnings: 0,
@@ -42,7 +42,7 @@ const summary = ref({
   bonusCount: 0
 })
 
-// Withdrawals
+// Pencairan
 const withdrawals = ref([])
 const withdrawAmount = ref('')
 const withdrawMethod = ref('bank') // 'bank' or 'ewallet'
@@ -50,7 +50,7 @@ const withdrawing = ref(false)
 const withdrawError = ref('')
 const withdrawSuccess = ref(false)
 
-// Toast State
+// State Toast
 const showToast = ref(false)
 const toastMessage = ref('')
 const toastType = ref('success') // 'success' or 'error'
@@ -62,17 +62,17 @@ function toast(msg, type = 'success') {
   setTimeout(() => showToast.value = false, 3000)
 }
 
-// Confirm Modal State
+// State Modal Konfirmasi
 const showWithdrawConfirmModal = ref(false)
 const withdrawConfirmData = ref(null)
 
-// Teacher Bank Info from Profile
+// Info Bank Guru dari Profil
 const teacherBankInfo = ref({
   bank_name: '', bank_account: '', bank_holder: '',
   ewallet_type: '', ewallet_number: ''
 })
 
-// Get months for filter
+// Dapatkan bulan untuk filter
 const availableMonths = computed(() => {
   const months = new Set()
   payments.value.forEach(p => {
@@ -83,13 +83,13 @@ const availableMonths = computed(() => {
   return Array.from(months).sort().reverse()
 })
 
-// Filtered payments
+// Pembayaran terfilter
 const filteredPayments = computed(() => {
   if (selectedMonth.value === 'all') return payments.value
   return payments.value.filter(p => p.payment_period === selectedMonth.value)
 })
 
-// Monthly breakdown chart data
+// Data grafik breakdown bulanan
 const monthlyData = computed(() => {
   const data = {}
   payments.value.filter(p => p.payment_status === 'completed').forEach(p => {
@@ -141,7 +141,7 @@ async function fetchData() {
       return paidDate.getMonth() === now.getMonth() && paidDate.getFullYear() === now.getFullYear()
     }) || []
     
-    // Calculate withdrawals
+    // Hitung pencairan
     const { data: teacherWithdrawals } = await supabase
         .from('withdrawals')
         .select('amount')
@@ -162,7 +162,7 @@ async function fetchData() {
       bonusCount: bonuses.length
     }
     
-    // Fetch teacher bank info from profile
+    // Ambil info bank guru dari profil
     const { data: teacherData } = await supabase
       .from('teachers')
       .select('bank_name, bank_account, bank_holder, ewallet_type, ewallet_number')
@@ -178,9 +178,9 @@ async function fetchData() {
         ewallet_number: teacherData.ewallet_number || ''
       }
       
-      console.log('Teacher Bank Info Loaded:', teacherBankInfo.value) // Debug log
+      console.log('Teacher Bank Info Loaded:', teacherBankInfo.value) // Log debug
 
-      // Set default method based on what's available
+      // Set metode default berdasarkan yang tersedia
       if (teacherData.bank_name && teacherData.bank_account) {
         withdrawMethod.value = 'bank'
       } else if (teacherData.ewallet_type && teacherData.ewallet_number) {
@@ -190,7 +190,7 @@ async function fetchData() {
        console.warn('No teacher profile found for user_id:', authStore.user.id)
     }
     
-    // Fetch teacher's withdrawal history
+    // Ambil riwayat pencairan guru
     await fetchWithdrawals()
   } catch (err) {
     console.error('Error fetching data:', err)
@@ -236,7 +236,7 @@ function formatDate(date) {
 function formatPeriod(period) {
   if (!period || period === 'undefined' || period === 'null') return '-'
   const parts = period.split('-')
-  if (parts.length < 2) return period // Return as-is if not YYYY-MM format
+  if (parts.length < 2) return period // Kembalikan apa adanya jika bukan format YYYY-MM
   const [year, month] = parts
   const monthNum = parseInt(month)
   if (isNaN(monthNum) || monthNum < 1 || monthNum > 12) return period
@@ -311,7 +311,7 @@ async function handleWithdraw() {
     return
   }
   
-  // Auto-detect payment method: prefer bank, fallback to e-wallet
+  // Auto-deteksi metode pembayaran: prioritas bank, fallback ke e-wallet
   const useBank = teacherBankInfo.value.bank_name
   const useEwallet = teacherBankInfo.value.ewallet_type
   
@@ -320,10 +320,10 @@ async function handleWithdraw() {
     return
   }
 
-  // Calculate Fee
+  // Hitung Biaya
   const fee = withdrawMethod.value === 'ewallet' ? 2500 : platformFees.value.withdrawal_fee
   
-  // Prepare Confirmation Data
+  // Siapkan Data Konfirmasi
   withdrawConfirmData.value = {
     amount: amount,
     fee: fee,
@@ -343,14 +343,14 @@ async function confirmWithdraw() {
     
     const { amount, fee, netAmount } = withdrawConfirmData.value
 
-    // Get teacher's les_place_id
+    // Dapatkan les_place_id guru
     const { data: teacherData } = await supabase
       .from('teachers')
       .select('les_place_id')
       .eq('user_id', authStore.user.id)
       .single()
     
-    // Determine Bank Details
+    // Tentukan Detail Bank
     let bankName, bankAccount, bankHolder
     if (teacherBankInfo.value.bank_name) {
       bankName = teacherBankInfo.value.bank_name
@@ -362,7 +362,7 @@ async function confirmWithdraw() {
       bankHolder = teacherBankInfo.value.bank_holder || ''
     }
     
-    // Insert to withdrawals table (PENDING status for Admin)
+    // Insert ke tabel withdrawals (status PENDING untuk Admin)
     const { error } = await supabase.from('withdrawals').insert({
       user_id: authStore.user.id,
       les_place_id: teacherData?.les_place_id || null,

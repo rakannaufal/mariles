@@ -1,4 +1,4 @@
-// Supabase Edge Function: Process Disbursement via Midtrans Iris
+// Edge Function Supabase: Proses Pencairan via Midtrans Iris
 // Deploy: supabase functions deploy process-disbursement
 // ============================================================
 
@@ -10,7 +10,7 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-// Midtrans Iris Config
+// Konfigurasi Midtrans Iris
 const IRIS_API_KEY = Deno.env.get('MIDTRANS_IRIS_API_KEY') || 'IRIS-xxx'
 const IS_PRODUCTION = Deno.env.get('MIDTRANS_IS_PRODUCTION') === 'true'
 const IRIS_BASE_URL = IS_PRODUCTION 
@@ -35,7 +35,7 @@ serve(async (req) => {
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
-    // Get withdrawal details
+    // Dapatkan detail pencairan
     const { data: withdrawal, error: fetchError } = await supabase
       .from('withdrawals')
       .select('*, users:user_id(email, name)')
@@ -46,16 +46,16 @@ serve(async (req) => {
       throw new Error('Withdrawal not found')
     }
 
-    // Validate withdrawal status
+    // Validasi status pencairan
     if (withdrawal.status !== 'pending' && action !== 'check_status') {
       throw new Error(`Cannot process withdrawal with status: ${withdrawal.status}`)
     }
 
     // ============================================================
-    // ACTION: Create Payout
+    // AKSI: Buat Payout
     // ============================================================
     if (action === 'create_payout' || !action) {
-      // Update status to processing
+      // Update status ke processing
       await supabase
         .from('withdrawals')
         .update({ 
@@ -64,7 +64,7 @@ serve(async (req) => {
         })
         .eq('id', withdrawalId)
 
-      // Build Iris payout request
+      // Bangun request payout Iris
       const payoutPayload = {
         payouts: [{
           beneficiary_name: withdrawal.bank_holder,
@@ -76,7 +76,7 @@ serve(async (req) => {
         }]
       }
 
-      // Call Midtrans Iris API
+      // Panggil API Midtrans Iris
       const authString = btoa(`${IRIS_API_KEY}:`)
       const response = await fetch(`${IRIS_BASE_URL}/payouts`, {
         method: 'POST',
@@ -91,7 +91,7 @@ serve(async (req) => {
       const result = await response.json()
 
       if (!response.ok) {
-        // Update status back to pending on error
+        // Update status kembali ke pending saat error
         await supabase
           .from('withdrawals')
           .update({ status: 'pending' })
@@ -100,10 +100,10 @@ serve(async (req) => {
         throw new Error(result.errors?.[0] || 'Iris API error')
       }
 
-      // Get payout reference
+      // Dapatkan referensi payout
       const payoutData = result.payouts?.[0]
       
-      // Update withdrawal with Iris reference
+      // Update pencairan dengan referensi Iris
       await supabase
         .from('withdrawals')
         .update({
@@ -126,7 +126,7 @@ serve(async (req) => {
     }
 
     // ============================================================
-    // ACTION: Check Status
+    // AKSI: Cek Status
     // ============================================================
     if (action === 'check_status') {
       if (!withdrawal.iris_reference_key) {
@@ -146,7 +146,7 @@ serve(async (req) => {
 
       const result = await response.json()
 
-      // Map Iris status to our status
+      // Map status Iris ke status kita
       let newStatus = withdrawal.status
       if (result.status === 'completed') {
         newStatus = 'completed'
@@ -154,7 +154,7 @@ serve(async (req) => {
         newStatus = 'failed'
       }
 
-      // Update withdrawal status
+      // Update status pencairan
       await supabase
         .from('withdrawals')
         .update({
@@ -186,7 +186,7 @@ serve(async (req) => {
   }
 })
 
-// Map bank name to Midtrans bank code
+// Map nama bank ke kode bank Midtrans
 function mapBankCode(bankName: string): string {
   const bankMap: Record<string, string> = {
     'bca': 'bca',

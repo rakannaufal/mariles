@@ -21,7 +21,7 @@ const {
   saveGrade 
 } = useTeacherData()
 
-// Quiz grades ref
+// Ref nilai quiz
 const quizGrades = ref([])
 
 const selectedClass = ref('all')
@@ -41,7 +41,7 @@ const showToast = ref(false)
 const toastMessage = ref('')
 const toastType = ref('success')
 
-// Latihan Modal
+// Modal Latihan
 const showLatihanModal = ref(false)
 const selectedLatihanStudent = ref(null)
 const selectedSubmission = ref(null)
@@ -49,7 +49,7 @@ const latihanGradeInput = ref(0)
 const latihanFeedbackInput = ref('')
 const gradingInProgress = ref(false)
 
-// Get unique classes
+// Dapatkan kelas unik
 const classes = computed(() => {
   const unique = [...new Set(programs.value.map(p => p.level || p.name))]
   return unique.filter(c => c && c !== '-')
@@ -60,17 +60,17 @@ const exams = [
   { id: 'latihan', name: 'Latihan' }
 ]
 
-// Grade settings
+// Pengaturan nilai
 const passingGrade = ref(70)
 const quizWeight = ref(60)
 const latihanWeight = ref(40)
 const showSettingsModal = ref(false)
 
 const filteredGrades = computed(() => {
-  // If no program selected, return empty
+  // Jika tidak ada program dipilih, return kosong
   if (!selectedProgram.value) return []
   
-  // Choose data source based on tab
+  // Pilih sumber data berdasarkan tab
   let result = []
   if (selectedExam.value === 'Quiz') {
     result = quizGrades.value
@@ -90,7 +90,7 @@ const filteredGrades = computed(() => {
   return result
 })
 
-// Stats
+// Statistik
 const stats = computed(() => {
   const gradesList = filteredGrades.value.filter(g => g.grade > 0).map(g => g.grade)
   
@@ -107,7 +107,7 @@ const stats = computed(() => {
   return { avg, max, min, total: gradesList.length, passed, failed }
 })
 
-// Grade distribution
+// Distribusi nilai
 const gradeDistribution = computed(() => {
   const gradesList = filteredGrades.value.filter(g => g.grade > 0).map(g => g.grade)
   
@@ -193,11 +193,11 @@ async function handleSaveLatihanGrade() {
       // Refresh data
       if (selectedProgram.value) {
         await fetchLatihanGrades(selectedProgram.value.id)
-        // Update local reference to show the updated grade in modal
+        // Update referensi lokal untuk tampilkan nilai yang diperbarui di modal
         const updatedStudent = latihanSubmissions.value.find(s => s.id === selectedLatihanStudent.value.id)
         if (updatedStudent) {
           selectedLatihanStudent.value = updatedStudent
-          // Keep current submission selected but update its data
+          // Pertahankan submission yang dipilih tapi update datanya
           selectedSubmission.value = updatedStudent.submissions.find(s => s.id === selectedSubmission.value.id)
         }
       }
@@ -212,7 +212,7 @@ async function handleSaveLatihanGrade() {
 }
 
 function openQuizDetail(student) {
-  // Placeholder - could open a detail modal in the future
+  // Placeholder - bisa membuka modal detail di masa depan
   console.log(`Detail kuis untuk ${student.name}`, student)
 }
 
@@ -265,13 +265,13 @@ onMounted(async () => {
   await fetchTeacherSchedule()
   await fetchStudentGrades()
   await fetchTeacherStudents()
-  // Also fetch quiz grades
+  // Juga ambil nilai quiz
   quizGrades.value = await fetchQuizGrades()
-  // Load grade settings
+  // Muat pengaturan nilai
   await loadGradeSettings()
 })
 
-// Watch for program change to fetch quiz/latihan grades
+// Watch perubahan program untuk fetch nilai quiz/latihan
 watch(selectedProgram, async (newVal) => {
   if (newVal) {
     if (selectedExam.value === 'Quiz') {
@@ -284,7 +284,7 @@ watch(selectedProgram, async (newVal) => {
   }
 })
 
-// Watch for exam tab change to refresh data
+// Watch perubahan tab ujian untuk refresh data
 watch(selectedExam, async (newVal) => {
   if (!selectedProgram.value) return
   
@@ -295,7 +295,7 @@ watch(selectedExam, async (newVal) => {
   }
 })
 
-// Load grade settings from les_place
+// Muat pengaturan nilai dari les_place
 async function loadGradeSettings() {
   const { lesPlace } = useTeacherData()
   if (lesPlace.value?.settings) {
@@ -306,14 +306,14 @@ async function loadGradeSettings() {
   }
 }
 
-// Save grade settings to les_place
+// Simpan pengaturan nilai ke les_place
 import { supabase } from '@/lib/supabase'
 async function saveGradeSettings() {
   try {
-    // Get les_place_id from already loaded data
+    // Dapatkan les_place_id dari data yang sudah dimuat
     const { teacherProfile, fetchTeacherProfile, lesPlace } = useTeacherData()
     
-    // Make sure teacherProfile is loaded
+    // Pastikan teacherProfile sudah dimuat
     if (!teacherProfile.value?.les_place_id) {
       await fetchTeacherProfile()
     }
@@ -328,7 +328,7 @@ async function saveGradeSettings() {
     
     console.log('Saving to les_place_id:', lesPlaceId)
     
-    // Get current settings
+    // Dapatkan pengaturan saat ini
     const { data: lesPlaceData, error: fetchError } = await supabase
       .from('les_places')
       .select('settings')
@@ -364,18 +364,18 @@ async function saveGradeSettings() {
   }
 }
 
-// Reset quiz for student (delete attempts so they can retake)
+// Reset quiz untuk siswa (hapus percobaan agar bisa mengulang)
 async function resetQuizForStudent(student) {
   if (!confirm(`Reset quiz untuk ${student.name}? Siswa akan bisa mengerjakan ulang quiz ini.`)) return
   
   try {
-    // First get quiz IDs for the selected program only
+    // Pertama dapatkan ID quiz hanya untuk program yang dipilih
     if (!selectedProgram.value) {
       showErrorToast('Pilih program terlebih dahulu')
       return
     }
     
-    // Get quizzes for this program
+    // Dapatkan quiz untuk program ini
     const { data: quizzes, error: quizErr } = await supabase
       .from('quizzes')
       .select('id')
@@ -389,7 +389,7 @@ async function resetQuizForStudent(student) {
       return
     }
     
-    // Delete only attempts for quizzes in this program
+    // Hapus hanya percobaan untuk quiz di program ini
     const { error } = await supabase
       .from('quiz_attempts')
       .delete()
@@ -406,7 +406,7 @@ async function resetQuizForStudent(student) {
   }
 }
 
-// Delete single latihan submission
+// Hapus submission latihan tunggal
 async function deleteLatihanSubmission(submissionId) {
   if (!confirm(`Hapus nilai latihan ini?`)) return
   
@@ -419,10 +419,10 @@ async function deleteLatihanSubmission(submissionId) {
     if (error) throw error
     
     showSuccessToast('Nilai latihan berhasil dihapus')
-    // Refresh latihan grades
+    // Refresh nilai latihan
     if (selectedProgram.value) {
       await fetchLatihanGrades(selectedProgram.value.id)
-      // Update selected student data if modal is open
+      // Update data siswa yang dipilih jika modal terbuka
       if (selectedLatihanStudent.value) {
         const updatedStudent = latihanSubmissions.value.find(s => s.id === selectedLatihanStudent.value.id)
         if (updatedStudent) {
@@ -437,17 +437,17 @@ async function deleteLatihanSubmission(submissionId) {
   }
 }
 
-// Delete all latihan for a student
+// Hapus semua latihan untuk siswa
 async function deleteAllLatihanForStudent(student) {
   if (!confirm(`Hapus semua nilai latihan untuk ${student.name}?`)) return
   
   try {
-    // Get submission IDs from student data
+    // Dapatkan ID submission dari data siswa
     // latihanSubmissions data has submissions array
     const submissionIds = student.submissions?.map(s => s.id) || []
     
     if (submissionIds.length === 0) {
-      // If no submissions array, try to delete by student_id
+      // Jika tidak ada array submissions, coba hapus berdasarkan student_id
       const { error } = await supabase
         .from('exercise_submissions')
         .delete()
@@ -466,10 +466,10 @@ async function deleteAllLatihanForStudent(student) {
     showSuccessToast('Semua nilai latihan berhasil dihapus')
     showLatihanModal.value = false
     
-    // Immediately remove from local array
+    // Hapus langsung dari array lokal
     latihanSubmissions.value = latihanSubmissions.value.filter(s => s.id !== student.id)
     
-    // Also refresh from server if program selected
+    // Juga refresh dari server jika program dipilih
     if (selectedProgram.value) {
       try {
         await fetchLatihanGrades(selectedProgram.value.id)

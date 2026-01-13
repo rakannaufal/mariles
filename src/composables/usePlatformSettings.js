@@ -6,8 +6,8 @@ const defaultSettings = {
     platform_name: 'Mariles',
     tagline: 'Platform Les Terbaik di Indonesia',
     support_email: 'support@mariles.id',
-    support_phone: '+62 812 3456 7890',
-    whatsapp_number: '+6281234567890'
+    support_phone: '+62 822 9904 4050',
+    whatsapp_number: '+6282299044050'
   },
   platformFees: {
     platform_fee_percent: 10,

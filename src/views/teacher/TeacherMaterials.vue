@@ -19,10 +19,10 @@ const {
   hasAssignedPrograms
 } = useTeacherData()
 
-// Active tab
+// Tab aktif
 const activeTab = ref('materials') // 'materials', 'exercises', 'videos'
 
-// Search and filter
+// Pencarian dan filter
 const searchQuery = ref('')
 const selectedProgram = ref('all')
 
@@ -43,7 +43,7 @@ const newMaterial = ref({
   video_url: ''
 })
 
-// Exercise types
+// Tipe latihan
 const exerciseTypes = [
   { id: 'latihan', name: 'Latihan', hasDeadline: false },
   { id: 'ulangan_harian', name: 'Ulangan Harian', hasDeadline: true },
@@ -51,7 +51,7 @@ const exerciseTypes = [
   { id: 'tugas', name: 'Tugas', hasDeadline: true }
 ]
 
-// Get programs for dropdown
+// Dapatkan program untuk dropdown
 const programOptions = computed(() => {
   return programs.value.map(p => ({
     id: p.id,
@@ -59,7 +59,7 @@ const programOptions = computed(() => {
   }))
 })
 
-// Filter materials by type
+// Filter materi berdasarkan tipe
 const materialsList = computed(() => {
   return materials.value.filter(m => m.type === 'module' || m.type === 'PDF' || m.type === 'DOC')
 })
@@ -139,7 +139,7 @@ function getExerciseTypeClass(type) {
   return classes[type] || 'green'
 }
 
-// Get YouTube thumbnail from URL
+// Dapatkan thumbnail YouTube dari URL
 function getYouTubeThumbnail(url) {
   if (!url) return null
   
@@ -203,7 +203,7 @@ async function uploadFile(file) {
     throw error
   }
   
-  // Get public URL
+  // Dapatkan URL publik
   const { data: urlData } = supabase.storage
     .from('course-materials')
     .getPublicUrl(filePath)
@@ -296,7 +296,7 @@ async function handleUpload() {
         activeTab.value = 'videos'
       }
       
-      // Show success toast
+      // Tampilkan toast sukses
       const typeName = uploadedType === 'module' ? 'Materi' : uploadedType === 'exercise' ? 'Latihan' : 'Video'
       showSuccessToast(`${typeName} berhasil diupload! ✓`)
     }

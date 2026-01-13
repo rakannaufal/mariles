@@ -1,18 +1,18 @@
 /**
- * Notification Service
- * ====================
+ * Layanan Notifikasi
+ * ==================
  * 
- * Handles all notification operations:
- * - Creating notifications
- * - Fetching user notifications
- * - Marking as read
- * - Real-time subscriptions
+ * Menangani semua operasi notifikasi:
+ * - Membuat notifikasi
+ * - Mengambil notifikasi pengguna
+ * - Menandai sudah dibaca
+ * - Langganan real-time
  */
 
 import { supabase } from '@/lib/supabase'
 
 // ============================================================
-// NOTIFICATION TYPES
+// TIPE NOTIFIKASI
 // ============================================================
 export const NOTIFICATION_TYPES = {
   PAYMENT_SUCCESS: 'payment_success',
@@ -30,12 +30,12 @@ export const NOTIFICATION_TYPES = {
 }
 
 // ============================================================
-// CREATE NOTIFICATION
+// BUAT NOTIFIKASI
 // ============================================================
 
 /**
- * Create a notification for a user
- * @param {Object} params - Notification parameters
+ * Buat notifikasi untuk pengguna
+ * @param {Object} params - Parameter notifikasi
  */
 export async function createNotification({
   userId,
@@ -70,9 +70,9 @@ export async function createNotification({
 }
 
 /**
- * Create notifications for multiple users
- * @param {string[]} userIds - Array of user IDs
- * @param {Object} notificationData - Notification data
+ * Buat notifikasi untuk banyak pengguna
+ * @param {string[]} userIds - Array ID pengguna
+ * @param {Object} notificationData - Data notifikasi
  */
 export async function createBulkNotifications(userIds, notificationData) {
   try {
@@ -96,13 +96,13 @@ export async function createBulkNotifications(userIds, notificationData) {
 }
 
 // ============================================================
-// FETCH NOTIFICATIONS
+// AMBIL NOTIFIKASI
 // ============================================================
 
 /**
- * Get notifications for a user
- * @param {string} userId - User ID
- * @param {number} limit - Number of notifications to fetch
+ * Dapatkan notifikasi untuk pengguna
+ * @param {string} userId - ID Pengguna
+ * @param {number} limit - Jumlah notifikasi yang diambil
  */
 export async function getNotifications(userId, limit = 20) {
   try {
@@ -123,8 +123,8 @@ export async function getNotifications(userId, limit = 20) {
 }
 
 /**
- * Get unread notification count
- * @param {string} userId - User ID
+ * Dapatkan jumlah notifikasi belum dibaca
+ * @param {string} userId - ID Pengguna
  */
 export async function getUnreadCount(userId) {
   try {
@@ -144,12 +144,12 @@ export async function getUnreadCount(userId) {
 }
 
 // ============================================================
-// MARK AS READ
+// TANDAI SUDAH DIBACA
 // ============================================================
 
 /**
- * Mark a single notification as read
- * @param {string} notificationId - Notification ID
+ * Tandai satu notifikasi sudah dibaca
+ * @param {string} notificationId - ID Notifikasi
  */
 export async function markAsRead(notificationId) {
   try {
@@ -168,8 +168,8 @@ export async function markAsRead(notificationId) {
 }
 
 /**
- * Mark all notifications as read for a user
- * @param {string} userId - User ID
+ * Tandai semua notifikasi sudah dibaca untuk pengguna
+ * @param {string} userId - ID Pengguna
  */
 export async function markAllAsRead(userId) {
   try {
@@ -189,12 +189,12 @@ export async function markAllAsRead(userId) {
 }
 
 // ============================================================
-// DELETE NOTIFICATIONS
+// HAPUS NOTIFIKASI
 // ============================================================
 
 /**
- * Delete a notification
- * @param {string} notificationId - Notification ID
+ * Hapus notifikasi
+ * @param {string} notificationId - ID Notifikasi
  */
 export async function deleteNotification(notificationId) {
   try {
@@ -213,8 +213,8 @@ export async function deleteNotification(notificationId) {
 }
 
 /**
- * Clear all notifications for a user
- * @param {string} userId - User ID
+ * Hapus semua notifikasi untuk pengguna
+ * @param {string} userId - ID Pengguna
  */
 export async function clearAllNotifications(userId) {
   try {
@@ -233,14 +233,14 @@ export async function clearAllNotifications(userId) {
 }
 
 // ============================================================
-// REAL-TIME SUBSCRIPTION
+// LANGGANAN REAL-TIME
 // ============================================================
 
 /**
- * Subscribe to real-time notifications
- * @param {string} userId - User ID
- * @param {Function} callback - Callback function when new notification arrives
- * @returns {Object} Subscription object with unsubscribe method
+ * Berlangganan ke notifikasi real-time
+ * @param {string} userId - ID Pengguna
+ * @param {Function} callback - Fungsi callback saat notifikasi baru tiba
+ * @returns {Object} Objek langganan dengan metode unsubscribe
  */
 export function subscribeToNotifications(userId, callback) {
   const subscription = supabase
@@ -267,12 +267,12 @@ export function subscribeToNotifications(userId, callback) {
 }
 
 // ============================================================
-// HELPER FUNCTIONS
+// FUNGSI PEMBANTU
 // ============================================================
 
 /**
- * Get notification icon based on type
- * @param {string} type - Notification type
+ * Dapatkan ikon notifikasi berdasarkan tipe
+ * @param {string} type - Tipe notifikasi
  */
 export function getNotificationIcon(type) {
   const icons = {

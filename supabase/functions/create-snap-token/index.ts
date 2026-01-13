@@ -1,17 +1,17 @@
-// Supabase Edge Function: Create Snap Token
+// Edge Function Supabase: Buat Snap Token
 // Deploy: supabase functions deploy create-snap-token
 // ================================================
 
 import { serve } from 'https://deno.land/std@0.177.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
-// CORS headers
+// Header CORS
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-// Midtrans Config
+// Konfigurasi Midtrans
 const MIDTRANS_SERVER_KEY = Deno.env.get('MIDTRANS_SERVER_KEY') || 'SB-Mid-server-xxx'
 const IS_PRODUCTION = Deno.env.get('MIDTRANS_IS_PRODUCTION') === 'true'
 const MIDTRANS_API_URL = IS_PRODUCTION 
@@ -19,7 +19,7 @@ const MIDTRANS_API_URL = IS_PRODUCTION
   : 'https://app.sandbox.midtrans.com/snap/v1/transactions'
 
 serve(async (req) => {
-  // Handle CORS preflight
+  // Tangani preflight CORS
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
@@ -27,13 +27,13 @@ serve(async (req) => {
   try {
     const { orderId, amount, customerDetails, itemDetails, preferredPayment } = await req.json()
 
-    // Validate required fields
+    // Validasi field yang diperlukan
     if (!orderId || !amount) {
       throw new Error('Missing required fields: orderId, amount')
     }
 
-    // Map frontend payment method ID to Midtrans payment types
-    // Use exact Midtrans payment type names
+    // Map ID metode pembayaran frontend ke tipe pembayaran Midtrans
+    // Gunakan nama tipe pembayaran Midtrans yang tepat
     const paymentMethodMap: Record<string, string[]> = {
       'qris': ['gopay'], // QRIS is under GoPay in Midtrans
       'gopay': ['gopay'],
@@ -44,7 +44,7 @@ serve(async (req) => {
       'mandiri_va': ['echannel'],
     }
 
-    // Determine enabled payments - if preferredPayment is set, only show that method
+    // Tentukan pembayaran yang diaktifkan - jika preferredPayment diset, hanya tampilkan metode itu
     const enabledPayments = preferredPayment && paymentMethodMap[preferredPayment]
       ? paymentMethodMap[preferredPayment]
       : [
@@ -54,7 +54,7 @@ serve(async (req) => {
           'akulaku', 'kredivo',
         ]
 
-    // Build Midtrans request payload
+    // Bangun payload request Midtrans
     const payload = {
       transaction_details: {
         order_id: orderId,
@@ -69,14 +69,14 @@ serve(async (req) => {
           name: 'Pembayaran Program Les',
         },
       ],
-      // Enable only selected payment method for direct access
+      // Aktifkan hanya metode pembayaran yang dipilih untuk akses langsung
       enabled_payments: enabledPayments,
       callbacks: {
         finish: `${Deno.env.get('FRONTEND_URL') || 'http://localhost:5173'}/student/payment/success`,
       },
     }
 
-    // Call Midtrans API
+    // Panggil API Midtrans
     const authString = btoa(`${MIDTRANS_SERVER_KEY}:`)
     const response = await fetch(MIDTRANS_API_URL, {
       method: 'POST',
@@ -94,7 +94,7 @@ serve(async (req) => {
       throw new Error(result.error_messages?.join(', ') || 'Midtrans API error')
     }
 
-    // Return snap token and redirect URL
+    // Kembalikan snap token dan URL redirect
     return new Response(
       JSON.stringify({
         success: true,

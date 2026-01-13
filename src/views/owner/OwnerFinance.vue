@@ -21,7 +21,7 @@ const teacherPayments = ref([])
 const teachers = ref([])
 const paymentSchedules = ref([])
 
-// Summary
+// Ringkasan
 const summary = ref({
   totalIncome: 0,
   monthlyIncome: 0,
@@ -32,7 +32,7 @@ const summary = ref({
   totalWithdrawals: 0
 })
 
-// Les Place Info
+// Info Tempat Les
 const lesPlace = ref({
   id: '',
   name: '',
@@ -41,8 +41,8 @@ const lesPlace = ref({
   pendingTeacherPayments: 0
 })
 
-// Withdrawals
-// Withdrawals
+// Pencairan
+// Pencairan
 const withdrawals = ref([])
 const withdrawAmount = ref('')
 const withdrawMethod = ref('bank') // 'bank' or 'ewallet'
@@ -57,7 +57,7 @@ const platformFees = ref({
   max_withdrawal: 10000000
 })
 
-// Toast State
+// State Toast
 const showToast = ref(false)
 const toastMessage = ref('')
 const toastType = ref('success')
@@ -69,13 +69,13 @@ function toast(msg, type = 'success') {
   setTimeout(() => showToast.value = false, 3000)
 }
 
-// Owner Bank Info from Profile
+// Info Bank Pemilik dari Profil
 const ownerBankInfo = ref({
   bank_name: '', bank_account: '', bank_holder: '',
   ewallet_type: '', ewallet_number: ''
 })
 
-// Teacher Payment Modal
+// Modal Pembayaran Guru
 const showPaymentModal = ref(false)
 const selectedTeacher = ref(null)
 const paymentAmount = ref('')
@@ -83,34 +83,34 @@ const paymentPeriod = ref('')
 const payingTeacher = ref(false)
 const paymentError = ref('')
 
-// Confirmation Modal
+// Modal Konfirmasi
 const showConfirmModal = ref(false)
 const confirmPaymentData = ref(null)
 
-// Payment Detail Modal
+// Modal Detail Pembayaran
 const showPaymentDetailModal = ref(false)
 const selectedPaymentDetail = ref(null)
 
-// Delete Confirmation Modal
+// Modal Konfirmasi Hapus
 const showDeleteModal = ref(false)
 const paymentToDelete = ref(null)
 const deleting = ref(false)
 
-// Teacher Withdraw Requests
+// Permintaan Pencairan Guru
 const teacherWithdrawRequests = ref([])
 const processingWithdrawId = ref(null)
 
-// Filters
+// Filter
 const dateFilter = ref('month')
 const statusFilter = ref('')
 
-// Tabs - hide teacher-related tabs for pribadi owner
+// Tab - sembunyikan tab terkait guru untuk pemilik pribadi
 const tabs = computed(() => {
   const baseTabs = [
     { id: 'overview', label: 'Ringkasan' },
     { id: 'transactions', label: 'Transaksi Siswa' },
   ]
-  // Add teacher tab only for non-private (umum) owners
+  // Tambahkan tab guru hanya untuk pemilik non-private (umum)
   if (!lesPlace.value.is_private) {
     baseTabs.push({ id: 'teachers', label: 'Pembayaran Guru' })
   }
@@ -129,7 +129,7 @@ onMounted(async () => {
 async function fetchData() {
   loading.value = true
   try {
-      // First get owner ID from owners table
+      // Pertama dapatkan ID owner dari tabel owners
       const { data: ownerData } = await supabase
         .from('owners')
         .select('id')
@@ -142,7 +142,7 @@ async function fetchData() {
         return
       }
 
-      // Fetch les places using owner.id
+      // Ambil tempat les menggunakan owner.id
       const { data: lp } = await supabase
         .from('les_places')
         .select('id, name, is_private')
@@ -157,7 +157,7 @@ async function fetchData() {
         lesPlace.value.balance = 0
       }
 
-      // Get all programs for this les_place
+      // Dapatkan semua program untuk les_place ini
       const { data: programsData } = await supabase
         .from('programs')
         .select('id, name, price')
@@ -166,7 +166,7 @@ async function fetchData() {
       const programIds = (programsData || []).map(p => p.id)
       const programMap = Object.fromEntries((programsData || []).map(p => [p.id, p]))
 
-      // PRIMARY SOURCE: Fetch bookings with payment status (consistent with OwnerRegistrations)
+      // SUMBER UTAMA: Ambil booking dengan status pembayaran (konsisten dengan OwnerRegistrations)
       const { data: bookingsData } = await supabase
         .from('bookings')
         .select(`
@@ -177,7 +177,7 @@ async function fetchData() {
         .in('program_id', programIds.length > 0 ? programIds : ['00000000-0000-0000-0000-000000000000'])
         .order('created_at', { ascending: false })
       
-      // Map bookings to transaction-like format for display
+      // Map booking ke format mirip transaksi untuk tampilan
       const successStatuses = ['paid', 'settlement', 'capture']
       
       transactions.value = (bookingsData || []).map(booking => ({
@@ -195,9 +195,9 @@ async function fetchData() {
         programs: { name: booking.programs?.name }
       }))
 
-      // Calculate summary from bookings (source of truth)
-      // IMPORTANT: Only count bookings that are active/confirmed AND have successful payment
-      // Terminated/cancelled bookings should NOT count as revenue
+      // Hitung ringkasan dari booking (sumber kebenaran)
+      // PENTING: Hanya hitung booking yang aktif/terkonfirmasi DAN memiliki pembayaran sukses
+      // Booking yang dihentikan/dibatalkan TIDAK boleh dihitung sebagai pendapatan
       const validStatuses = ['active', 'confirmed']
       const completedBookings = (bookingsData || []).filter(b => 
         successStatuses.includes(b.payment_status) && 
@@ -212,12 +212,12 @@ async function fetchData() {
       const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
       const monthlyBookings = completedBookings.filter(b => new Date(b.created_at) >= startOfMonth)
       
-      // Calculate with platform fee deducted (10%)
+      // Hitung dengan potongan biaya platform (10%)
       const totalIncome = completedBookings.reduce((sum, b) => sum + Math.round((b.programs?.price || 0) * 0.9), 0)
       const monthlyIncome = monthlyBookings.reduce((sum, b) => sum + Math.round((b.programs?.price || 0) * 0.9), 0)
       const pendingIncome = pendingBookings.reduce((sum, b) => sum + (b.programs?.price || 0), 0)
 
-      // Update balance from completed bookings
+      // Perbarui saldo dari booking yang selesai
       lesPlace.value.balance = totalIncome
 
       summary.value = {
@@ -228,7 +228,7 @@ async function fetchData() {
         pendingTeacherPayments: 0
       }
 
-      // Fetch teacher payments
+      // Ambil pembayaran guru
       const { data: tp } = await supabase
         .from('teacher_payments')
         .select('*, teacher:teacher_id(name)')
@@ -237,14 +237,14 @@ async function fetchData() {
       
       teacherPayments.value = tp || []
       
-      // Calculate teacher payment summaries
+      // Hitung ringkasan pembayaran guru
       const paidToTeachers = (tp || []).filter(p => p.payment_status === 'completed')
       const pendingTeacher = (tp || []).filter(p => p.payment_status === 'pending')
       summary.value.totalPaidToTeachers = paidToTeachers.reduce((sum, p) => sum + (p.amount || 0), 0)
       summary.value.pendingTeacherPayments = pendingTeacher.reduce((sum, p) => sum + (p.amount || 0), 0)
       lesPlace.value.pendingTeacherPayments = summary.value.pendingTeacherPayments
       
-      // Fetch owner bank info from profile
+      // Ambil info bank pemilik dari profil
       const { data: ownerBankData } = await supabase
         .from('owners')
         .select('bank_name, bank_account, bank_holder, ewallet_type, ewallet_number')
@@ -259,7 +259,7 @@ async function fetchData() {
           ewallet_type: ownerBankData.ewallet_type || '',
           ewallet_number: ownerBankData.ewallet_number || ''
         }
-        // Set default method
+        // Set metode default
         if (ownerBankData.bank_name && ownerBankData.bank_account) {
           withdrawMethod.value = 'bank'
         } else if (ownerBankData.ewallet_type && ownerBankData.ewallet_number) {
@@ -267,7 +267,7 @@ async function fetchData() {
         }
       }
       
-      // Fetch Owner Withdrawals (History)
+      // Ambil Pencairan Pemilik (Riwayat)
       const { data: ownerWithdrawals } = await supabase
         .from('withdrawals')
         .select('*')
@@ -276,12 +276,12 @@ async function fetchData() {
       
       withdrawals.value = ownerWithdrawals || []
       
-      // Calculate total succcess/pending for summary
+      // Hitung total sukses/pending untuk ringkasan
       summary.value.totalWithdrawals = (ownerWithdrawals || [])
         .filter(w => ['completed', 'processing', 'pending'].includes(w.status))
         .reduce((sum, w) => sum + (w.amount || 0), 0)
 
-      // Fetch teachers for teacher payments tab (only for non-private owners)
+      // Ambil guru untuk tab pembayaran guru (hanya untuk pemilik non-private)
       if (!lesPlace.value.is_private) {
         await fetchTeachers()
         await fetchTeacherWithdrawRequests()
@@ -293,10 +293,10 @@ async function fetchData() {
   }
 }
 
-// Fetch teachers for this les place
+// Ambil guru untuk tempat les ini
 async function fetchTeachers() {
   try {
-    // Get owner id first
+    // Dapatkan owner id terlebih dahulu
     const { data: ownerData } = await supabase
       .from('owners')
       .select('id')
@@ -309,7 +309,7 @@ async function fetchTeachers() {
       return
     }
     
-    // Use same query as OwnerTeachers.vue
+    // Gunakan query yang sama seperti OwnerTeachers.vue
     const { data, error } = await supabase
       .from('teachers')
       .select('*, users(name, email)')
@@ -337,7 +337,7 @@ async function fetchTeachers() {
   }
 }
 
-// Open payment modal for a teacher
+// Buka modal pembayaran untuk guru
 function openPaymentModal(teacher) {
   selectedTeacher.value = teacher
   paymentAmount.value = teacher.salary || ''
@@ -346,7 +346,7 @@ function openPaymentModal(teacher) {
   showPaymentModal.value = true
 }
 
-// Pay teacher salary - Step 1: Show confirmation modal
+// Bayar gaji guru - Langkah 1: Tampilkan modal konfirmasi
 function payTeacher() {
   if (!selectedTeacher.value || !paymentAmount.value) return
   
@@ -361,7 +361,7 @@ function payTeacher() {
     return
   }
   
-  // Show confirmation modal
+  // Tampilkan modal konfirmasi
   confirmPaymentData.value = {
     teacher: selectedTeacher.value,
     amount: amount,
@@ -370,7 +370,7 @@ function payTeacher() {
   showConfirmModal.value = true
 }
 
-// Pay teacher salary - Step 2: Process after confirmation
+// Bayar gaji guru - Langkah 2: Proses setelah konfirmasi
 async function confirmPayTeacher() {
   if (!confirmPaymentData.value) return
   
@@ -382,12 +382,12 @@ async function confirmPayTeacher() {
   
   try {
     
-    // Insert teacher payment record
-    // Note: teacher_id references users table, not teachers table
+    // Insert catatan pembayaran guru
+    // Catatan: teacher_id mereferensi tabel users, bukan tabel teachers
     const { error: paymentErr } = await supabase
       .from('teacher_payments')
       .insert({
-        teacher_id: teacher.user_id, // Use user_id, not teachers.id
+        teacher_id: teacher.user_id, // Gunakan user_id, bukan teachers.id
         les_place_id: selectedLesPlace.value,
         amount: amount,
         payment_period: period,
@@ -398,7 +398,7 @@ async function confirmPayTeacher() {
     
     if (paymentErr) throw paymentErr
     
-    // Deduct balance from les_places
+    // Kurangi saldo dari les_places
     const newBalance = (lesPlace.value.balance || 0) - amount
     const { error: balanceErr } = await supabase
       .from('les_places')
@@ -410,7 +410,7 @@ async function confirmPayTeacher() {
       console.error('Error updating balance:', balanceErr)
     }
     
-    // Update teacher's salary as the default for next payment
+    // Perbarui gaji guru sebagai default untuk pembayaran berikutnya
     console.log('Updating salary for teacher.id:', teacher.id, 'Amount:', amount)
     const { error: salaryErr, data: salaryData } = await supabase
       .from('teachers')
@@ -423,18 +423,18 @@ async function confirmPayTeacher() {
       console.error('Error updating teacher salary:', salaryErr)
     }
     
-    // Update local state
+    // Perbarui state lokal
     lesPlace.value.balance = newBalance
     summary.value.totalPaidToTeachers += amount
     
-    // Update teacher salary in local list
+    // Perbarui gaji guru di daftar lokal
     const teacherIdx = teachers.value.findIndex(t => t.id === teacher.id)
     console.log('Updating local teacher at index:', teacherIdx, 'Teacher id:', teacher.id)
     if (teacherIdx !== -1) {
       teachers.value[teacherIdx].salary = amount
     }
     
-    // Close modal and refresh
+    // Tutup modal dan refresh
     showPaymentModal.value = false
     selectedTeacher.value = null
     await fetchData()
@@ -447,19 +447,19 @@ async function confirmPayTeacher() {
   }
 }
 
-// View payment detail
+// Lihat detail pembayaran
 function viewPaymentDetail(payment) {
   selectedPaymentDetail.value = payment
   showPaymentDetailModal.value = true
 }
 
-// Delete payment - Step 1: Show confirmation modal
+// Hapus pembayaran - Langkah 1: Tampilkan modal konfirmasi
 function deletePayment(payment) {
   paymentToDelete.value = payment
   showDeleteModal.value = true
 }
 
-// Delete payment - Step 2: Process after confirmation
+// Hapus pembayaran - Langkah 2: Proses setelah konfirmasi
 async function confirmDeletePayment() {
   if (!paymentToDelete.value) return
   
@@ -467,7 +467,7 @@ async function confirmDeletePayment() {
   deleting.value = true
   
   try {
-    // Delete payment record
+    // Hapus catatan pembayaran
     const { error: deleteErr } = await supabase
       .from('teacher_payments')
       .delete()
@@ -475,18 +475,18 @@ async function confirmDeletePayment() {
     
     if (deleteErr) throw deleteErr
     
-    // Restore balance to les_places
+    // Kembalikan saldo ke les_places
     const newBalance = (lesPlace.value.balance || 0) + payment.amount
     await supabase
       .from('les_places')
       .update({ balance: newBalance })
       .eq('id', selectedLesPlace.value)
     
-    // Update local state
+    // Perbarui state lokal
     lesPlace.value.balance = newBalance
     summary.value.totalPaidToTeachers -= payment.amount
     
-    // Close modal and refresh data
+    // Tutup modal dan refresh data
     showDeleteModal.value = false
     paymentToDelete.value = null
     await fetchData()
@@ -498,7 +498,7 @@ async function confirmDeletePayment() {
   }
 }
 
-// Fetch teacher withdraw requests for this owner's les place
+// Ambil permintaan pencairan guru untuk tempat les pemilik ini
 async function fetchTeacherWithdrawRequests() {
   try {
     const { data, error } = await supabase
@@ -519,7 +519,7 @@ async function fetchTeacherWithdrawRequests() {
   }
 }
 
-// Approve teacher withdraw request
+// Setujui permintaan pencairan guru
 async function approveWithdrawRequest(request) {
   if (processingWithdrawId.value) return
   processingWithdrawId.value = request.id
@@ -548,7 +548,7 @@ async function approveWithdrawRequest(request) {
   }
 }
 
-// Reject teacher withdraw request
+// Tolak permintaan pencairan guru
 async function rejectWithdrawRequest(request) {
   if (processingWithdrawId.value) return
   const reason = prompt('Alasan penolakan:')
@@ -581,7 +581,7 @@ async function rejectWithdrawRequest(request) {
   }
 }
 
-// Mark withdraw as completed (after manual transfer)
+// Tandai pencairan sebagai selesai (setelah transfer manual)
 async function completeWithdrawRequest(request) {
   if (processingWithdrawId.value) return
   if (!confirm(`Apakah Anda sudah mentransfer Rp ${request.net_amount?.toLocaleString('id-ID')} ke ${request.bank_name} ${request.bank_account}?`)) return
@@ -623,12 +623,12 @@ function formatDate(date) {
 
 function getStatusClass(status) {
   const classes = {
-    // Normalized statuses
+    // Status yang dinormalisasi
     completed: 'status-success',
     pending: 'status-warning',
     failed: 'status-error',
     processing: 'status-info',
-    // Original booking statuses
+    // Status booking asli
     paid: 'status-success',
     settlement: 'status-success',
     capture: 'status-success',
@@ -641,13 +641,13 @@ function getStatusClass(status) {
 
 function getStatusLabel(status) {
   const labels = {
-    // Normalized statuses
+    // Status yang dinormalisasi
     completed: 'Selesai',
     pending: 'Menunggu',
     failed: 'Gagal',
-    processing: 'Menunggu', // Unified processing/pending
+    processing: 'Menunggu', // Gabungan processing/pending
     rejected: 'Gagal',
-    // Original booking statuses
+    // Status booking asli
     paid: 'Selesai',
     settlement: 'Selesai',
     capture: 'Selesai',
@@ -688,17 +688,17 @@ const transactionCounts = computed(() => {
   return { all, completed, pending, failed }
 })
 
-// Computed: Available Balance = Total Income - Teacher Payments - Withdrawals
+// Computed: Saldo Tersedia = Total Pendapatan - Pembayaran Guru - Pencairan
 const availableBalance = computed(() => {
   const totalIncome = summary.value.totalIncome || 0
   const paidToTeachers = summary.value.totalPaidToTeachers || 0
   const totalWithdrawals = summary.value.totalWithdrawals || 0
   
-  // Available balance should exclude money already paid to teachers AND previous withdrawals
+  // Saldo tersedia harus mengecualikan uang yang sudah dibayarkan ke guru DAN pencairan sebelumnya
   return totalIncome - paidToTeachers - totalWithdrawals
 })
 
-// Computed: Withdrawable balance (same as available balance)
+// Computed: Saldo yang dapat dicairkan (sama dengan saldo tersedia)
 const withdrawableBalance = computed(() => {
   return availableBalance.value
 })
@@ -707,7 +707,7 @@ const maxWithdraw = computed(() => availableBalance.value)
 
 async function handleWithdraw() {
   withdrawError.value = ''
-  // Handle formatted number if using a mask, or simple number
+  // Tangani angka yang diformat jika menggunakan mask, atau angka sederhana
   let rawAmount = withdrawAmount.value.toString().replace(/\./g, '')
   const amount = parseInt(rawAmount)
   
@@ -716,7 +716,7 @@ async function handleWithdraw() {
     return
   }
   
-  // Validate destination based on method
+  // Validasi tujuan berdasarkan metode
   let destination = null
   let account = null
   let holder = null
@@ -745,7 +745,7 @@ async function handleWithdraw() {
       available: availableBalance.value
   })
 
-  // Ensure parsing is correct
+  // Pastikan parsing benar
   if (isNaN(amount)) {
       withdrawError.value = 'Jumlah tidak valid'
       return
@@ -757,7 +757,7 @@ async function handleWithdraw() {
      return
   }
   
-  // Show Confirm Modal
+  // Tampilkan Modal Konfirmasi
   withdrawConfirmData.value = {
     amount,
     fee: platformFees.value.withdrawal_fee,
@@ -778,7 +778,7 @@ async function confirmWithdraw() {
   withdrawError.value = ''
 
   try {
-      // Sync balance logic to ensure balance row exists in DB
+      // Sinkronkan logika saldo untuk memastikan baris saldo ada di DB
       await recalculateOwnerBalance(authStore.user.id, lesPlace.value.id)
 
       const data = withdrawConfirmData.value
@@ -796,8 +796,8 @@ async function confirmWithdraw() {
          throw new Error(result.error || 'Gagal memproses pencairan')
       }
       
-      // Request submitted successfully. Status is 'pending'. 
-      // Admin will manually process it.
+      // Permintaan diajukan berhasil. Status 'pending'.
+      // Admin akan memprosesnya secara manual.
       
       toast('Permintaan pencairan berhasil dikirim', 'success')
       withdrawAmount.value = ''

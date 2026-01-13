@@ -24,7 +24,7 @@ const profile = ref({
   // Business
   company_name: '', business_type: '', npwp: '', business_desc: '',
   
-  // Address
+  // Alamat
   address: '', province_id: '', province_name: '', city_id: '', city_name: '',
   
   // Bank & E-Wallet

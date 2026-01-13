@@ -15,7 +15,7 @@ const loading = ref(true)
 const refreshing = ref(false)
 const activeTab = ref('overview')
 
-// Stats data
+// Data statistik
 const stats = ref({
   totalRevenue: 0,
   monthRevenue: 0,
@@ -26,17 +26,17 @@ const stats = ref({
   pendingRefunds: 0
 })
 
-// Chart data
+// Data grafik
 const chartData = ref([])
 const maxChartValue = computed(() => Math.max(...chartData.value.map(d => d.total), 1))
 
-// Recent revenue
+// Pendapatan terbaru
 const recentRevenue = ref([])
 
-// Pending withdrawals
+// Pencairan tertunda
 const pendingWithdrawals = ref([])
 
-// All refunds
+// Semua refund
 const allRefunds = ref([])
 
 const tabs = [
@@ -80,12 +80,12 @@ async function fetchData() {
     const pendingRefundsCount = (allRefunds.value || []).filter(r => r.status === 'pending').length
 
     // 3. Calculate Revenue Stats
-    // Try to fetch from platform_revenue first
+    // Coba ambil dari platform_revenue terlebih dahulu
     const statsResult = await getAdminRevenueStats()
     if (statsResult.success && statsResult.stats.totalRevenue > 0) {
       stats.value = statsResult.stats
-      // Manually add withdrawal fee if not included in API (API might not include it yet)
-      // Assuming API only returns platform fees for now based on previous code
+      // Tambahkan biaya penarikan manual jika tidak termasuk di API (API mungkin belum memasukkannya)
+      // Asumsikan API hanya return platform fees untuk saat ini berdasarkan kode sebelumnya
       if (stats.value.breakdown && !stats.value.breakdown.withdrawal_fee) {
          stats.value.totalRevenue += totalWithdrawalFee
          stats.value.breakdown.withdrawal_fee = totalWithdrawalFee
@@ -107,7 +107,7 @@ async function fetchData() {
       const monthlyBookings = completedBookings.filter(b => new Date(b.created_at) >= startOfMonth)
       const monthlyWithdrawals = completedWithdrawals.filter(w => new Date(w.completed_at || w.created_at) >= startOfMonth)
       
-      // Calculate platform fee (10%) from completed bookings
+      // Hitung biaya platform (10%) dari booking yang selesai
       const totalPlatformFee = completedBookings.reduce((sum, b) => sum + Math.round((b.programs?.price || 0) * 0.1), 0)
       const monthlyPlatformFee = monthlyBookings.reduce((sum, b) => sum + Math.round((b.programs?.price || 0) * 0.1), 0)
       const monthlyWithdrawalFee = monthlyWithdrawals.reduce((sum, w) => sum + (w.fee || 0), 0)
@@ -133,7 +133,7 @@ async function fetchData() {
       .in('payment_status', successStatuses)
       .in('status', ['active', 'confirmed', 'completed'])
     
-    // Group by month
+    // Kelompokkan berdasarkan bulan
     const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des']
     const now = new Date()
     const chartMonths = []
@@ -169,7 +169,7 @@ async function fetchData() {
       }
     })
 
-    // Fetch recent revenue from bookings instead
+    // Ambil pendapatan terbaru dari booking sebagai gantinya
     const { data: recentBookings } = await supabase
       .from('bookings')
       .select('id, status, payment_status, created_at, programs(name, price, les_places(id, name))')
@@ -224,7 +224,7 @@ async function rejectWithdrawal(withdrawal) {
   if (!reason) return
   
   try {
-    // Return balance to user
+    // Kembalikan saldo ke pengguna
     const { data: balance } = await supabase
       .from('balances')
       .select('available_balance')

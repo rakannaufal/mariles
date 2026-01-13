@@ -1,6 +1,6 @@
 // ============================================================
-// Teacher Data Composable
-// Centralized data fetching and CRUD operations for teacher pages
+// Composable Data Pengajar
+// Pengambilan data terpusat dan operasi CRUD untuk halaman pengajar
 // ============================================================
 
 import { ref, computed } from 'vue'
@@ -10,7 +10,7 @@ import { useAuthStore } from '@/stores/auth'
 export function useTeacherData() {
   const authStore = useAuthStore()
   
-  // Reactive states
+  // State reaktif
   const loading = ref(false)
   const error = ref(null)
   const teacherProfile = ref(null)
@@ -30,10 +30,10 @@ export function useTeacherData() {
     attendanceRate: 0
   })
 
-  // Profile completion status
+  // Status kelengkapan profil
   const isProfileComplete = computed(() => teacherProfile.value?.is_profile_complete || false)
 
-  // ==================== TEACHER PROFILE ====================
+  // ==================== PROFIL PENGAJAR ====================
   async function fetchTeacherProfile() {
     if (!authStore.user?.id) return null
     
@@ -68,7 +68,7 @@ export function useTeacherData() {
     }
   }
 
-  // ==================== SCHEDULE / PROGRAMS ====================
+  // ==================== JADWAL / PROGRAM ====================
   async function fetchTeacherSchedule() {
     if (!teacherProfile.value?.les_place_id) {
       await fetchTeacherProfile()
@@ -95,19 +95,19 @@ export function useTeacherData() {
       
       if (err) throw err
       
-      // Transform schedule data - handle multiple formats
+      // Transform data jadwal - tangani berbagai format
       const scheduleItems = []
       data?.forEach(program => {
         if (program.schedule && typeof program.schedule === 'object') {
-          // Check format of schedule
+          // Cek format jadwal
           const scheduleObj = program.schedule
           
           // Format 1: { "Senin": "08:00-10:00", "Rabu": "14:00-16:00" }
-          // Format 2: { "start": "09:00", "end": "11:00" } - single schedule
+          // Format 2: { "start": "09:00", "end": "11:00" } - jadwal tunggal
           // Format 3: { "day": "Senin", "start": "09:00", "end": "11:00" }
           
           if (scheduleObj.start && scheduleObj.end) {
-            // Format 2 or 3: has start/end properties
+            // Format 2 atau 3: punya properti start/end
             const timeStr = `${scheduleObj.start} - ${scheduleObj.end}`
             const dayName = scheduleObj.day || 'Setiap Hari'
             const dayIndex = getDayIndex(dayName) !== -1 ? getDayIndex(dayName) : 0
@@ -129,15 +129,15 @@ export function useTeacherData() {
               meeting_url: program.meeting_url
             })
           } else {
-            // Format 1: day names as keys
+            // Format 1: nama hari sebagai kunci
             Object.entries(scheduleObj).forEach(([day, time]) => {
-              // Skip non-day keys
+              // Lewati kunci non-hari
               if (['start', 'end', 'day'].includes(day.toLowerCase())) return
               
               const dayIndex = getDayIndex(day)
               let timeStr = time
               
-              // Handle if time is object {start, end}
+              // Tangani jika time adalah objek {start, end}
               if (typeof time === 'object' && time.start && time.end) {
                 timeStr = `${time.start} - ${time.end}`
               }
@@ -165,21 +165,21 @@ export function useTeacherData() {
         }
       })
       
-      // Filter programs to only show those assigned to this teacher
-      // Teacher's assigned programs are stored in specialization array (as program names)
+      // Filter program untuk hanya menampilkan yang ditugaskan ke pengajar ini
+      // Program yang ditugaskan pengajar disimpan di array specialization (sebagai nama program)
       const assignedProgramNames = teacherProfile.value?.specialization || []
       
       if (assignedProgramNames.length > 0) {
-        // Only show programs that the teacher is assigned to
+        // Hanya tampilkan program yang ditugaskan ke pengajar
         programs.value = data?.filter(p => assignedProgramNames.includes(p.name)) || []
       } else {
-        // CHANGED: If no specialization set, valid teacher should have NO programs.
-        // We do NOT default to all programs anymore.
+        // BERUBAH: Jika tidak ada specialization, pengajar valid seharusnya TIDAK punya program.
+        // Kita TIDAK default ke semua program lagi.
         programs.value = []
       }
       
       schedule.value = scheduleItems.filter(item => {
-        // Also filter schedule items based on assigned programs
+        // Juga filter item jadwal berdasarkan program yang ditugaskan
         return programs.value.some(p => p.id === item.program_id)
       })
       
@@ -193,7 +193,7 @@ export function useTeacherData() {
     }
   }
 
-  // ==================== STUDENTS ====================
+  // ==================== SISWA ====================
   async function fetchTeacherStudents() {
     if (!teacherProfile.value?.les_place_id) {
       await fetchTeacherProfile()
@@ -207,7 +207,7 @@ export function useTeacherData() {
     try {
       loading.value = true
       
-      // Get programs for this les_place
+      // Dapatkan program untuk les_place ini
       const { data: programsData, error: progErr } = await supabase
         .from('programs')
         .select('id, name, level')
@@ -223,7 +223,7 @@ export function useTeacherData() {
         return []
       }
       
-      // Get bookings with student details
+      // Dapatkan booking dengan detail siswa
       const { data: bookingsData, error: bookErr } = await supabase
         .from('bookings')
         .select(`
@@ -242,22 +242,22 @@ export function useTeacherData() {
       
       if (bookErr) throw bookErr
       
-      // Deduplicate by student_id + program_id combination
-      // Same student with same program = show once (keep latest booking)
-      // Same student with different programs = show separately
+      // Deduplikasi berdasarkan kombinasi student_id + program_id
+      // Siswa sama dengan program sama = tampilkan sekali (simpan booking terbaru)
+      // Siswa sama dengan program berbeda = tampilkan terpisah
       const studentMap = new Map()
       
-      // Sort bookings by created_at DESC to keep latest booking
+      // Urutkan booking berdasarkan created_at DESC untuk menyimpan booking terbaru
       const sortedBookings = [...(bookingsData || [])].sort((a, b) => 
         new Date(b.created_at) - new Date(a.created_at)
       )
       
       sortedBookings.forEach(booking => {
         if (booking.students?.users) {
-          // Use student_id + program_id as unique key
+          // Gunakan student_id + program_id sebagai kunci unik
           const uniqueKey = `${booking.students.id}_${booking.program_id}`
           
-          // Only add if not already exists (we keep the latest booking due to sort)
+          // Hanya tambah jika belum ada (simpan booking terbaru karena sudah di-sort)
           if (!studentMap.has(uniqueKey)) {
             studentMap.set(uniqueKey, {
               id: booking.students.id,
@@ -282,11 +282,11 @@ export function useTeacherData() {
         }
       })
       
-      // Calculate Final Scores
+      // Hitung Skor Akhir
       const studentUserIds = Array.from(studentMap.values()).map(s => s.user_id)
       
       if (studentUserIds.length > 0 && lesPlace.value?.id) {
-        // 1. Fetch Settings
+        // 1. Ambil Pengaturan
         const { data: lpSettings } = await supabase
           .from('les_places')
           .select('settings')
@@ -298,7 +298,7 @@ export function useTeacherData() {
           latihan_weight: lpSettings?.settings?.latihan_weight ?? 40
         }
 
-        // 2. Fetch all valid quizzes and exercises for the les_place
+        // 2. Ambil semua kuis dan latihan valid untuk les_place
         const [ { data: quizzes }, { data: exercises } ] = await Promise.all([
            supabase.from('quizzes').select('id').eq('les_place_id', lesPlace.value.id).eq('is_published', true),
            supabase.from('course_materials').select('id').eq('type', 'exercise').eq('is_active', true)
@@ -308,31 +308,31 @@ export function useTeacherData() {
         const quizIds = quizzes?.map(q => q.id) || []
         const materialIds = exercises?.map(e => e.id) || []
 
-        // 3. Fetch Scores
+        // 3. Ambil Skor
         const [ { data: quizAttempts }, { data: submissions } ] = await Promise.all([
           quizIds.length > 0 ? supabase.from('quiz_attempts').select('student_id, quiz_id, score').in('student_id', studentUserIds).in('quiz_id', quizIds) : { data: [] },
           materialIds.length > 0 ? supabase.from('exercise_submissions').select('student_id, material_id, score').in('student_id', studentUserIds).in('material_id', materialIds).not('score', 'is', null) : { data: [] }
         ])
 
-        // 4. Fetch all materials per program for progress calculation
+        // 4. Ambil semua materi per program untuk kalkulasi progres
         const { data: allMaterials } = await supabase
           .from('course_materials')
           .select('id, program_id')
           .in('program_id', programIds)
           .eq('is_active', true)
         
-        // Get student IDs (students.id, not user_id)
+        // Dapatkan ID siswa (students.id, bukan user_id)
         const studentIds = Array.from(studentMap.values()).map(s => s.id)
         
-        // Fetch material_progress
+        // Ambil material_progress
         const { data: materialProgress } = await supabase
           .from('material_progress')
           .select('student_id, material_id, is_completed')
           .in('student_id', studentIds)
 
-        // 5. Process Scores and Progress for each student
+        // 5. Proses Skor dan Progres untuk setiap siswa
         studentMap.forEach(student => {
-          // Quiz Average
+          // Rata-rata Kuis
           const sAttempts = quizAttempts?.filter(a => a.student_id === student.user_id) || []
           const uniqueQuizzes = {}
           sAttempts.forEach(a => {
@@ -343,14 +343,14 @@ export function useTeacherData() {
           const quizScores = Object.values(uniqueQuizzes)
           const quizAvg = quizScores.length > 0 ? quizScores.reduce((a, b) => a + b, 0) / quizScores.length : 0
 
-          // Latihan Average
+          // Rata-rata Latihan
           const sSubs = submissions?.filter(s => s.student_id === student.user_id) || []
-          // Submissions are unique per (student, material) by constraint, but safer to group if logic changes
+          // Submission unik per (student, material) berdasarkan constraint, tapi lebih aman untuk grup jika logika berubah
           const latihanScores = sSubs.map(s => s.score)
           const latihanAvg = latihanScores.length > 0 ? latihanScores.reduce((a, b) => a + b, 0) / latihanScores.length : 0
 
-          // Weighted Final Score
-          // Only calculate if there is at least one score or if we want to show 0
+          // Skor Akhir Tertimbang
+          // Hanya hitung jika ada setidaknya satu skor atau jika ingin menampilkan 0
           if (quizScores.length > 0 || latihanScores.length > 0) {
              const final = Math.round((quizAvg * (settings.quiz_weight / 100)) + (latihanAvg * (settings.latihan_weight / 100)))
              student.finalScore = final
@@ -358,7 +358,7 @@ export function useTeacherData() {
              student.finalScore = 0
           }
           
-          // Calculate Progress from material_progress
+          // Hitung Progres dari material_progress
           const programMaterials = allMaterials?.filter(m => m.program_id === student.program_id) || []
           const totalMaterials = programMaterials.length
           
@@ -388,7 +388,7 @@ export function useTeacherData() {
     }
   }
 
-  // ==================== ATTENDANCE ====================
+  // ==================== KEHADIRAN ====================
   async function fetchAttendanceSessions() {
     if (!teacherProfile.value?.les_place_id) {
       await fetchTeacherProfile()
@@ -402,7 +402,7 @@ export function useTeacherData() {
     try {
       loading.value = true
       
-      // Get programs with schedule
+      // Dapatkan program dengan jadwal
       const { data: programsData } = await supabase
         .from('programs')
         .select('id, name, subject, level, current_students, capacity, schedule')
@@ -416,7 +416,7 @@ export function useTeacherData() {
         return []
       }
       
-      // Get bookings
+      // Dapatkan booking
       const { data: bookingsData } = await supabase
         .from('bookings')
         .select('id, program_id')
@@ -425,7 +425,7 @@ export function useTeacherData() {
       
       const bookingIds = bookingsData?.map(b => b.id) || []
       
-      // Get attendance records
+      // Dapatkan catatan kehadiran
       const { data: attendanceData, error: attErr } = await supabase
         .from('attendance')
         .select(`
@@ -444,7 +444,7 @@ export function useTeacherData() {
       
       if (attErr) throw attErr
       
-      // Group by date and program
+      // Kelompokkan berdasarkan tanggal dan program
       const sessionMap = new Map()
       
       attendanceData?.forEach(att => {
@@ -478,7 +478,7 @@ export function useTeacherData() {
         })
       })
       
-      // Also add pending sessions from programs without attendance
+      // Juga tambah sesi pending dari program tanpa kehadiran
       const today = new Date().toISOString().split('T')[0]
       const todayDayIndex = new Date().getDay() || 7 // 0=Sunday, need to convert
       const dayNamesMap = {
@@ -490,7 +490,7 @@ export function useTeacherData() {
       programsData?.forEach(prog => {
         const key = `${today}-${prog.id}`
         if (!sessionMap.has(key)) {
-          // Try to get time from schedule JSON - handle multiple formats
+          // Coba dapatkan waktu dari JSON jadwal - tangani berbagai format
           let scheduleTime = '-'
           let scheduleDay = todayDayName
           
@@ -517,7 +517,7 @@ export function useTeacherData() {
                 }
                 scheduleDay = todayDayName
               } else {
-                // Get first available schedule
+                // Dapatkan jadwal pertama yang tersedia
                 const firstEntry = Object.entries(prog.schedule)[0]
                 if (firstEntry) {
                   const [day, time] = firstEntry
@@ -563,7 +563,7 @@ export function useTeacherData() {
 
   async function saveAttendance(bookingId, sessionDate, status, notes = null) {
     try {
-      // Check if attendance exists
+      // Cek apakah kehadiran sudah ada
       const { data: existing } = await supabase
         .from('attendance')
         .select('id')
@@ -602,14 +602,14 @@ export function useTeacherData() {
     }
   }
 
-  // Check which programs have attendance records for a given date
+  // Cek program mana yang punya catatan kehadiran untuk tanggal tertentu
   async function checkAttendanceByDate(sessionDate) {
     if (!teacherProfile.value?.les_place_id) {
       return {}
     }
     
     try {
-      // Get programs for this les_place
+      // Dapatkan program untuk les_place ini
       const { data: programsData } = await supabase
         .from('programs')
         .select('id')
@@ -620,7 +620,7 @@ export function useTeacherData() {
       
       if (programIds.length === 0) return {}
       
-      // Get bookings for these programs
+      // Dapatkan booking untuk program ini
       const { data: bookingsData } = await supabase
         .from('bookings')
         .select('id, program_id')
@@ -631,7 +631,7 @@ export function useTeacherData() {
       
       const bookingIds = bookingsData.map(b => b.id)
       
-      // Get attendance records for this date
+      // Dapatkan catatan kehadiran untuk tanggal ini
       const { data: attendanceData, error: attErr } = await supabase
         .from('attendance')
         .select('id, booking_id, status')
@@ -640,7 +640,7 @@ export function useTeacherData() {
       
       if (attErr) throw attErr
       
-      // Group by program_id to check which programs have attendance
+      // Kelompokkan berdasarkan program_id untuk cek program mana yang punya kehadiran
       const programStatusMap = {}
       
       attendanceData?.forEach(att => {
@@ -663,7 +663,7 @@ export function useTeacherData() {
     }
   }
 
-  // ==================== MATERIALS ====================
+  // ==================== MATERI ====================
   async function fetchTeacherMaterials() {
     if (!teacherProfile.value?.les_place_id) {
       await fetchTeacherProfile()
@@ -677,7 +677,7 @@ export function useTeacherData() {
     try {
       loading.value = true
       
-      // Get programs for this les_place
+      // Dapatkan program untuk les_place ini
       const { data: programsData, error: progErr } = await supabase
         .from('programs')
         .select('id, name')
@@ -685,18 +685,18 @@ export function useTeacherData() {
         
       if (progErr) throw progErr
       
-      // Use helper to get assigned programs only
-      // Teacher's assigned programs are stored in specialization array (as program names)
+      // Gunakan helper untuk mendapatkan program yang ditugaskan saja
+      // Program yang ditugaskan pengajar disimpan di array specialization (sebagai nama program)
       const assignedProgramNames = teacherProfile.value?.specialization || []
       
       let validPrograms = []
       
       if (assignedProgramNames.length > 0) {
-        // Teacher has specific assignments
+        // Pengajar punya penugasan spesifik
         validPrograms = programsData?.filter(p => assignedProgramNames.includes(p.name)) || []
       } else {
-        // Teacher has NO assignments. 
-        // DO NOT fallback to all programs. Return empty.
+        // Pengajar TIDAK punya penugasan.
+        // JANGAN fallback ke semua program. Kembalikan kosong.
         validPrograms = []
       }
       
@@ -724,7 +724,7 @@ export function useTeacherData() {
         id: m.id,
         title: m.title,
         description: m.description,
-        type: m.type, // Keep original type for filtering
+        type: m.type, // Simpan tipe asli untuk filtering
         exercise_type: m.exercise_type,
         deadline: m.deadline,
         duration_minutes: m.duration_minutes,

@@ -6,7 +6,7 @@ export function useFavorites() {
   const loading = ref(false)
   const error = ref(null)
 
-  // Fetch user's favorites
+  // Ambil favorit pengguna
   async function fetchFavorites(userId) {
     loading.value = true
     error.value = null
@@ -50,7 +50,7 @@ export function useFavorites() {
     }
   }
 
-  // Check if les place is favorited
+  // Cek apakah tempat les difavoritkan
   async function isFavorited(userId, lesPlaceId) {
     try {
       const { data, error: err } = await supabase
@@ -68,7 +68,7 @@ export function useFavorites() {
     }
   }
 
-  // Add to favorites
+  // Tambah ke favorit
   async function addFavorite(userId, lesPlaceId) {
     loading.value = true
     error.value = null
@@ -93,7 +93,7 @@ export function useFavorites() {
     }
   }
 
-  // Remove from favorites
+  // Hapus dari favorit
   async function removeFavorite(userId, lesPlaceId) {
     loading.value = true
     error.value = null
@@ -114,7 +114,7 @@ export function useFavorites() {
     }
   }
 
-  // Toggle favorite
+  // Toggle favorit
   async function toggleFavorite(userId, lesPlaceId) {
     const isFav = await isFavorited(userId, lesPlaceId)
     if (isFav) {

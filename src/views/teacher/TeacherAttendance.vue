@@ -18,7 +18,7 @@ const {
   checkAttendanceByDate
 } = useTeacherData()
 
-// Date navigation
+// Navigasi tanggal
 const selectedDayIndex = ref(new Date().getDay() || 7) // 1-7, Monday=1, Sunday=7
 
 const days = [
@@ -34,12 +34,12 @@ const days = [
 const selectedProgram = ref('all')
 const searchQuery = ref('')
 
-// Modal state
+// State modal
 const showAttendanceModal = ref(false)
 const selectedSession = ref(null)
 const attendanceList = ref([])
 
-// Notification state
+// State notifikasi
 const notification = ref({ show: false, type: '', message: '' })
 
 function showNotification(type, message) {
@@ -49,7 +49,7 @@ function showNotification(type, message) {
   }, 4000)
 }
 
-// Week calculation
+// Perhitungan minggu
 function getWeekStart(date) {
   const d = new Date(date)
   const day = d.getDay()
@@ -72,18 +72,18 @@ function getWeekDates() {
 
 const weekDates = computed(() => getWeekDates())
 
-// Get unique classes from schedule
+// Dapatkan kelas unik dari jadwal
 const classes = computed(() => {
   const unique = [...new Set(schedule.value.map(s => s.class))]
   return unique.filter(c => c && c !== '-' && c !== 'Umum')
 })
 
-// Get schedule for selected day
+// Dapatkan jadwal untuk hari yang dipilih
 const todaySchedule = computed(() => {
   return schedule.value.filter(s => s.day === selectedDayIndex.value)
 })
 
-// Filter sessions
+// Filter sesi
 const filteredSessions = computed(() => {
   return todaySchedule.value.filter(s => {
     const matchProgram = selectedProgram.value === 'all' || s.program_id === selectedProgram.value
@@ -94,12 +94,12 @@ const filteredSessions = computed(() => {
   })
 })
 
-// Stats for selected day
+// Statistik untuk hari yang dipilih
 const attendanceStats = computed(() => {
   const total = todaySchedule.value.length
   const completed = todaySchedule.value.filter(s => s.attendance_status === 'completed').length
   const pending = total - completed
-  // Use actual registered students count from students data
+  // Gunakan jumlah siswa terdaftar aktual dari data siswa
   const totalStudents = students.value.length
   
   return { total, completed, pending, totalStudents }
@@ -163,7 +163,7 @@ function openAttendanceModal(session) {
     .filter(s => s.class === session.class || s.subject === session.subject)
     .map(s => ({
       id: s.id,
-      booking_id: s.booking_id, // Include booking_id for database save
+      booking_id: s.booking_id, // Sertakan booking_id untuk simpan ke database
       name: s.name,
       status: 'present',
       note: ''
@@ -173,7 +173,7 @@ function openAttendanceModal(session) {
     for (let i = 0; i < (session.students || session.capacity || 5); i++) {
       attendanceList.value.push({
         id: i + 1,
-        booking_id: null, // No booking for placeholder students
+        booking_id: null, // Tidak ada booking untuk siswa placeholder
         name: `Siswa ${i + 1}`,
         status: 'present',
         note: ''
@@ -195,13 +195,13 @@ async function submitAttendance() {
   const late = attendanceList.value.filter(s => s.status === 'late').length
   const sick = attendanceList.value.filter(s => s.status === 'sick').length
   
-  // Get session date for this attendance
+  // Dapatkan tanggal sesi untuk absensi ini
   const dayOffset = selectedDayIndex.value - 1
   const sessionDate = new Date(currentWeekStart.value)
   sessionDate.setDate(sessionDate.getDate() + dayOffset)
   const sessionDateStr = sessionDate.toISOString().split('T')[0]
   
-  // Save each student's attendance to database
+  // Simpan absensi setiap siswa ke database
   let savedCount = 0
   for (const student of attendanceList.value) {
     if (student.booking_id) {
@@ -225,14 +225,14 @@ async function submitAttendance() {
   
   if (savedCount > 0) {
     showNotification('success', `Absensi berhasil disimpan ke database! Hadir: ${present}, Tidak Hadir: ${absent}, Terlambat: ${late}, Sakit/Izin: ${sick}`)
-    // Reload attendance status after save
+    // Muat ulang status absensi setelah simpan
     await loadAttendanceStatus()
   } else {
     showNotification('success', `Absensi tersimpan (lokal)! Hadir: ${present}, Tidak Hadir: ${absent}, Terlambat: ${late}, Sakit/Izin: ${sick}`)
   }
 }
 
-// Load attendance status for current selected day
+// Muat status absensi untuk hari yang dipilih saat ini
 async function loadAttendanceStatus() {
   const dayOffset = selectedDayIndex.value - 1
   const sessionDate = new Date(currentWeekStart.value)
@@ -241,7 +241,7 @@ async function loadAttendanceStatus() {
   
   const statusMap = await checkAttendanceByDate(sessionDateStr)
   
-  // Update schedule items with attendance status
+  // Perbarui item jadwal dengan status absensi
   schedule.value.forEach(session => {
     if (statusMap[session.program_id]?.hasAttendance) {
       session.attendance_status = 'completed'
@@ -256,7 +256,7 @@ async function loadAttendanceStatus() {
   })
 }
 
-// Watch for day/week changes to reload attendance
+// Watch perubahan hari/minggu untuk muat ulang absensi
 
 watch([selectedDayIndex, currentWeekStart], async () => {
   await loadAttendanceStatus()

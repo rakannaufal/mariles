@@ -1,15 +1,15 @@
 /**
- * Export Service
+ * Layanan Ekspor
  * ==============
  * 
- * Utilities for exporting data to PDF and Excel formats
+ * Utilitas untuk mengekspor data ke format PDF dan Excel
  */
 
 /**
- * Export data to CSV (Excel compatible)
- * @param {Array} data - Array of objects to export
- * @param {string} filename - Filename without extension
- * @param {Array} columns - Array of { key, label } for column mapping
+ * Ekspor data ke CSV (kompatibel Excel)
+ * @param {Array} data - Array objek untuk diekspor
+ * @param {string} filename - Nama file tanpa ekstensi
+ * @param {Array} columns - Array { key, label } untuk pemetaan kolom
  */
 export function exportToCSV(data, filename, columns) {
   if (!data || data.length === 0) {
@@ -17,21 +17,21 @@ export function exportToCSV(data, filename, columns) {
     return
   }
 
-  // Create CSV header
+  // Buat header CSV
   const headers = columns.map(col => `"${col.label}"`).join(',')
   
-  // Create CSV rows
+  // Buat baris CSV
   const rows = data.map(item => {
     return columns.map(col => {
       let value = item[col.key]
       
-      // Handle nested properties
+      // Tangani properti bersarang
       if (col.key.includes('.')) {
         const keys = col.key.split('.')
         value = keys.reduce((obj, key) => obj?.[key], item)
       }
       
-      // Format value
+      // Format nilai
       if (value === null || value === undefined) {
         value = ''
       } else if (typeof value === 'number') {
@@ -42,30 +42,30 @@ export function exportToCSV(data, filename, columns) {
         value = value.toLocaleDateString('id-ID')
       }
       
-      // Escape quotes
+      // Escape tanda kutip
       value = String(value).replace(/"/g, '""')
       
       return `"${value}"`
     }).join(',')
   })
 
-  // Combine header and rows
+  // Gabungkan header dan baris
   const csv = [headers, ...rows].join('\n')
   
-  // Add BOM for Excel UTF-8 compatibility
+  // Tambahkan BOM untuk kompatibilitas UTF-8 Excel
   const BOM = '\uFEFF'
   const blob = new Blob([BOM + csv], { type: 'text/csv;charset=utf-8;' })
   
-  // Download
+  // Unduh
   downloadBlob(blob, `${filename}.csv`)
 }
 
 /**
- * Export data to simple HTML table (printable PDF)
- * Opens in new tab for printing
- * @param {Array} data - Array of objects
- * @param {string} title - Document title
- * @param {Array} columns - Array of { key, label }
+ * Ekspor data ke tabel HTML sederhana (PDF yang bisa dicetak)
+ * Buka di tab baru untuk pencetakan
+ * @param {Array} data - Array objek
+ * @param {string} title - Judul dokumen
+ * @param {Array} columns - Array { key, label }
  */
 export function exportToPrintablePDF(data, title, columns) {
   if (!data || data.length === 0) {
@@ -129,14 +129,14 @@ export function exportToPrintablePDF(data, title, columns) {
     </html>
   `
 
-  // Open in new tab
+  // Buka di tab baru
   const newWindow = window.open('', '_blank')
   newWindow.document.write(html)
   newWindow.document.close()
 }
 
 /**
- * Format currency for export
+ * Format mata uang untuk ekspor
  * @param {number} amount
  */
 export function formatCurrency(amount) {
@@ -144,7 +144,7 @@ export function formatCurrency(amount) {
 }
 
 /**
- * Format date for export
+ * Format tanggal untuk ekspor
  * @param {string} date
  */
 export function formatDate(date) {
@@ -153,7 +153,7 @@ export function formatDate(date) {
 }
 
 /**
- * Download blob as file
+ * Unduh blob sebagai file
  * @param {Blob} blob
  * @param {string} filename
  */
@@ -169,13 +169,13 @@ function downloadBlob(blob, filename) {
 }
 
 // ============================================================
-// PRESET EXPORTS
+// EKSPOR PRESET
 // ============================================================
 
 /**
- * Export finance report
+ * Ekspor laporan keuangan
  * @param {Array} transactions
- * @param {string} format - 'csv' or 'pdf'
+ * @param {string} format - 'csv' atau 'pdf'
  */
 export function exportFinanceReport(transactions, format = 'csv') {
   const columns = [
@@ -196,7 +196,7 @@ export function exportFinanceReport(transactions, format = 'csv') {
 }
 
 /**
- * Export student list
+ * Ekspor daftar siswa
  * @param {Array} students
  * @param {string} format
  */
@@ -218,7 +218,7 @@ export function exportStudentList(students, format = 'csv') {
 }
 
 /**
- * Export attendance report
+ * Ekspor laporan kehadiran
  * @param {Array} attendance
  * @param {string} format
  */

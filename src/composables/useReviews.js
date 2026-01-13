@@ -6,7 +6,7 @@ export function useReviews() {
   const loading = ref(false)
   const error = ref(null)
 
-  // Fetch reviews for a les place
+  // Ambil ulasan untuk tempat les
   async function fetchReviews(lesPlaceId) {
     loading.value = true
     error.value = null
@@ -34,7 +34,7 @@ export function useReviews() {
     }
   }
 
-  // Create new review
+  // Buat ulasan baru
   async function createReview(data) {
     loading.value = true
     error.value = null
@@ -56,7 +56,7 @@ export function useReviews() {
     }
   }
 
-  // Owner replies to review
+  // Pemilik membalas ulasan
   async function replyToReview(id, reply) {
     loading.value = true
     error.value = null
@@ -82,7 +82,7 @@ export function useReviews() {
     }
   }
 
-  // Delete review (hide it)
+  // Hapus ulasan (sembunyikan)
   async function deleteReview(id) {
     loading.value = true
     error.value = null

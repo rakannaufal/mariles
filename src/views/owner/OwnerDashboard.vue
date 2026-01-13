@@ -11,7 +11,7 @@ import StatCard from '@/components/StatCard.vue'
 const authStore = useAuthStore()
 const loading = ref(true)
 
-// Stats
+// Statistik
 const stats = ref({
   totalRevenue: { value: 0, trend: '-', trendUp: true },
   totalStudents: { value: 0, trend: '-', trendUp: true },
@@ -19,12 +19,12 @@ const stats = ref({
   averageRating: { value: 0, trend: '-', trendUp: true }
 })
 
-// Charts Data
+// Data Grafik
 const revenueData = ref([])
 const studentTrendData = ref([])
 const programDistData = ref([])
 
-// Recent Activity
+// Aktivitas Terbaru
 const recentRegistrations = ref([])
 
 const lesPlace = ref({ is_private: false })
@@ -40,11 +40,11 @@ async function fetchDashboardData() {
   try {
     if (!authStore.user?.id) return
     
-    // Get Owner ID
+    // Dapatkan ID Pemilik
     const { data: owner } = await supabase.from('owners').select('id, business_name').eq('user_id', authStore.user.id).single()
     if (!owner) return
 
-    // Fetch les place to check is_private
+    // Ambil tempat les untuk cek is_private
     const { data: lpData } = await supabase
       .from('les_places')
       .select('id, name, is_private')
@@ -56,22 +56,22 @@ async function fetchDashboardData() {
     }
 
     if (lesPlace.value.is_private) {
-        // Private/Teacher view logic (schedule to be implemented)
+        // Logika tampilan Pribadi/Guru (jadwal akan diimplementasikan)
         todaySchedule.value = []
     } else {
-        // 1. Fetch Key Metrics
-        // Count Programs (Active)
+        // 1. Ambil Metrik Utama
+        // Hitung Program (Aktif)
         const { count: programCount } = await supabase
             .from('programs')
             .select('*', { count: 'exact', head: true })
             .eq('les_place_id', lpData?.id)
             .eq('is_active', true)
         
-        // Revenue & Students
+        // Pendapatan & Siswa
         stats.value.totalPrograms = { value: programCount || 0, trend: 'Aktif' }
         
-        // Calculate total students from PAID bookings for this les_place's programs
-        // First get program IDs for this les_place
+        // Hitung total siswa dari booking BERBAYAR untuk program tempat les ini
+        // Pertama dapatkan ID program untuk tempat les ini
         const { data: ownerProgramsData } = await supabase
           .from('programs')
           .select('id')
@@ -80,13 +80,13 @@ async function fetchDashboardData() {
         const ownerProgramIds = ownerProgramsData?.map(p => p.id) || []
         
         let studentCount = 0
-        // Calculate revenue from ALL paid bookings for accuracy
+        // Hitung pendapatan dari SEMUA booking berbayar untuk akurasi
         let totalRevenue = 0
         let allPaidBookings = []
         let allActiveBookings = []
 
         if (ownerProgramIds.length > 0) {
-           // Get Active Student Count
+           // Dapatkan Jumlah Siswa Aktif
            const { count } = await supabase
             .from('bookings')
             .select('*', { count: 'exact', head: true })
@@ -96,20 +96,20 @@ async function fetchDashboardData() {
           
           studentCount = count || 0
 
-          // Get All Paid Bookings (For Revenue) - Only from ACTIVE/CONFIRMED bookings
-          // IMPORTANT: Terminated/cancelled bookings should NOT count as revenue
+          // Dapatkan Semua Booking Berbayar (Untuk Pendapatan) - Hanya dari booking AKTIF/TERKONFIRMASI
+          // PENTING: Booking yang dihentikan/dibatalkan TIDAK boleh dihitung sebagai pendapatan
           const { data: bookings } = await supabase
             .from('bookings')
             .select('created_at, program_id, programs(name, price)')
             .in('program_id', ownerProgramIds)
-            .in('status', ['active', 'confirmed'])  // Only active bookings
+            .in('status', ['active', 'confirmed'])  // Hanya booking aktif
             .in('payment_status', ['paid', 'settlement', 'capture'])
             .order('created_at', { ascending: true })
           
           allPaidBookings = bookings || []
           totalRevenue = allPaidBookings.reduce((sum, b) => sum + (b.programs?.price || 0), 0)
 
-          // Get Active Bookings (For Program Counts)
+          // Dapatkan Booking Aktif (Untuk Jumlah Program)
           const { data: activeB } = await supabase
             .from('bookings')
             .select('program_id')
@@ -122,7 +122,7 @@ async function fetchDashboardData() {
         stats.value.totalStudents.value = studentCount 
         stats.value.totalRevenue.value = totalRevenue
 
-        // Calculate Average Rating from Reviews
+        // Hitung Rating Rata-rata dari Ulasan
         const { data: reviewData } = await supabase
             .from('reviews')
             .select('rating')
@@ -138,8 +138,8 @@ async function fetchDashboardData() {
              stats.value.averageRating.trend = '-'
         }
 
-        // 2. Fetch Charts Data
-        // Revenue History (Last 6 Months)
+        // 2. Ambil Data Grafik
+        // Riwayat Pendapatan (6 Bulan Terakhir)
         const months = []
         const now = new Date()
         for (let i = 5; i >= 0; i--) {
@@ -151,7 +151,7 @@ async function fetchDashboardData() {
           })
         }
 
-        // Process Revenue Data (Cumulative per month)
+        // Proses Data Pendapatan (Kumulatif per bulan)
         const monthlyRevenue = months.map(m => {
             const monthlyBookings = allPaidBookings.filter(b => {
                 const d = new Date(b.created_at)
@@ -162,14 +162,14 @@ async function fetchDashboardData() {
         })
         revenueData.value = monthlyRevenue
 
-        // Process Student Trend (Daily for last 7 days)
+        // Proses Tren Siswa (Harian untuk 7 hari terakhir)
         const days = []
         const today = new Date()
         for (let i = 6; i >= 0; i--) {
             const d = new Date(today)
             d.setDate(d.getDate() - i)
             days.push({
-                label: d.toLocaleDateString('id-ID', { weekday: 'short' }), // Sen, Sel (Important: Use short weekday)
+                label: d.toLocaleDateString('id-ID', { weekday: 'short' }), // Sen, Sel (Penting: Gunakan hari pendek)
                 dateStr: d.toDateString()
             })
         }
@@ -178,29 +178,29 @@ async function fetchDashboardData() {
             .from('bookings')
             .select('created_at')
             .eq('les_place_id', lpData?.id)
-            .in('payment_status', ['paid', 'settlement', 'capture']) // Only paid for charts too
+            .in('payment_status', ['paid', 'settlement', 'capture']) // Hanya berbayar untuk grafik juga
             .gte('created_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString())
         
         const dailyStudents = days.map(d => {
             const count = (recentBookings || []).filter(b => new Date(b.created_at).toDateString() === d.dateStr).length
-            return { label: d.label, value: count } // RETURN 'value' NOT 'y'
+            return { label: d.label, value: count } // KEMBALIKAN 'value' BUKAN 'y'
         })
         studentTrendData.value = dailyStudents
 
-        // Process Popular Programs (Calculate dynamically from bookings)
+        // Proses Program Populer (Hitung secara dinamis dari booking)
         const { data: allPrograms } = await supabase
             .from('programs')
             .select('id, name, capacity, price')
             .eq('les_place_id', lpData?.id)
             .eq('is_active', true)
         
-        // Count students per program from allActiveBookings
+        // Hitung siswa per program dari allActiveBookings
         const programCounts = {}
         allActiveBookings.forEach(b => {
             programCounts[b.program_id] = (programCounts[b.program_id] || 0) + 1
         })
 
-        // first map and sort
+        // pertama map dan sort
         let tempPrograms = (allPrograms || []).map(p => ({
             name: p.name,
             count: programCounts[p.id] || 0,
@@ -208,18 +208,18 @@ async function fetchDashboardData() {
             price: p.price || 0,
         })).sort((a, b) => b.count - a.count).slice(0, 5)
 
-        // Final map with capacity-based percentage
+        // Map final dengan persentase berbasis kapasitas
         programDistData.value = tempPrograms.map(p => {
              let pct = 0
              if (p.capacity && p.capacity > 0) {
                  pct = Math.round((p.count / p.capacity) * 100)
              } else {
-                 // If capacity is 0/null (Unlimited), we can show full bar or relative?
-                 // Let's show 100% to indicate 'Available' or maybe relative to max?
-                 // But user specifically asked about 4/10. So for 4/10 it MUST be 40%
-                 // For unlimited, let's just default to 100 for now or handling it visually elsewhere?
-                 // Actually, if it's unlimited, a "progress bar" doesn't make much sense. 
-                 // Let's set to 100 but maybe color differently? For now just 100.
+                 // Jika kapasitas 0/null (Tidak Terbatas), kita bisa tampilkan bar penuh atau relatif?
+                 // Mari tampilkan 100% untuk indikasikan 'Tersedia' atau mungkin relatif ke max?
+                 // Tapi pengguna secara spesifik bertanya tentang 4/10. Jadi untuk 4/10 HARUS 40%
+                 // Untuk unlimited, biarkan default 100 untuk sementara atau tangani secara visual di tempat lain?
+                 // Sebenarnya, jika unlimited, "progress bar" tidak masuk akal.
+                 // Mari set ke 100 tapi mungkin warnai berbeda? Untuk sekarang cukup 100.
                  pct = 100
              }
              return {
@@ -228,13 +228,13 @@ async function fetchDashboardData() {
              }
         })
         
-        // Reset trends
+        // Reset tren
         stats.value.totalRevenue.trend = totalRevenue > 0 ? '+' + new Intl.NumberFormat('id-ID').format(totalRevenue) : '-'
         stats.value.totalStudents.trend = studentCount > 0 ? '+' + studentCount : '-'
         // stats.value.averageRating.value = lpData.rating ? lpData.rating.toFixed(1) : 0
         // stats.value.averageRating.trend = '-' 
 
-        // 3. Recent Registrations
+        // 3. Pendaftaran Terbaru
         const { data: registrations } = await supabase
           .from('bookings')
           .select(`
@@ -243,7 +243,7 @@ async function fetchDashboardData() {
             programs(name, price)
           `)
           .eq('les_place_id', lpData?.id)
-          .in('payment_status', ['paid', 'settlement', 'capture']) // Only paid
+          .in('payment_status', ['paid', 'settlement', 'capture']) // Hanya yang dibayar
           .order('created_at', { ascending: false })
           .limit(5)
 
@@ -256,7 +256,7 @@ async function fetchDashboardData() {
     loading.value = false
   }
 }
-// Helper for currency
+// Helper untuk mata uang
 function formatCurrency(val) {
     return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(val)
 }
@@ -266,7 +266,7 @@ function formatDate(date) {
 }
 
 function getStatusClass(status) {
-  // Since we only show paid, we can just use success/info
+  // Karena kita hanya tampilkan berbayar, kita bisa gunakan success/info
   return 'success' 
 }
 function getStatusText(status) {

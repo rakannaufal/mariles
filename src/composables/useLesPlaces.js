@@ -9,13 +9,13 @@ export function useLesPlaces() {
   const loading = ref(false)
   const error = ref(null)
 
-  // Fetch all les places with optional filters
+  // Ambil semua tempat les dengan filter opsional
   async function fetchLesPlaces(filters = {}) {
     loading.value = true
     error.value = null
 
     try {
-      // Load dummy data setting from Supabase (async)
+      // Muat pengaturan data dummy dari Supabase (async)
       const useDummy = await loadDummyDataSetting()
       
       if (useDummy) {
@@ -60,7 +60,7 @@ export function useLesPlaces() {
 // ... (rest of query building omitted for brevity, ensure context is preserved)
 // Resume after query building
 
-      // Apply filters
+      // Terapkan filter
       if (filters.search) {
         query = query.or(`name.ilike.%${filters.search}%,description.ilike.%${filters.search}%`)
       }
@@ -74,7 +74,7 @@ export function useLesPlaces() {
         query = query.contains('facilities', [filters.category])
       }
 
-      // Sorting
+      // Pengurutan
       if (filters.sortBy === 'rating') {
         query = query.order('rating', { ascending: false })
       } else if (filters.sortBy === 'price_low') {
@@ -83,7 +83,7 @@ export function useLesPlaces() {
         query = query.order('total_students', { ascending: false })
       }
 
-      // Limit
+      // Batas
       if (filters.limit) {
         query = query.limit(filters.limit)
       }
@@ -100,18 +100,18 @@ export function useLesPlaces() {
     }
   }
 
-  // Fetch featured les places (top rated)
+  // Ambil tempat les unggulan (rating tertinggi)
   async function fetchFeaturedLesPlaces(limit = 4) {
     return fetchLesPlaces({ sortBy: 'rating', limit })
   }
 
-  // Fetch single les place by ID
+  // Ambil satu tempat les berdasarkan ID
   async function fetchLesPlaceById(id) {
     loading.value = true
     error.value = null
 
     try {
-      // Load dummy data setting from Supabase (async)
+      // Muat pengaturan data dummy dari Supabase (async)
       const useDummy = await loadDummyDataSetting()
       
       if (useDummy) {
@@ -171,7 +171,7 @@ export function useLesPlaces() {
       if (err) throw err
       lesPlace.value = data
 
-      // Fetch teachers separately to avoid RLS issues
+      // Ambil pengajar secara terpisah untuk menghindari masalah RLS
       try {
         const { data: teachersData, error: teacherError } = await supabase
           .from('teachers')
@@ -192,7 +192,7 @@ export function useLesPlaces() {
         }
       } catch (teacherErr) {
         console.error('Could not fetch teachers:', teacherErr)
-        // Continue without teachers data - not critical
+        // Lanjutkan tanpa data pengajar - tidak kritis
       }
     } catch (err) {
       error.value = err.message
@@ -202,7 +202,7 @@ export function useLesPlaces() {
     }
   }
 
-  // Create new les place (for owners)
+  // Buat tempat les baru (untuk pemilik)
   async function createLesPlace(data) {
     loading.value = true
     error.value = null
@@ -224,7 +224,7 @@ export function useLesPlaces() {
     }
   }
 
-  // Update les place
+  // Update tempat les
   async function updateLesPlace(id, data) {
     loading.value = true
     error.value = null
@@ -247,7 +247,7 @@ export function useLesPlaces() {
     }
   }
 
-  // Delete les place
+  // Hapus tempat les
   async function deleteLesPlace(id) {
     loading.value = true
     error.value = null

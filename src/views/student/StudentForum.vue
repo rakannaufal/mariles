@@ -24,14 +24,14 @@ const searchQuery = ref('')
 const sortBy = ref('newest')
 const searchCategory = ref('') 
 
-// Modal state
+// State modal
 const showPostModal = ref(false)
 const showDetailModal = ref(false)
 const selectedPost = ref(null)
 const postComments = ref([])
 const loadingComments = ref(false)
 
-// Forms
+// Form
 const newPost = ref({
   title: '',
   content: '',
@@ -40,16 +40,16 @@ const newPost = ref({
 const newComment = ref('')
 const submitting = ref(false)
 
-// Edit states
+// State edit
 const editingComment = ref(null)
 const editCommentText = ref('')
 const editingPost = ref(false)
 const editPostData = ref({ title: '', content: '', category: '' })
 
-// Like State (Client Side Persistence)
+// State Like (Persistensi Sisi Klien)
 const likedPostIds = ref(new Set())
 
-// Init User Likes
+// Inisialisasi Like Pengguna
 function initLikes() {
   const stored = localStorage.getItem(`forum_likes_${authStore.user?.id}`)
   if (stored) {
@@ -75,7 +75,7 @@ const reportOptions = [
   'Lainnya'
 ]
 
-// Open Report Modal
+// Buka Modal Laporan
 function openReport(target, type) {
   if (!authStore.user) return alert('Login untuk melaporkan')
   reportTarget.value = { ...target, type }
@@ -106,7 +106,7 @@ async function submitReport() {
   }
 }
 
-// Fetch all posts (Optimized with limit)
+// Ambil semua postingan (Dioptimalkan dengan limit)
 async function fetchPosts() {
   loading.value = true
   try {
@@ -131,7 +131,7 @@ async function fetchPosts() {
   }
 }
 
-// Create new post
+// Buat postingan baru
 async function createPost() {
   if (!newPost.value.title.trim() || !newPost.value.content.trim()) {
     alert('Judul dan konten harus diisi')
@@ -163,15 +163,15 @@ async function createPost() {
   }
 }
 
-// View post detail
+// Lihat detail postingan
 async function viewPost(post) {
   selectedPost.value = post
   showDetailModal.value = true
   
-  // Increment view count (Optimistic UI)
+  // Tambahkan jumlah view (Optimistic UI)
   post.views = (post.views || 0) + 1
   
-  // Silent update
+  // Update diam-diam
   await supabase
     .from('forum_posts')
     .update({ views: post.views })
@@ -180,7 +180,7 @@ async function viewPost(post) {
   await fetchComments(post.id)
 }
 
-// Fetch comments for a post
+// Ambil komentar untuk postingan
 async function fetchComments(postId) {
   loadingComments.value = true
   try {
@@ -202,7 +202,7 @@ async function fetchComments(postId) {
   }
 }
 
-// Add comment
+// Tambah komentar
 async function addComment() {
   if (!newComment.value.trim() || !selectedPost.value) return
   
@@ -239,7 +239,7 @@ async function toggleLike(post, event) {
   const isLiked = likedPostIds.value.has(post.id)
   const newCount = (post.likes || 0) + (isLiked ? -1 : 1)
   
-  // Optimistic Update
+  // Update Optimistis
   post.likes = newCount < 0 ? 0 : newCount
   if (isLiked) {
     likedPostIds.value.delete(post.id)
@@ -259,7 +259,7 @@ async function toggleLike(post, event) {
   }
 }
 
-// Delete post (own posts only)
+// Hapus postingan (postingan sendiri saja)
 async function deletePost(post) {
   if (post.user?.id !== authStore.user?.id) return
   if (!confirm('Hapus post ini?')) return
@@ -272,7 +272,7 @@ async function deletePost(post) {
   } catch (err) { console.error(err) }
 }
 
-// Edit comment functions
+// Fungsi edit komentar
 function startEditComment(comment) {
   editingComment.value = comment.id
   editCommentText.value = comment.content
@@ -302,7 +302,7 @@ async function saveEditComment(comment) {
   }
 }
 
-// Delete comment
+// Hapus komentar
 async function deleteComment(comment) {
   if (!confirm('Hapus komentar ini?')) return
   
@@ -320,7 +320,7 @@ async function deleteComment(comment) {
   }
 }
 
-// Edit post functions
+// Fungsi edit postingan
 function startEditPost() {
   editingPost.value = true
   editPostData.value = {
@@ -369,7 +369,7 @@ async function saveEditPost() {
   }
 }
 
-// Filtered posts
+// Postingan yang difilter
 const filteredPosts = computed(() => {
   let result = [...posts.value]
   
@@ -394,7 +394,7 @@ const filteredPosts = computed(() => {
   return result
 })
 
-// Helpers
+// Helper
 function formatDate(date) {
   const d = new Date(date)
   const now = new Date()

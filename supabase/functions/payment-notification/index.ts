@@ -1,28 +1,28 @@
-// Supabase Edge Function: Payment Notification (Webhook)
+// Edge Function Supabase: Notifikasi Pembayaran (Webhook)
 // Deploy: supabase functions deploy payment-notification
 // ======================================================
-// Configure webhook URL in Midtrans Dashboard:
+// Konfigurasi URL webhook di Dashboard Midtrans:
 // https://<project-ref>.supabase.co/functions/v1/payment-notification
 
 import { serve } from 'https://deno.land/std@0.177.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { createHmac } from 'https://deno.land/std@0.177.0/crypto/mod.ts'
 
-// CORS headers
+// Header CORS
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-// Midtrans Server Key for signature verification
+// Midtrans Server Key untuk verifikasi signature
 const MIDTRANS_SERVER_KEY = Deno.env.get('MIDTRANS_SERVER_KEY') || 'SB-Mid-server-xxx'
 
-// Create Supabase client
+// Buat client Supabase
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
 
 serve(async (req) => {
-  // Handle CORS preflight
+  // Tangani preflight CORS
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
@@ -32,7 +32,7 @@ serve(async (req) => {
     
     console.log('Received notification:', JSON.stringify(notification))
 
-    // Extract notification data
+    // Ekstrak data notifikasi
     const {
       order_id,
       transaction_id,
@@ -44,7 +44,7 @@ serve(async (req) => {
       signature_key,
     } = notification
 
-    // Verify signature (Midtrans sends: SHA512(order_id + status_code + gross_amount + server_key))
+    // Verifikasi signature (Midtrans mengirim: SHA512(order_id + status_code + gross_amount + server_key))
     const signatureInput = `${order_id}${status_code}${gross_amount}${MIDTRANS_SERVER_KEY}`
     const encoder = new TextEncoder()
     const data = encoder.encode(signatureInput)
@@ -60,7 +60,7 @@ serve(async (req) => {
       )
     }
 
-    // Determine payment status
+    // Tentukan status pembayaran
     let paymentStatus = 'pending'
     if (transaction_status === 'capture' || transaction_status === 'settlement') {
       if (fraud_status === 'accept' || !fraud_status) {
@@ -94,9 +94,9 @@ serve(async (req) => {
       throw new Error('Failed to update transaction')
     }
 
-    // If payment completed, update owner balance
+    // Jika pembayaran selesai, update saldo pemilik
     if (paymentStatus === 'completed') {
-      // Get transaction details
+      // Dapatkan detail transaksi
       const { data: txn } = await supabase
         .from('transactions')
         .select('les_place_id, net_amount, les_places(owner_id)')
@@ -106,7 +106,7 @@ serve(async (req) => {
       if (txn?.les_places?.owner_id) {
         const ownerId = txn.les_places.owner_id
 
-        // Update or insert balance
+        // Update atau insert saldo
         const { data: existingBalance } = await supabase
           .from('balances')
           .select('*')
@@ -134,7 +134,7 @@ serve(async (req) => {
             })
         }
 
-        // Update booking status to confirmed
+        // Update status booking ke confirmed
         await supabase
           .from('bookings')
           .update({ status: 'confirmed' })

@@ -54,7 +54,7 @@ function getStatusText(status) {
     completed: 'Selesai',
     cancelled: 'Dibatalkan',
     rejected: 'Ditolak',
-    refunded: 'Direfund' // Added refunded status text
+    refunded: 'Direfund' // Status refund ditambahkan
   }
   return texts[status] || status
 }
@@ -71,7 +71,7 @@ onMounted(async () => {
   await fetchPaymentHistory()
 })
 
-// Filter out cancelled/expired bookings from active list
+// Filter booking yang dibatalkan/kedaluwarsa dari daftar aktif
 const activeBookings = computed(() => {
   return bookings.value.filter(b => 
     b.status !== 'cancelled' && 
@@ -79,7 +79,7 @@ const activeBookings = computed(() => {
   )
 })
 
-// Get cancelled/expired bookings for history (status='cancelled' OR payment_status='failed')
+// Dapatkan booking yang dibatalkan/kedaluwarsa untuk riwayat (status='cancelled' ATAU payment_status='failed')
 const cancelledBookings = computed(() => {
   return bookings.value.filter(b => 
     b.status === 'cancelled' || 
@@ -254,7 +254,7 @@ async function resumePayment(booking) {
         onError: async (result) => {
           console.error('Payment error:', result)
           
-          // Check if expired - move to history
+          // Cek apakah kedaluwarsa - pindahkan ke riwayat
           if (result?.status_code === '407' || result?.transaction_status === 'expire') {
             const confirmCancel = confirm('Pembayaran telah expired. Batalkan booking ini? (akan masuk ke History Pembayaran)')
             if (confirmCancel) {
@@ -277,7 +277,7 @@ async function resumePayment(booking) {
   } catch (err) {
     console.error('Resume payment error:', err)
     
-    // Check if error is due to expired transaction
+    // Cek apakah error karena transaksi kedaluwarsa
     if (err.message?.includes('expired') || err.message?.includes('Expired')) {
       const confirmCancel = confirm('Pembayaran telah expired. Batalkan booking ini? (akan masuk ke History Pembayaran)')
       if (confirmCancel) {
@@ -295,7 +295,7 @@ function goToClass(booking) {
   router.push(`/student/myclass/${booking.id}`)
 }
 
-// Calculate payment deadline (24 hours from booking creation)
+// Hitung batas waktu pembayaran (24 jam dari pembuatan booking)
 function getPaymentDeadline(createdAt) {
   if (!createdAt) return null
   const deadline = new Date(createdAt)
@@ -303,7 +303,7 @@ function getPaymentDeadline(createdAt) {
   return deadline
 }
 
-// Format time remaining
+// Format sisa waktu
 function getTimeRemaining(createdAt) {
   const deadline = getPaymentDeadline(createdAt)
   if (!deadline) return null
@@ -322,7 +322,7 @@ function getTimeRemaining(createdAt) {
   return `${minutes} menit lagi`
 }
 
-// Check if payment is expired
+// Cek apakah pembayaran kedaluwarsa
 function isPaymentExpired(createdAt) {
   const deadline = getPaymentDeadline(createdAt)
   if (!deadline) return false

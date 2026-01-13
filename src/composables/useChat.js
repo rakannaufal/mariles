@@ -8,13 +8,13 @@ export function useChat() {
   const error = ref(null)
   let messageSubscription = null
 
-  // Fetch all chat rooms for current user
+  // Ambil semua ruang chat untuk pengguna saat ini
   async function fetchChatRooms(userId) {
     loading.value = true
     error.value = null
 
     try {
-      // First, get chat rooms
+      // Pertama, dapatkan ruang chat
       const { data: rooms, error: roomErr } = await supabase
         .from('chat_rooms')
         .select('*')
@@ -23,14 +23,14 @@ export function useChat() {
 
       if (roomErr) throw roomErr
       
-      // Get all unique participant IDs
+      // Dapatkan semua ID partisipan unik
       const participantIds = new Set()
       for (const room of rooms || []) {
         participantIds.add(room.participant_1)
         participantIds.add(room.participant_2)
       }
       
-      // Fetch user info for all participants
+      // Ambil info pengguna untuk semua partisipan
       let usersMap = {}
       if (participantIds.size > 0) {
         const { data: users } = await supabase
@@ -43,7 +43,7 @@ export function useChat() {
         }
       }
       
-      // Transform data to include "other" participant info
+      // Transform data untuk menyertakan info partisipan "lainnya"
       chatRooms.value = (rooms || []).map(room => ({
         ...room,
         participant_1_user: usersMap[room.participant_1] || null,
@@ -60,13 +60,13 @@ export function useChat() {
     }
   }
 
-  // Fetch messages for a specific room
+  // Ambil pesan untuk ruang tertentu
   async function fetchMessages(roomId) {
     loading.value = true
     error.value = null
 
     try {
-      // First, get messages
+      // Pertama, dapatkan pesan
       const { data: msgs, error: msgErr } = await supabase
         .from('chat_messages')
         .select('*')
@@ -75,13 +75,13 @@ export function useChat() {
 
       if (msgErr) throw msgErr
       
-      // Get all unique sender IDs
+      // Dapatkan semua ID pengirim unik
       const senderIds = new Set()
       for (const msg of msgs || []) {
         senderIds.add(msg.sender_id)
       }
       
-      // Fetch sender info
+      // Ambil info pengirim
       let sendersMap = {}
       if (senderIds.size > 0) {
         const { data: senders } = await supabase
@@ -94,7 +94,7 @@ export function useChat() {
         }
       }
       
-      // Transform messages to include sender info
+      // Transform pesan untuk menyertakan info pengirim
       messages.value = (msgs || []).map(msg => ({
         ...msg,
         sender: sendersMap[msg.sender_id] || null
@@ -107,12 +107,12 @@ export function useChat() {
     }
   }
 
-  // Send a new message
+  // Kirim pesan baru
   async function sendMessage(roomId, senderId, message) {
     error.value = null
 
     try {
-      // Insert message
+      // Masukkan pesan
       const { data: newMsg, error: err } = await supabase
         .from('chat_messages')
         .insert({
@@ -125,14 +125,14 @@ export function useChat() {
 
       if (err) throw err
 
-      // Get sender info
+      // Dapatkan info pengirim
       const { data: senderData } = await supabase
         .from('users')
         .select('id, name, avatar_url')
         .eq('id', senderId)
         .single()
 
-      // Update last message in chat room
+      // Update pesan terakhir di ruang chat
       await supabase
         .from('chat_rooms')
         .update({
@@ -151,12 +151,12 @@ export function useChat() {
     }
   }
 
-  // Create or get existing chat room
+  // Buat atau dapatkan ruang chat yang sudah ada
   async function getOrCreateChatRoom(userId, participantId, lesPlaceId = null) {
     error.value = null
 
     try {
-      // Check if room already exists
+      // Cek apakah ruang sudah ada
       const { data: existingRoom } = await supabase
         .from('chat_rooms')
         .select('*')
@@ -165,7 +165,7 @@ export function useChat() {
 
       if (existingRoom) return existingRoom
 
-      // Create new room
+      // Buat ruang baru
       const { data: newRoom, error: err } = await supabase
         .from('chat_rooms')
         .insert({
@@ -184,9 +184,9 @@ export function useChat() {
     }
   }
 
-  // Subscribe to real-time messages in a room
+  // Berlangganan ke pesan real-time di ruang
   function subscribeToMessages(roomId, onNewMessage) {
-    // Unsubscribe from previous subscription
+    // Berhenti berlangganan dari langganan sebelumnya
     unsubscribe()
 
     messageSubscription = supabase
@@ -200,7 +200,7 @@ export function useChat() {
           filter: `room_id=eq.${roomId}`
         },
         async (payload) => {
-          // Fetch sender info for the new message
+          // Ambil info pengirim untuk pesan baru
           const { data: senderData } = await supabase
             .from('users')
             .select('id, name, avatar_url')
@@ -219,7 +219,7 @@ export function useChat() {
       .subscribe()
   }
 
-  // Mark messages as read
+  // Tandai pesan sudah dibaca
   async function markAsRead(roomId, userId) {
     try {
       await supabase
@@ -233,7 +233,7 @@ export function useChat() {
     }
   }
 
-  // Get unread count for a room
+  // Dapatkan jumlah belum dibaca untuk ruang
   async function getUnreadCount(roomId, userId) {
     try {
       const { count } = await supabase
@@ -250,10 +250,10 @@ export function useChat() {
     }
   }
 
-  // Get TOTAL unread count across all chat rooms
+  // Dapatkan TOTAL jumlah belum dibaca di semua ruang chat
   async function getTotalUnreadCount(userId) {
     try {
-      // First get all rooms the user is part of
+      // Pertama dapatkan semua ruang yang diikuti pengguna
       const { data: rooms } = await supabase
         .from('chat_rooms')
         .select('id')
@@ -263,7 +263,7 @@ export function useChat() {
       
       const roomIds = rooms.map(r => r.id)
       
-      // Count all unread messages not sent by this user
+      // Hitung semua pesan belum dibaca yang bukan dikirim pengguna ini
       const { count } = await supabase
         .from('chat_messages')
         .select('*', { count: 'exact', head: true })
@@ -278,7 +278,7 @@ export function useChat() {
     }
   }
 
-  // Unsubscribe from real-time updates
+  // Berhenti berlangganan dari update real-time
   function unsubscribe() {
     if (messageSubscription) {
       supabase.removeChannel(messageSubscription)
@@ -286,10 +286,10 @@ export function useChat() {
     }
   }
 
-  // Get available chat partners for student (teachers from active bookings + owners)
+  // Dapatkan partner chat yang tersedia untuk siswa (pengajar dari booking aktif + pemilik)
   async function getAvailableChatPartners(userId) {
     try {
-      // Get student ID first
+      // Dapatkan ID siswa dulu
       const { data: student } = await supabase
         .from('students')
         .select('id')
@@ -298,7 +298,7 @@ export function useChat() {
 
       if (!student) return { teachers: [], owners: [] }
 
-      // Get ALL owners with their les places (student can chat any owner)
+      // Dapatkan SEMUA pemilik dengan tempat les mereka (siswa bisa chat pemilik manapun)
       const { data: allLesPlaces } = await supabase
         .from('les_places')
         .select(`
@@ -324,7 +324,7 @@ export function useChat() {
         }
       }
 
-      // Get student's active bookings for teacher access
+      // Dapatkan booking aktif siswa untuk akses pengajar
       const { data: bookings } = await supabase
         .from('bookings')
         .select(`
@@ -338,7 +338,7 @@ export function useChat() {
         .in('status', ['active', 'pending', 'confirmed'])
         .in('payment_status', ['paid', 'settlement', 'capture'])
 
-      // Get les_place_ids from bookings for teachers
+      // Dapatkan les_place_ids dari booking untuk pengajar
       const lesPlaceIds = new Set()
       for (const booking of bookings || []) {
         if (booking.programs?.les_place_id) {
@@ -346,7 +346,7 @@ export function useChat() {
         }
       }
 
-      // Get teachers ONLY from enrolled les_places
+      // Dapatkan pengajar HANYA dari les_places yang terdaftar
       const teacherMap = new Map()
       if (lesPlaceIds.size > 0) {
         const { data: teachers } = await supabase
@@ -383,7 +383,7 @@ export function useChat() {
     }
   }
 
-  // Get owner user ID by les place ID
+  // Dapatkan ID pengguna pemilik berdasarkan ID tempat les
   async function getOwnerByLesPlaceId(lesPlaceId) {
     try {
       const { data, error } = await supabase
@@ -400,7 +400,7 @@ export function useChat() {
     }
   }
 
-  // Cleanup on unmount
+  // Bersihkan saat unmount
   onUnmounted(() => {
     unsubscribe()
   })

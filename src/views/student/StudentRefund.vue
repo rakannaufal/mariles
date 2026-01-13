@@ -24,7 +24,7 @@ const submitSuccess = ref(false)
 const submitError = ref('')
 const currentStep = ref(1)
 
-// Get student ID from students table (same as useStudentData.js)
+// Dapatkan ID siswa dari tabel students (sama seperti useStudentData.js)
 async function getStudentId() {
   const { data } = await supabase
     .from('students')
@@ -34,7 +34,7 @@ async function getStudentId() {
   return data?.id
 }
 
-// Fetch eligible transactions for refund (via bookings, same approach as useStudentData.js)
+// Ambil transaksi yang memenuhi syarat untuk refund (via booking, pendekatan sama seperti useStudentData.js)
 async function fetchTransactions() {
   try {
     loading.value = true
@@ -46,7 +46,7 @@ async function fetchTransactions() {
       return
     }
     
-    // Get student ID from students table (bookings use this ID)
+    // Dapatkan ID siswa dari tabel students (booking menggunakan ID ini)
     const studentId = await getStudentId()
     if (!studentId) {
       console.log('No student found for user')
@@ -89,7 +89,7 @@ async function fetchTransactions() {
     // Transform bookings to transaction-like format for refund
     const paidBookings = bookingsData?.map(b => {
       const latestTx = b.transactions?.sort((a, b) => new Date(b.created_at) - new Date(a.created_at))?.[0]
-      // Calculate refund deadline (90 days from payment)
+      // Hitung batas waktu refund (90 hari dari pembayaran)
       const paymentDate = new Date(b.created_at)
       const refundDeadline = new Date(paymentDate.getTime() + 90 * 24 * 60 * 60 * 1000)
       const daysRemaining = daysUntil(refundDeadline.toISOString())
@@ -108,7 +108,7 @@ async function fetchTransactions() {
       }
     }) || []
 
-    // Get refunds that are pending or approved (already requested)
+    // Dapatkan refund yang pending atau approved (sudah diminta)
     const { data: refundsData } = await supabase
       .from('refunds')
       .select('transaction_id')
@@ -117,10 +117,10 @@ async function fetchTransactions() {
 
     const refundedTxnIds = new Set(refundsData?.map(r => r.transaction_id) || [])
     
-    // Filter out already refunded
+    // Filter yang sudah di-refund
     const completedTxns = paidBookings.filter(t => !refundedTxnIds.has(t.id))
     
-    // Check progress for each program
+    // Cek progres untuk setiap program
     const programIds = completedTxns.map(t => t.program_id).filter(Boolean)
     const bookingIds = completedTxns.map(t => t.booking_id).filter(Boolean)
     
@@ -173,7 +173,7 @@ async function fetchTransactions() {
           .in('booking_id', bookingIds)
           .in('status', ['present', 'late']) // hadir atau telat = ada progress
         
-        // Map booking_id to program_id for attendance
+        // Map booking_id ke program_id untuk kehadiran
         const bookingToProgram = {}
         completedTxns.forEach(t => {
           if (t.booking_id && t.program_id) {

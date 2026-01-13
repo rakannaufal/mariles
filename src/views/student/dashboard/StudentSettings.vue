@@ -58,7 +58,7 @@ async function handleUpdatePassword() {
     passwordForm.value.password = ''
     passwordForm.value.confirmPassword = ''
     
-    // Clear success message after 3s
+    // Hapus pesan sukses setelah 3 detik
     setTimeout(() => {
        if (passwordMessage.value.type === 'success') passwordMessage.value = { type: '', text: '' }
     }, 3000)

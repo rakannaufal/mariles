@@ -12,7 +12,7 @@ const saving = ref(false)
 const activeTab = ref('info')
 const message = ref({ type: '', text: '' })
 
-// Form data for editing
+// Data form untuk editing
 const form = ref({
   name: '',
   description: '',
@@ -28,31 +28,31 @@ const form = ref({
   is_active: true
 })
 
-// Photo upload
+// Upload foto
 const photoInput = ref(null)
 const uploadingPhoto = ref(false)
 const uploadError = ref('')
 const MAX_FILE_SIZE = 5 * 1024 * 1024 // 5MB
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp']
 
-// Facility and Highlight inputs
+// Input fasilitas dan highlight
 const newFacility = ref('')
 const newHighlight = ref('')
 
-// Location API
+// API Lokasi
 const provinces = ref([])
 const cities = ref([])
 const loadingProvinces = ref(false)
 const loadingCities = ref(false)
 
-// Les Type Options
+// Opsi Tipe Les
 const lesTypeOptions = [
   { value: 'offline', label: 'Offline (Tatap Muka)', description: 'Les dilakukan secara langsung di tempat' },
   { value: 'online', label: 'Online', description: 'Les dilakukan secara daring/virtual' },
   { value: 'hybrid', label: 'Hybrid (Offline & Online)', description: 'Kombinasi les tatap muka dan daring' }
 ]
 
-// Facility suggestions based on les type
+// Saran fasilitas berdasarkan tipe les
 const facilitySuggestions = computed(() => {
   const base = ['WiFi Gratis', 'AC', 'Toilet', 'Musholla', 'Kantin', 'Parkir']
   if (form.value.type === 'offline' || form.value.type === 'hybrid') {
@@ -64,7 +64,7 @@ const facilitySuggestions = computed(() => {
   return base
 })
 
-// Highlight suggestions
+// Saran highlight
 const highlightSuggestions = [
   'Guru Berpengalaman',
   'Kurikulum Terbaru',
@@ -128,7 +128,7 @@ watch(() => form.value.province, async (newVal) => {
 async function fetchOwnerAndLesPlace() {
   loading.value = true
   try {
-    // Get owner data
+    // Dapatkan data owner
     const { data: ownerData } = await supabase
       .from('owners')
       .select('id, owner_type, business_name')
@@ -142,7 +142,7 @@ async function fetchOwnerAndLesPlace() {
     
     owner.value = ownerData
 
-    // Get les place for this owner
+    // Dapatkan tempat les untuk pemilik ini
     let { data: lesData } = await supabase
       .from('les_places')
       .select(`
@@ -183,7 +183,7 @@ async function fetchOwnerAndLesPlace() {
     if (lesData) {
       lesPlace.value = lesData
       
-      // If total_students is 0, calculate from paid bookings
+      // Jika total_students 0, hitung dari booking berbayar
       if (!lesData.total_students || lesData.total_students === 0) {
         const { count: paidStudentCount } = await supabase
           .from('bookings')
@@ -194,7 +194,7 @@ async function fetchOwnerAndLesPlace() {
         lesPlace.value.total_students = paidStudentCount || 0
       }
 
-      // Populate form with existing data
+      // Isi form dengan data yang ada
       form.value = {
         name: lesData.name || '',
         description: lesData.description || '',
@@ -209,7 +209,7 @@ async function fetchOwnerAndLesPlace() {
         is_active: lesData.is_active !== false
       }
       
-      // Fetch cities for the province
+      // Ambil kota untuk provinsi tersebut
       if (lesData.province) {
         await fetchCities(lesData.province)
       }
@@ -260,7 +260,7 @@ async function saveChanges() {
   }
 }
 
-// Photo management
+// Manajemen foto
 function formatFileSize(bytes) {
   if (bytes === 0) return '0 Bytes'
   const k = 1024
@@ -279,7 +279,7 @@ async function handlePhotoUpload(event) {
   
   uploadError.value = ''
   
-  // Validate max photos (5)
+  // Validasi maksimal foto (5)
   const MAX_PHOTOS = 5
   if (form.value.photos.length >= MAX_PHOTOS) {
     uploadError.value = `Maksimal ${MAX_PHOTOS} foto. Hapus foto yang ada untuk menambahkan yang baru.`
@@ -287,13 +287,13 @@ async function handlePhotoUpload(event) {
     return
   }
   
-  // Validate file type
+  // Validasi tipe file
   if (!ALLOWED_TYPES.includes(file.type)) {
     uploadError.value = 'Format file tidak didukung. Gunakan JPG, PNG, atau WebP.'
     return
   }
   
-  // Validate file size
+  // Validasi ukuran file
   if (file.size > MAX_FILE_SIZE) {
     uploadError.value = `Ukuran file terlalu besar (${formatFileSize(file.size)}). Maksimal 5MB.`
     return
@@ -302,18 +302,18 @@ async function handlePhotoUpload(event) {
   uploadingPhoto.value = true
   
   try {
-    // Check if lesPlace exists
+    // Cek apakah lesPlace ada
     if (!lesPlace.value?.id) {
       uploadError.value = 'Tempat les belum terbuat. Silakan refresh halaman atau hubungi admin.'
       uploadingPhoto.value = false
       return
     }
     
-    // Generate unique filename
+    // Generate nama file unik
     const fileExt = file.name.split('.').pop()
     const fileName = `${lesPlace.value.id}/${Date.now()}.${fileExt}`
     
-    // Upload to Supabase Storage
+    // Upload ke Supabase Storage
     const { data, error } = await supabase.storage
       .from('les-photos')
       .upload(fileName, file, {
@@ -323,12 +323,12 @@ async function handlePhotoUpload(event) {
     
     if (error) throw error
     
-    // Get public URL
+    // Dapatkan URL publik
     const { data: { publicUrl } } = supabase.storage
       .from('les-photos')
       .getPublicUrl(fileName)
     
-    // Add to photos array
+    // Tambahkan ke array foto
     form.value.photos.push(publicUrl)
     
     // Reset input
@@ -345,7 +345,7 @@ async function handlePhotoUpload(event) {
 async function removePhoto(index) {
   const photoUrl = form.value.photos[index]
   
-  // Try to delete from storage if it's a Supabase URL
+  // Coba hapus dari storage jika itu URL Supabase
   if (photoUrl.includes('supabase')) {
     try {
       const path = photoUrl.split('/les-photos/')[1]

@@ -18,7 +18,7 @@ const bannerForm = ref({
   is_active: true
 })
 
-// Image upload
+// Upload gambar
 const uploading = ref(false)
 const fileInput = ref(null)
 
@@ -70,13 +70,13 @@ async function handleFileUpload(event) {
   const file = event.target.files[0]
   if (!file) return
   
-  // Validate file type
+  // Validasi tipe file
   if (!file.type.startsWith('image/')) {
     toast('File harus berupa gambar', 'error')
     return
   }
   
-  // Validate file size (max 5MB)
+  // Validasi ukuran file (maks 5MB)
   if (file.size > 5 * 1024 * 1024) {
     toast('Ukuran file maksimal 5MB', 'error')
     return
@@ -91,7 +91,7 @@ async function handleFileUpload(event) {
     
     if (error) throw error
     
-    // Get public URL
+    // Dapatkan URL publik
     const { data: urlData } = supabase.storage
       .from('banners')
       .getPublicUrl(fileName)
@@ -115,7 +115,7 @@ async function saveBanner() {
   saving.value = true
   try {
     if (editingBanner.value) {
-      // Update existing
+      // Update yang ada
       const { error } = await supabase
         .from('banners')
         .update({
@@ -131,7 +131,7 @@ async function saveBanner() {
       if (error) throw error
       toast('Banner berhasil diperbarui', 'success')
     } else {
-      // Create new
+      // Buat baru
       const maxOrder = Math.max(...banners.value.map(b => b.sort_order || 0), 0)
       const { error } = await supabase
         .from('banners')

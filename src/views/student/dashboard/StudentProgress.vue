@@ -21,12 +21,12 @@ onMounted(async () => {
   loading.value = false
 })
 
-// Build les places with real progress data using MyClass composable
+// Bangun tempat les dengan data progres real menggunakan MyClass composable
 async function buildLesPlacesWithProgress() {
   const userId = authStore.user?.id
   if (!userId) return
   
-  // Get student ID from students table (needed for some queries)
+  // Dapatkan ID siswa dari tabel students (diperlukan untuk beberapa query)
   const { data: studentData } = await supabase
     .from('students')
     .select('id')
@@ -35,7 +35,7 @@ async function buildLesPlacesWithProgress() {
   
   const studentId = studentData?.id
   
-  // Fetch approved refunds explicitly to filter strictly
+  // Ambil refund yang disetujui secara eksplisit untuk filter ketat
   const { data: approvedRefunds } = await supabase
     .from('refunds')
     .select('transaction_id, transactions(booking_id, program_id)')
@@ -67,7 +67,7 @@ async function buildLesPlacesWithProgress() {
     return
   }
   
-  // Group by place
+  // Kelompokkan berdasarkan tempat
   const placesMap = {}
   
   for (const booking of activeBookings) {
@@ -84,7 +84,7 @@ async function buildLesPlacesWithProgress() {
       }
     }
     
-    // Fetch progress data using MyClass composable
+    // Ambil data progres menggunakan MyClass composable
     const progressData = await fetchProgramProgressWithMyClass(
       booking.program.id, 
       booking.id, 
@@ -108,10 +108,10 @@ async function buildLesPlacesWithProgress() {
   lesPlaces.value = Object.values(placesMap)
 }
 
-// Use MyClass composable to calculate progress EXACTLY like MyClassDetail does
+// Gunakan MyClass composable untuk hitung progres PERSIS seperti MyClassDetail
 async function fetchProgramProgressWithMyClass(programId, bookingId, studentId, authUserId, program) {
   try {
-    // Create a fresh useMyClass instance for this program
+    // Buat instance useMyClass baru untuk program ini
     const myClass = useMyClass()
     
     // 1. Fetch materials (modules and videos) - use STUDENTID not authUserId!
@@ -157,7 +157,7 @@ async function fetchProgramProgressWithMyClass(programId, bookingId, studentId, 
   }
 }
 
-// Get selected place
+// Dapatkan tempat yang dipilih
 const selectedPlace = ref(null)
 watch(selectedPlaceId, (newId) => {
   selectedPlace.value = lesPlaces.value.find(p => p.id === newId) || null
@@ -168,7 +168,7 @@ watch(lesPlaces, () => {
   }
 })
 
-// Total stats for selected place
+// Total statistik untuk tempat yang dipilih
 const totalStats = computed(() => {
   if (!selectedPlace.value) return { programs: 0, attendance: 0, score: 0 }
   const programs = selectedPlace.value.programs || []

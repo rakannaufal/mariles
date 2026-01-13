@@ -17,7 +17,7 @@ const { categories, loading: categoriesLoading, fetchCategories } = useCategorie
 const { lesPlaces, loading: lesLoading, fetchLesPlaces } = useLesPlaces()
 const { provinces, cities, loadingProvinces, loadingCities, fetchProvinces, fetchCities, formatCityName } = useIndonesiaLocation()
 
-// Guest search
+// Pencarian tamu
 const searchQuery = ref('')
 const selectedProvince = ref('')
 const selectedCity = ref('')
@@ -26,31 +26,31 @@ const showAllLes = ref(false)
 const currentSlide = ref(0)
 const showProfileMenu = ref(false)
 
-// Banner data from database
+// Data banner dari database
 const banners = ref([])
 const bannersLoading = ref(true)
 
-// ======== LOGGED-IN USER DATA ========
+// ======== DATA PENGGUNA LOGIN ========
 const myClasses = ref([])
 const myClassesLoading = ref(true)
 const userStats = ref({ totalClasses: 0, averageProgress: 0, achievements: 0 })
 const recentActivities = ref([])
 const activitiesLoading = ref(true)
 
-// ======== GUEST DATA ========
+// ======== DATA TAMU ========
 const platformStats = ref({ totalLesPlaces: 0, totalCities: 0, totalStudents: 0, totalTeachers: 0 })
 const statsLoading = ref(true)
 const testimonials = ref([])
 const testimonialsLoading = ref(true)
 
-// Default banners (fallback)
+// Banner default (fallback)
 const defaultBanners = [
   { id: 1, image_url: 'https://images.unsplash.com/photo-1580582932707-520aed937b7b?w=1200', title: 'Selamat Datang di Mariles', link: '/register' },
   { id: 2, image_url: 'https://images.unsplash.com/photo-1497633762265-9d179a990aa6?w=1200', title: 'Belajar Lebih Efektif', link: '/search' },
   { id: 3, image_url: 'https://images.unsplash.com/photo-1523050854058-8df90110c9f1?w=1200', title: 'UTBK 2025 Segera Tiba!', link: '/search?q=UTBK' },
 ]
 
-// Use fetched banners or defaults
+// Gunakan banner yang diambil atau default
 const promoSlides = computed(() => {
   return banners.value.length > 0 ? banners.value : defaultBanners
 })
@@ -88,7 +88,7 @@ const displayedLes = computed(() => {
   return lesPlaces.value.slice(0, 10)
 })
 
-// Fetch banners from database
+// Ambil banner dari database
 async function fetchBanners() {
   bannersLoading.value = true
   try {
@@ -108,10 +108,10 @@ async function fetchBanners() {
   }
 }
 
-// ======== FETCH LOGGED-IN USER DATA ========
+// ======== AMBIL DATA PENGGUNA LOGIN ========
 import { useMyClass } from '@/composables/useMyClass'
 
-// ... existing imports
+// ... import yang ada
 
 const { 
   fetchMaterials, 
@@ -124,12 +124,12 @@ const {
 } = useMyClass()
 
 
-// ======== FETCH LOGGED-IN USER DATA ========
+// ======== AMBIL DATA PENGGUNA LOGIN ========
 async function fetchMyClasses() {
   if (!authStore.isAuthenticated) return
   myClassesLoading.value = true
   try {
-    // Get student ID
+    // Dapatkan ID siswa
     const { data: studentData } = await supabase
       .from('students')
       .select('id')
@@ -141,7 +141,7 @@ async function fetchMyClasses() {
       return
     }
 
-    // Get enrolled classes
+    // Dapatkan kelas yang terdaftar
     const { data: bookingsData } = await supabase
       .from('bookings')
       .select(`
@@ -152,14 +152,14 @@ async function fetchMyClasses() {
         )
       `)
       .eq('student_id', studentData.id)
-      .in('status', ['active', 'confirmed']) // Exclude 'completed' from "Lanjutkan Belajar"
-      .neq('status', 'refunded') // Basic check
+      .in('status', ['active', 'confirmed']) // Kecualikan 'completed' dari "Lanjutkan Belajar"
+      .neq('status', 'refunded') // Pengecekan dasar
       .in('payment_status', ['paid', 'settlement', 'capture'])
       .order('created_at', { ascending: false })
-      .limit(5) // Fetch more to account for filtering
+      .limit(5) // Ambil lebih banyak untuk antisipasi filtering
 
-    // DEFENSIVE CHECK: Fetch approved refunds to exclude them
-    // This handles cases where booking status wasn't updated correctly
+    // CEK DEFENSIF: Ambil refund yang disetujui untuk mengecualikannya
+    // Ini menangani kasus di mana status booking tidak diupdate dengan benar
     const { data: approvedRefunds } = await supabase
       .from('refunds')
       .select('transaction_id, transactions(booking_id, program_id)')
@@ -169,7 +169,7 @@ async function fetchMyClasses() {
     let bookings = bookingsData || []
     
     if (approvedRefunds && approvedRefunds.length > 0) {
-      // Create a set of refunded program IDs and booking IDs
+      // Buat set ID program dan booking yang di-refund
       const refundedProgramIds = new Set()
       const refundedBookingIds = new Set()
       
@@ -178,10 +178,10 @@ async function fetchMyClasses() {
         if (r.transactions?.booking_id) refundedBookingIds.add(r.transactions.booking_id)
       })
       
-      // Filter out bookings that match refunded programs
+      // Filter booking yang cocok dengan program yang di-refund
       bookings = bookings.filter(b => {
         const isRefundedBooking = refundedBookingIds.has(b.id)
-        const isRefundedProgram = b.programs?.id && refundedProgramIds.has(b.programs.id) // Note: b.programs not b.program in this query
+        const isRefundedProgram = b.programs?.id && refundedProgramIds.has(b.programs.id) // Catatan: b.programs bukan b.program di query ini
         
         if (isRefundedBooking || isRefundedProgram) {
           return false
@@ -190,18 +190,18 @@ async function fetchMyClasses() {
       })
     }
 
-    // Process each class to get real progress and schedule
+    // Proses setiap kelas untuk mendapatkan progres dan jadwal yang sebenarnya
     const processedClasses = await Promise.all((bookings || []).map(async booking => {
-      // 1. Calculate Real Progress
-      // We need to fetch data for this specific program to use calculateCourseProgress
-      // Note: useMyClass uses shared refs, so we need to be careful with parallelism if we want to use the composable's state.
-      // However, since we are just calculating, we can fetch into local vars or sequentially.
-      // To strictly follow the composable pattern without race conditions on the shared refs 'materials', 'tests', etc.,
-      // we should probably do this sequentially or instantiate the composable inside the loop if it was a factory (it's not).
-      // BUT `useMyClass` exports refs that are shared if created outside component? No, Vue composables usually create fresh refs per call unless defined outside.
-      // Let's check useMyClass definition.
-      // checked: export function useMyClass() { const materials = ref([]) ... } -> It creates NEW refs every time it's called.
-      // So we can instantiate it for each iteration!
+      // 1. Hitung Progres Sebenarnya
+      // Kita perlu mengambil data untuk program spesifik ini untuk menggunakan calculateCourseProgress
+      // Catatan: useMyClass menggunakan ref bersama, jadi kita perlu hati-hati dengan paralelisme jika ingin menggunakan state composable.
+      // Namun, karena kita hanya menghitung, kita bisa mengambil ke variabel lokal atau secara sekuensial.
+      // Untuk ketat mengikuti pola composable tanpa race condition pada ref bersama 'materials', 'tests', dll.,
+      // kita mungkin harus melakukan ini secara sekuensial atau menginstansiasi composable di dalam loop jika itu factory (bukan).
+      // TAPI `useMyClass` mengekspor ref yang dibagikan jika dibuat di luar komponen? Tidak, composable Vue biasanya membuat ref baru per panggilan kecuali didefinisikan di luar.
+      // Mari cek definisi useMyClass.
+      // dicek: export function useMyClass() { const materials = ref([]) ... } -> Membuat ref BARU setiap kali dipanggil.
+      // Jadi kita bisa menginstansiasi untuk setiap iterasi!
       
       const { 
         fetchMaterials, 
@@ -220,10 +220,10 @@ async function fetchMyClasses() {
 
       const progress = calcProgress()
 
-      // 2. Check Schedule for Today
+      // 2. Cek Jadwal untuk Hari Ini
       const todayScheduleCount = getTodayScheduleCount(booking.programs?.schedule)
 
-      // 3. Check if Online Class
+      // 3. Cek apakah Kelas Online
       const p = booking.programs
       let isOnline = false
       if (p?.class_type) {
@@ -245,10 +245,10 @@ async function fetchMyClasses() {
       }
     }))
 
-    // Filter out completed classes (100% progress) from "Lanjutkan Belajar"
+    // Filter kelas yang selesai (100% progres) dari "Lanjutkan Belajar"
     myClasses.value = processedClasses.filter(c => c.progress < 100).slice(0, 3)
 
-    // Calculate user stats
+    // Hitung statistik pengguna
     const { count: totalClasses } = await supabase
       .from('bookings')
       .select('id', { count: 'exact', head: true })
@@ -309,7 +309,7 @@ function getTodayScheduleCount(schedule) {
     }
   }
 
-  // Debug log
+  // Log debug
   console.log('Checking schedule:', { schedule, dayID: currentDayID, dayEN: currentDayEN, count })
 
   return count
@@ -335,27 +335,27 @@ async function fetchRecentActivities() {
   }
 }
 
-// ======== FETCH GUEST DATA ========
+// ======== AMBIL DATA TAMU ========
 async function fetchPlatformStats() {
   statsLoading.value = true
   try {
-    // Count les places
+    // Hitung tempat les
     const { count: lesCount } = await supabase
       .from('les_places')
       .select('id', { count: 'exact', head: true })
 
-    // Count unique cities
+    // Hitung kota unik
     const { data: citiesData } = await supabase
       .from('les_places')
       .select('city')
     const uniqueCities = new Set((citiesData || []).map(l => l.city).filter(Boolean))
 
-    // Count students
+    // Hitung siswa
     const { count: studentsCount } = await supabase
       .from('students')
       .select('id', { count: 'exact', head: true })
 
-    // Count teachers
+    // Hitung guru
     const { count: teachersCount } = await supabase
       .from('teachers')
       .select('id', { count: 'exact', head: true })
@@ -391,7 +391,7 @@ async function fetchTestimonials() {
     testimonials.value = data || []
   } catch (err) {
     console.error('Error fetching testimonials:', err)
-    // Fallback: try without is_visible filter (column might not exist)
+    // Fallback: coba tanpa filter is_visible (kolom mungkin tidak ada)
     try {
       const { data } = await supabase
         .from('reviews')
@@ -415,7 +415,7 @@ async function fetchTestimonials() {
 let slideInterval = null
 
 onMounted(async () => {
-  // Common data
+  // Data umum
   await Promise.all([
     fetchBanners(),
     fetchCategories(),
@@ -423,7 +423,7 @@ onMounted(async () => {
     fetchProvinces()
   ])
   
-  // Conditional data based on auth
+  // Data kondisional berdasarkan auth
   if (authStore.isAuthenticated) {
     await Promise.all([
       fetchMyClasses(),
@@ -458,7 +458,7 @@ function onProvinceChange() {
 }
 
 function goToCategory(category) {
-  // Search by first keyword or name
+  // Cari berdasarkan keyword pertama atau nama
   const searchTerm = category.keywords?.[0] || category.name
   router.push({ path: '/search', query: { q: searchTerm } })
 }

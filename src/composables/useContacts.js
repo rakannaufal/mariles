@@ -31,7 +31,7 @@ export function useContacts() {
     }
   }
 
-  // For admin use - fetch all contacts
+  // Untuk penggunaan admin - ambil semua kontak
   async function fetchContacts(options = {}) {
     loading.value = true
     error.value = null
@@ -63,7 +63,7 @@ export function useContacts() {
     }
   }
 
-  // For admin use - update contact status
+  // Untuk penggunaan admin - update status kontak
   async function updateContactStatus(id, status) {
     loading.value = true
     error.value = null

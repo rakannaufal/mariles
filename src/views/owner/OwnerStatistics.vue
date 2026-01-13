@@ -29,11 +29,11 @@ const topPrograms = ref([])
 const recentReviews = ref([])
 const bookingStats = ref({ pending: 0, confirmed: 0, active: 0, completed: 0 })
 
-// Fetch all statistics
+// Ambil semua statistik
 async function fetchStatistics() {
   loading.value = true
   try {
-    // Get owner's les place first
+    // Dapatkan tempat les milik owner terlebih dahulu
     const { data: ownerData } = await supabase
       .from('owners')
       .select('id')
@@ -65,16 +65,16 @@ async function fetchStatistics() {
   }
 }
 
-// Fetch main statistics
+// Ambil statistik utama
 async function fetchMainStats(lesPlaceId) {
-  // Total bookings
+  // Total booking
   const { count: bookingCount } = await supabase
     .from('bookings')
     .select('*', { count: 'exact', head: true })
     .eq('les_place_id', lesPlaceId)
   stats.value.totalBookings = bookingCount || 0
 
-  // Active students (unique from active bookings)
+  // Siswa aktif (unik dari booking aktif)
   const { data: activeBookings } = await supabase
     .from('bookings')
     .select('student_id')
@@ -84,7 +84,7 @@ async function fetchMainStats(lesPlaceId) {
   const uniqueStudents = new Set(activeBookings?.map(b => b.student_id) || [])
   stats.value.activeStudents = uniqueStudents.size
 
-  // Total revenue
+  // Total pendapatan
   const { data: transactions } = await supabase
     .from('transactions')
     .select('amount, net_amount')
@@ -93,7 +93,7 @@ async function fetchMainStats(lesPlaceId) {
   
   stats.value.totalRevenue = transactions?.reduce((sum, t) => sum + (t.net_amount || t.amount || 0), 0) || 0
 
-  // Pending payments
+  // Pembayaran tertunda
   const { data: pendingTx } = await supabase
     .from('transactions')
     .select('amount')
@@ -102,13 +102,13 @@ async function fetchMainStats(lesPlaceId) {
   
   stats.value.pendingPayments = pendingTx?.reduce((sum, t) => sum + (t.amount || 0), 0) || 0
 
-  // Rating and reviews from les_place
+  // Rating dan ulasan dari les_place
   stats.value.avgRating = lesPlace.value?.rating || 0
   stats.value.totalReviews = lesPlace.value?.total_reviews || 0
   stats.value.totalStudents = lesPlace.value?.total_students || 0
 }
 
-// Fetch monthly data (last 6 months)
+// Ambil data bulanan (6 bulan terakhir)
 async function fetchMonthlyData(lesPlaceId) {
   const months = []
   const now = new Date()
@@ -124,7 +124,7 @@ async function fetchMonthlyData(lesPlaceId) {
 
   monthlyData.value.labels = months.map(m => m.label)
 
-  // Fetch bookings and revenue per month
+  // Ambil booking dan pendapatan per bulan
   const bookingsPromises = months.map(m =>
     supabase.from('bookings').select('*', { count: 'exact', head: true })
       .eq('les_place_id', lesPlaceId)
@@ -148,7 +148,7 @@ async function fetchMonthlyData(lesPlaceId) {
   )
 }
 
-// Fetch top programs
+// Ambil program teratas
 async function fetchTopPrograms(lesPlaceId) {
   const { data } = await supabase
     .from('programs')
@@ -161,7 +161,7 @@ async function fetchTopPrograms(lesPlaceId) {
   topPrograms.value = data || []
 }
 
-// Fetch recent reviews
+// Ambil ulasan terbaru
 async function fetchRecentReviews(lesPlaceId) {
   const { data } = await supabase
     .from('reviews')
@@ -180,7 +180,7 @@ async function fetchRecentReviews(lesPlaceId) {
   recentReviews.value = data || []
 }
 
-// Fetch booking status distribution
+// Ambil distribusi status booking
 async function fetchBookingStats(lesPlaceId) {
   const statuses = ['pending', 'confirmed', 'active', 'completed']
   const promises = statuses.map(status =>
@@ -197,7 +197,7 @@ async function fetchBookingStats(lesPlaceId) {
   }
 }
 
-// Helper functions
+// Fungsi helper
 function formatCurrency(amount) {
   return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(amount)
 }

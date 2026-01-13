@@ -17,7 +17,7 @@ const {
 const recentReviews = ref([])
 const selectedPeriod = ref('month')
 
-// Performance metrics based on real stats
+// Metrik performa berdasarkan statistik nyata
 const metrics = computed(() => [
   { 
     id: 'attendance', 
@@ -53,7 +53,7 @@ const metrics = computed(() => [
   }
 ])
 
-// Achievements based on real data
+// Pencapaian berdasarkan data nyata
 const achievements = computed(() => {
   const list = []
   if ((stats.value.attendanceRate || 0) >= 95) {
@@ -71,7 +71,7 @@ const achievements = computed(() => {
   return list
 })
 
-// Rating breakdown from real reviews
+// Detail rating dari review nyata
 const ratingBreakdown = computed(() => {
   const total = recentReviews.value.length || 1
   return [5, 4, 3, 2, 1].map(star => {

@@ -2,36 +2,36 @@ import { ref, computed } from 'vue'
 import { supabase } from '@/lib/supabase'
 
 /**
- * Composable for Program Completion System
- * Handles: gated content, auto-complete, manual complete, terminate
+ * Composable untuk Sistem Penyelesaian Program
+ * Menangani: konten terkunci, auto-selesai, selesai manual, terminasi
  */
 export function useProgramCompletion() {
   const loading = ref(false)
   const error = ref(null)
 
-  // ==================== GATED CONTENT ====================
+  // ==================== KONTEN TERKUNCI ====================
   
   /**
-   * Check if a specific material is unlocked for a student
-   * @param {Object} material - The material object with unlock_type, session_number
-   * @param {Array} attendanceRecords - Student's attendance records
-   * @returns {boolean} - Whether the material is unlocked
+   * Cek apakah materi tertentu terbuka untuk siswa
+   * @param {Object} material - Objek materi dengan unlock_type, session_number
+   * @param {Array} attendanceRecords - Catatan kehadiran siswa
+   * @returns {boolean} - Apakah materi terbuka
    */
   function isContentUnlocked(material, attendanceRecords = []) {
     if (!material) return false
     
     const unlockType = material.unlock_type || 'always'
     
-    // Always unlocked
+    // Selalu terbuka
     if (unlockType === 'always') return true
     
-    // After specific date
+    // Setelah tanggal tertentu
     if (unlockType === 'after_date') {
       if (!material.unlock_after_date) return true
       return new Date() >= new Date(material.unlock_after_date)
     }
     
-    // After attending session X
+    // Setelah menghadiri sesi X
     if (unlockType === 'after_session') {
       const sessionNumber = material.session_number || 1
       const attendedCount = attendanceRecords.filter(a => 
@@ -40,7 +40,7 @@ export function useProgramCompletion() {
       return attendedCount >= sessionNumber
     }
     
-    // Manual unlock - check if explicitly unlocked (future feature)
+    // Buka manual - cek apakah secara eksplisit dibuka (fitur mendatang)
     if (unlockType === 'manual') {
       return material.is_unlocked === true
     }
@@ -49,11 +49,11 @@ export function useProgramCompletion() {
   }
 
   /**
-   * Get all materials with unlock status for a program
+   * Dapatkan semua materi dengan status terbuka untuk program
    */
   async function getMaterialsWithUnlockStatus(programId, bookingId, studentId) {
     try {
-      // Get materials
+      // Dapatkan materi
       const { data: materials, error: matErr } = await supabase
         .from('course_materials')
         .select('*')
@@ -64,13 +64,13 @@ export function useProgramCompletion() {
       
       if (matErr) throw matErr
       
-      // Get attendance records
+      // Dapatkan catatan kehadiran
       const { data: attendance } = await supabase
         .from('attendance')
         .select('*')
         .eq('booking_id', bookingId)
       
-      // Check unlock status for each material
+      // Cek status terbuka untuk setiap materi
       return materials.map(mat => ({
         ...mat,
         isUnlocked: isContentUnlocked(mat, attendance || []),
@@ -85,10 +85,10 @@ export function useProgramCompletion() {
     }
   }
 
-  // ==================== COMPLETION ELIGIBILITY ====================
+  // ==================== KELAYAKAN PENYELESAIAN ====================
 
   /**
-   * Check if a booking is eligible for completion
+   * Cek apakah booking layak untuk diselesaikan
    */
   async function checkCompletionEligibility(bookingId) {
     try {
@@ -107,11 +107,11 @@ export function useProgramCompletion() {
   }
 
   /**
-   * Calculate completion eligibility locally (fallback)
+   * Hitung kelayakan penyelesaian secara lokal (fallback)
    */
   async function calculateEligibilityLocal(bookingId, programId, studentId, config = {}) {
     try {
-      // Default config
+      // Konfigurasi default
       const settings = {
         require_attendance: config.require_attendance ?? true,
         min_attendance_percent: config.min_attendance_percent ?? 80,
@@ -120,7 +120,7 @@ export function useProgramCompletion() {
         allow_early_completion: config.allow_early_completion ?? false
       }
       
-      // Get attendance
+      // Dapatkan kehadiran
       const { data: attendance } = await supabase
         .from('attendance')
         .select('status')
@@ -134,7 +134,7 @@ export function useProgramCompletion() {
         ? Math.round((attendedSessions / totalSessions) * 100) 
         : 0
       
-      // Get material progress
+      // Dapatkan progres materi
       const { data: materials } = await supabase
         .from('course_materials')
         .select('id')
@@ -154,7 +154,7 @@ export function useProgramCompletion() {
         ? Math.round((completedMaterials / totalMaterials) * 100) 
         : 100
       
-      // Check requirements
+      // Cek persyaratan
       const reasons = []
       let canComplete = true
       
@@ -184,10 +184,10 @@ export function useProgramCompletion() {
     }
   }
 
-  // ==================== COMPLETE BOOKING ====================
+  // ==================== SELESAIKAN BOOKING ====================
 
   /**
-   * Complete a booking (manual or auto)
+   * Selesaikan booking (manual atau auto)
    */
   async function completeBooking(bookingId, options = {}) {
     const {
@@ -226,7 +226,7 @@ export function useProgramCompletion() {
   }
 
   /**
-   * Complete booking locally (fallback if RPC fails)
+   * Selesaikan booking secara lokal (fallback jika RPC gagal)
    */
   async function completeBookingLocal(bookingId, options = {}) {
     const {
@@ -262,10 +262,10 @@ export function useProgramCompletion() {
     }
   }
 
-  // ==================== TERMINATE BOOKING ====================
+  // ==================== TERMINASI BOOKING ====================
 
   /**
-   * Terminate a booking (dropout/3x absent)
+   * Terminasi booking (dropout/3x absen)
    */
   async function terminateBooking(bookingId, reason, performedBy) {
     try {
@@ -295,7 +295,7 @@ export function useProgramCompletion() {
   }
 
   /**
-   * Terminate booking locally (fallback)
+   * Terminasi booking secara lokal (fallback)
    */
   async function terminateBookingLocal(bookingId, reason, performedBy) {
     try {
@@ -326,10 +326,10 @@ export function useProgramCompletion() {
     }
   }
 
-  // ==================== DROPOUT DETECTION ====================
+  // ==================== DETEKSI DROPOUT ====================
 
   /**
-   * Check if a student is eligible for terminate (3x absent)
+   * Cek apakah siswa layak untuk terminasi (3x absen)
    */
   async function checkDropoutEligibility(bookingId) {
     try {
@@ -344,7 +344,7 @@ export function useProgramCompletion() {
         return { is_dropout_eligible: false, consecutive_absents: 0 }
       }
       
-      // Count consecutive absents from most recent
+      // Hitung absen berturut-turut dari yang terbaru
       let consecutiveAbsents = 0
       for (const record of attendance) {
         if (record.status === 'absent') {
@@ -365,15 +365,15 @@ export function useProgramCompletion() {
     }
   }
 
-  // ==================== AUTO-COMPLETE CHECK ====================
+  // ==================== CEK AUTO-SELESAI ====================
 
   /**
-   * Check and auto-complete if eligible
-   * Call this after material progress update or attendance save
+   * Cek dan auto-selesai jika layak
+   * Panggil ini setelah update progres materi atau simpan kehadiran
    */
   async function checkAndAutoComplete(bookingId, programConfig = {}) {
     try {
-      // Get booking info
+      // Dapatkan info booking
       const { data: booking } = await supabase
         .from('bookings')
         .select('id, status, program_id, student_id')
@@ -384,7 +384,7 @@ export function useProgramCompletion() {
         return { auto_completed: false, reason: 'Booking not active' }
       }
       
-      // Check eligibility
+      // Cek kelayakan
       const eligibility = await calculateEligibilityLocal(
         bookingId, 
         booking.program_id, 
@@ -396,7 +396,7 @@ export function useProgramCompletion() {
         return { auto_completed: false, eligibility }
       }
       
-      // Auto complete
+      // Auto selesai
       await completeBookingLocal(bookingId, {
         completionType: 'auto',
         completionResult: 'passed',
@@ -410,10 +410,10 @@ export function useProgramCompletion() {
     }
   }
 
-  // ==================== STUDENT LIST FOR TEACHER ====================
+  // ==================== DAFTAR SISWA UNTUK PENGAJAR ====================
 
   /**
-   * Get students with completion status for a teacher
+   * Dapatkan siswa dengan status penyelesaian untuk pengajar
    */
   async function getStudentsForCompletion(lesPlaceId) {
     try {
@@ -448,7 +448,7 @@ export function useProgramCompletion() {
       
       if (err) throw err
       
-      // Enrich with dropout check and eligibility
+      // Perkaya dengan pengecekan dropout dan kelayakan
       const enrichedData = await Promise.all((data || []).map(async (booking) => {
         let dropoutInfo = { is_dropout_eligible: false, consecutive_absents: 0 }
         let eligibility = null
@@ -490,25 +490,25 @@ export function useProgramCompletion() {
     loading,
     error,
     
-    // Gated Content
+    // Konten Terkunci
     isContentUnlocked,
     getMaterialsWithUnlockStatus,
     
-    // Completion
+    // Penyelesaian
     checkCompletionEligibility,
     calculateEligibilityLocal,
     completeBooking,
     completeBookingLocal,
     
-    // Terminate
+    // Terminasi
     terminateBooking,
     terminateBookingLocal,
     checkDropoutEligibility,
     
-    // Auto-complete
+    // Auto-selesai
     checkAndAutoComplete,
     
-    // Teacher features
+    // Fitur pengajar
     getStudentsForCompletion
   }
 }

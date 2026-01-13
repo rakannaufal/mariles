@@ -10,7 +10,7 @@ const router = useRouter()
 const authStore = useAuthStore()
 const { enrolledCourses, loading, fetchEnrolledCourses } = useMyClass()
 
-// Separate active and completed courses
+// Pisahkan kursus aktif dan selesai
 const activeCourses = computed(() => 
   enrolledCourses.value.filter(c => c.status !== 'completed')
 )
@@ -18,7 +18,7 @@ const completedCourses = computed(() =>
   enrolledCourses.value.filter(c => c.status === 'completed')
 )
 
-// Review state
+// State ulasan
 const showReviewModal = ref(false)
 const reviewingCourse = ref(null)
 const reviewRating = ref(5)
@@ -53,9 +53,9 @@ function formatSchedule(schedule) {
   return 'Lihat jadwal lengkap'
 }
 
-// Review functions
+// Fungsi ulasan
 function openReviewModal(booking, event) {
-  event.stopPropagation() // Prevent card click
+  event.stopPropagation() // Cegah klik kartu
   reviewingCourse.value = booking
   reviewRating.value = 5
   reviewComment.value = ''
@@ -68,7 +68,7 @@ async function submitReview() {
   submittingReview.value = true
   
   try {
-    // Get student ID
+    // Dapatkan ID siswa
     const { data: studentData } = await supabase
       .from('students')
       .select('id')
@@ -80,7 +80,7 @@ async function submitReview() {
       return
     }
     
-    // Insert review
+    // Insert ulasan
     const { error } = await supabase
       .from('reviews')
       .insert({

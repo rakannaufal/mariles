@@ -28,12 +28,12 @@ const {
 const todaySchedule = ref([])
 const recentReviews = ref([])
 
-// Chart Data
+// Data Grafik
 const weeklyClasses = ref([])
 const gradeDistribution = ref([])
 const attendanceData = ref([])
 
-// Monthly performance data
+// Data performa bulanan
 const monthlyPerformance = ref([
   { month: 'Jan', classes: 0, attendance: 0 },
   { month: 'Feb', classes: 0, attendance: 0 },
@@ -43,7 +43,7 @@ const monthlyPerformance = ref([
   { month: 'Jun', classes: 0, attendance: 0 },
 ])
 
-// Recent activities
+// Aktivitas terbaru
 const recentActivities = ref([])
 
 onMounted(async () => {
@@ -57,20 +57,20 @@ onMounted(async () => {
   todaySchedule.value = getTodaySchedule()
   recentReviews.value = await fetchRecentReviews()
   
-  // Process chart data
+  // Proses data grafik
   processChartData()
   processRecentActivities()
 })
 
 function processChartData() {
-  // Weekly classes data (from schedule)
+  // Data kelas mingguan (dari jadwal)
   const days = ['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min']
   weeklyClasses.value = days.map((day, idx) => ({
     day,
     count: getTodayScheduleByDay(idx + 1).length
   }))
   
-  // Grade distribution
+  // Distribusi nilai
   const gradeRanges = { A: 0, B: 0, C: 0, D: 0 }
   grades.value.forEach(g => {
     if (g.grade >= 90) gradeRanges.A++
@@ -84,14 +84,14 @@ function processChartData() {
     color: grade === 'A' ? '#22c55e' : grade === 'B' ? '#3b82f6' : grade === 'C' ? '#f59e0b' : '#ef4444'
   }))
   
-  // Calculate totals for percentage
+  // Hitung total untuk persentase
   const totalGrades = grades.value.length || 1
   gradeDistribution.value = gradeDistribution.value.map(g => ({
     ...g,
     percentage: Math.round((g.count / totalGrades) * 100)
   }))
   
-  // Attendance data
+  // Data kehadiran
   let present = 0, absent = 0, late = 0
   attendanceSessions.value.forEach(session => {
     present += session.present || 0
@@ -103,7 +103,7 @@ function processChartData() {
     { label: 'Terlambat', value: late, color: '#f59e0b' }
   ]
   
-  // Monthly performance (simulated based on current stats)
+  // Performa bulanan (disimulasikan berdasarkan statistik saat ini)
   const baseClasses = Math.floor((stats.value.totalClasses || 0) / 6)
   monthlyPerformance.value = monthlyPerformance.value.map((m, i) => ({
     ...m,
@@ -115,7 +115,7 @@ function processChartData() {
 function processRecentActivities() {
   const activities = []
   
-  // Add grade entries
+  // Tambahkan entri nilai
   grades.value.slice(0, 3).forEach(g => {
     activities.push({
       type: 'grade',
@@ -126,7 +126,7 @@ function processRecentActivities() {
     })
   })
   
-  // Add attendance entries
+  // Tambahkan entri kehadiran
   attendanceSessions.value.slice(0, 2).forEach(s => {
     activities.push({
       type: 'attendance',

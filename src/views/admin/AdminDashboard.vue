@@ -7,7 +7,7 @@ import { supabase } from '@/lib/supabase'
 const loading = ref(true)
 const refreshing = ref(false)
 
-// Stats with trends
+// Statistik dengan tren
 const stats = ref({
   totalUsers: { value: 0, trend: '+12%', trendUp: true },
   totalLesPlaces: { value: 0, trend: '+5%', trendUp: true },
@@ -19,37 +19,44 @@ const stats = ref({
   todayTransactions: { value: 0, trend: '', trendUp: true }
 })
 
-// User breakdown for chart
+// Breakdown pengguna untuk grafik
 const userBreakdown = computed(() => [
   { label: 'Siswa', count: stats.value.activeStudents.value, color: '#3B82F6', percent: 0 },
   { label: 'Guru', count: stats.value.activeTeachers.value, color: '#10B981', percent: 0 },
   { label: 'Pemilik', count: stats.value.activeOwners.value, color: '#F59E0B', percent: 0 }
 ])
 
-// Recent Data
+// Data Terbaru
 const recentUsers = ref([])
 const recentLesPlaces = ref([])
 const recentTransactions = ref([])
 const pendingVerifications = ref([])
 
+// Pesan Kontak
+const recentContacts = ref([])
+const allContacts = ref([])
+const showContactsModal = ref(false)
+const contactsLoading = ref(false)
+
 onMounted(async () => {
   await fetchDashboardData()
+  await fetchRecentContacts()
 })
 
 async function fetchDashboardData() {
   loading.value = true
   try {
-    // Fetch user counts by role (exclude admin users)
+    // Ambil jumlah pengguna berdasarkan role (kecualikan admin)
     const { count: totalUserCount } = await supabase.from('users').select('*', { count: 'exact', head: true }).neq('role', 'admin')
     const { count: studentCount } = await supabase.from('users').select('*', { count: 'exact', head: true }).eq('role', 'student')
     const { count: teacherCount } = await supabase.from('users').select('*', { count: 'exact', head: true }).eq('role', 'teacher')
     const { count: ownerCount } = await supabase.from('users').select('*', { count: 'exact', head: true }).eq('role', 'owner')
     const { count: lesCount } = await supabase.from('les_places').select('*', { count: 'exact', head: true })
     
-    // Pending verifications
+    // Verifikasi tertunda
     const { count: pendingCount } = await supabase.from('les_places').select('*', { count: 'exact', head: true }).eq('verification_status', 'pending')
     
-    // Revenue from bookings (consistent with AdminFinance)
+    // Pendapatan dari booking (konsisten dengan AdminFinance)
     const successStatuses = ['paid', 'settlement', 'capture']
     const { data: allBookings } = await supabase
       .from('bookings')
@@ -70,7 +77,7 @@ async function fetchDashboardData() {
       todayTransactions: { value: totalTransactions, trend: `${totalTransactions} berhasil`, trendUp: true }
     }
 
-    // Recent Users (exclude admin)
+    // Pengguna Terbaru (kecualikan admin)
     const { data: users } = await supabase
       .from('users')
       .select('id, name, email, role, created_at')
@@ -79,7 +86,7 @@ async function fetchDashboardData() {
       .limit(5)
     recentUsers.value = users || []
 
-    // Recent Les Places - menggunakan view dengan owner
+    // Tempat Les Terbaru - menggunakan view dengan owner
     const { data: lesPlaces } = await supabase
       .from('les_places_with_owner')
       .select('id, name, city, is_verified, verification_status, created_at, owner_name')
@@ -87,7 +94,7 @@ async function fetchDashboardData() {
       .limit(5)
     recentLesPlaces.value = lesPlaces || []
 
-    // Pending Verifications
+    // Verifikasi Tertunda
     const { data: pending } = await supabase
       .from('les_places')
       .select('id, name, city, created_at, owners(users(name))')
@@ -96,7 +103,7 @@ async function fetchDashboardData() {
       .limit(5)
     pendingVerifications.value = pending || []
 
-    // Recent Transactions (from bookings for consistency)
+    // Transaksi Terbaru (dari booking untuk konsistensi)
     const { data: recentBookings } = await supabase
       .from('bookings')
       .select('id, payment_status, created_at, programs(price, les_places(name))')
@@ -130,9 +137,63 @@ async function fetchDashboardData() {
   }
 }
 
+// Ambil pesan kontak terbaru
+async function fetchRecentContacts() {
+  try {
+    const { data } = await supabase
+      .from('contacts')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(5)
+    recentContacts.value = data || []
+  } catch (err) {
+    console.error('Error fetching contacts:', err)
+  }
+}
+
+// Ambil semua pesan kontak untuk modal
+async function fetchAllContacts() {
+  contactsLoading.value = true
+  try {
+    const { data } = await supabase
+      .from('contacts')
+      .select('*')
+      .order('created_at', { ascending: false })
+    allContacts.value = data || []
+  } catch (err) {
+    console.error('Error fetching all contacts:', err)
+  } finally {
+    contactsLoading.value = false
+  }
+}
+
+// Buka modal semua kontak
+async function openContactsModal() {
+  showContactsModal.value = true
+  await fetchAllContacts()
+}
+
+// Format waktu relatif
+function formatTimeAgo(date) {
+  if (!date) return '-'
+  const now = new Date()
+  const then = new Date(date)
+  const diffMs = now - then
+  const diffMins = Math.floor(diffMs / 60000)
+  const diffHours = Math.floor(diffMs / 3600000)
+  const diffDays = Math.floor(diffMs / 86400000)
+  
+  if (diffMins < 1) return 'Baru saja'
+  if (diffMins < 60) return `${diffMins} menit lalu`
+  if (diffHours < 24) return `${diffHours} jam lalu`
+  if (diffDays < 7) return `${diffDays} hari lalu`
+  return formatDate(date)
+}
+
 async function refreshData() {
   refreshing.value = true
   await fetchDashboardData()
+  await fetchRecentContacts()
   refreshing.value = false
 }
 
@@ -465,6 +526,42 @@ function getStatusBadge(status) {
           </div>
         </section>
 
+        <!-- Pesan Kontak / Contact Messages -->
+        <section class="contacts-section">
+          <div class="card table-card">
+            <div class="card-header">
+              <h3>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 18px; height: 18px; margin-right: 8px;">
+                  <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
+                  <polyline points="22,6 12,13 2,6"></polyline>
+                </svg>
+                Pesan Masuk
+              </h3>
+              <button class="link" @click="openContactsModal">Lihat Semua</button>
+            </div>
+            <div class="contacts-list" v-if="recentContacts.length > 0">
+              <div v-for="contact in recentContacts" :key="contact.id" class="contact-item">
+                <div class="contact-avatar">{{ contact.name?.charAt(0) || 'U' }}</div>
+                <div class="contact-info">
+                  <div class="contact-header">
+                    <span class="contact-name">{{ contact.name }}</span>
+                    <span class="contact-time">{{ formatTimeAgo(contact.created_at) }}</span>
+                  </div>
+                  <div class="contact-email">{{ contact.email }}</div>
+                  <div class="contact-message">{{ contact.message?.substring(0, 80) }}{{ contact.message?.length > 80 ? '...' : '' }}</div>
+                </div>
+              </div>
+            </div>
+            <div v-else class="empty-contacts">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
+                <polyline points="22,6 12,13 2,6"></polyline>
+              </svg>
+              <p>Belum ada pesan masuk</p>
+            </div>
+          </div>
+        </section>
+
         <!-- Recent Les Places -->
         <section class="recent-section">
           <div class="card table-card full-width">
@@ -507,6 +604,48 @@ function getStatusBadge(status) {
         </section>
       </div>
     </main>
+
+    <!-- Modal: Semua Pesan Kontak -->
+    <div v-if="showContactsModal" class="modal-backdrop" @click.self="showContactsModal = false">
+      <div class="modal-box contacts-modal">
+        <div class="modal-header">
+          <h2>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
+              <polyline points="22,6 12,13 2,6"></polyline>
+            </svg>
+            Semua Pesan Kontak
+          </h2>
+          <button class="close-btn" @click="showContactsModal = false">&times;</button>
+        </div>
+        <div class="modal-content">
+          <div v-if="contactsLoading" class="modal-loading">
+            <div class="spinner"></div>
+            <p>Memuat pesan...</p>
+          </div>
+          <div v-else-if="allContacts.length === 0" class="modal-empty">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+              <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
+              <polyline points="22,6 12,13 2,6"></polyline>
+            </svg>
+            <p>Belum ada pesan kontak</p>
+          </div>
+          <div v-else class="modal-contacts-list">
+            <div v-for="contact in allContacts" :key="contact.id" class="modal-contact-item">
+              <div class="contact-avatar large">{{ contact.name?.charAt(0) || 'U' }}</div>
+              <div class="contact-details">
+                <div class="contact-header">
+                  <span class="contact-name">{{ contact.name }}</span>
+                  <span class="contact-time">{{ formatTimeAgo(contact.created_at) }}</span>
+                </div>
+                <div class="contact-email"> {{ contact.email }}</div>
+                <div class="contact-message-full">{{ contact.message }}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -620,6 +759,41 @@ function getStatusBadge(status) {
 .status-badge.error { background: #FEE2E2; color: #DC2626; }
 .status-badge.info { background: #DBEAFE; color: #2563EB; }
 
+/* Contacts Section */
+.contacts-section { margin-bottom: 24px; }
+.contacts-list { display: flex; flex-direction: column; gap: 12px; }
+.contact-item { display: flex; gap: 14px; padding: 14px; background: #F8FAFC; border-radius: 12px; transition: all 0.2s; }
+.contact-item:hover { background: #F1F5F9; }
+.contact-avatar { width: 40px; height: 40px; border-radius: 50%; background: linear-gradient(135deg, #0D5782, #1E88E5); color: white; display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 16px; flex-shrink: 0; }
+.contact-avatar.large { width: 48px; height: 48px; font-size: 18px; }
+.contact-info { flex: 1; min-width: 0; }
+.contact-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
+.contact-name { font-weight: 600; color: #1E293B; font-size: 14px; }
+.contact-time { font-size: 12px; color: #94A3B8; }
+.contact-email { font-size: 12px; color: #64748B; margin-bottom: 6px; }
+.contact-message { font-size: 13px; color: #475569; line-height: 1.5; }
+.empty-contacts { display: flex; flex-direction: column; align-items: center; padding: 40px 20px; color: #94A3B8; }
+.empty-contacts svg { width: 48px; height: 48px; margin-bottom: 12px; }
+.empty-contacts p { font-size: 14px; }
+
+/* Modal */
+.modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 1000; padding: 20px; }
+.modal-box { background: white; border-radius: 20px; width: 100%; max-width: 600px; max-height: 85vh; display: flex; flex-direction: column; overflow: hidden; }
+.modal-header { display: flex; justify-content: space-between; align-items: center; padding: 20px 24px; border-bottom: 1px solid #E2E8F0; }
+.modal-header h2 { display: flex; align-items: center; gap: 10px; font-size: 18px; font-weight: 700; color: #1E293B; }
+.modal-header h2 svg { width: 22px; height: 22px; color: #0D5782; }
+.close-btn { width: 36px; height: 36px; border: none; background: #F1F5F9; border-radius: 50%; font-size: 22px; cursor: pointer; color: #64748B; display: flex; align-items: center; justify-content: center; }
+.close-btn:hover { background: #E2E8F0; }
+.modal-content { flex: 1; overflow-y: auto; padding: 20px 24px; }
+.modal-loading, .modal-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 60px 20px; color: #94A3B8; }
+.modal-loading p, .modal-empty p { margin-top: 12px; font-size: 14px; }
+.modal-empty svg { width: 60px; height: 60px; }
+.modal-contacts-list { display: flex; flex-direction: column; gap: 16px; }
+.modal-contact-item { display: flex; gap: 16px; padding: 16px; background: #F8FAFC; border-radius: 14px; border: 1px solid #E2E8F0; }
+.modal-contact-item:hover { border-color: #CBD5E1; }
+.contact-details { flex: 1; min-width: 0; }
+.contact-message-full { font-size: 14px; color: #334155; line-height: 1.6; margin-top: 8px; padding: 12px; background: white; border-radius: 8px; border: 1px solid #E2E8F0; }
+
 /* Responsive */
 @media (max-width: 1200px) {
   .stats-grid { grid-template-columns: repeat(2, 1fr); }
@@ -632,5 +806,6 @@ function getStatusBadge(status) {
   .main-content { padding: 16px; }
   .page-header { flex-direction: column; align-items: flex-start; gap: 16px; }
   .quick-actions { grid-template-columns: 1fr; }
+  .modal-box { max-width: 100%; margin: 10px; }
 }
 </style>

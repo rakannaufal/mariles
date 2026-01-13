@@ -7,31 +7,31 @@ import { useRouter } from 'vue-router'
 const router = useRouter()
 const authStore = useAuthStore()
 
-// Form State
+// State Form
 const profile = ref({
-  // Basic Identity
+  // Identitas Dasar
   name: '',
   nickname: '',
   avatar_url: '',
   date_of_birth: '',
   gender: '',
   
-  // Academic Info
+  // Info Akademik
   education_level: '',
   grade: '',
   school_name: '',
   curriculum: '',
   major: '',
   
-  // Contact
+  // Kontak
   email: '',
   phone: '',
   
-  // Guardian
+  // Wali
   parent_name: '',
   parent_phone: '',
   
-  // Address
+  // Alamat
   address: '',
   province_id: '',
   province_name: '',
@@ -45,19 +45,19 @@ const saving = ref(false)
 const message = ref({ type: '', text: '' })
 const activeTab = ref('identity')
 
-// Set to false to use real database data
+// Set false untuk menggunakan data database asli
 const USE_DUMMY_DATA = false
 
-// Flag to prevent resetting grade/major during initial load
+// Flag untuk mencegah reset grade/major saat load awal
 const isInitialLoad = ref(true)
 
-// Location Data
+// Data Lokasi
 const provinces = ref([])
 const cities = ref([])
 const loadingProvinces = ref(false)
 const loadingCities = ref(false)
 
-// Options
+// Opsi
 const genderOptions = [
   { value: '', label: 'Pilih jenis kelamin' },
   { value: 'male', label: 'Laki-laki' },
@@ -155,18 +155,18 @@ const majorOptionsMap = {
   ]
 }
 
-// Watch education level to reset grade (only when user changes it, not on initial load)
+// Watch education level untuk reset grade (hanya saat pengguna mengubahnya, bukan saat load awal)
 watch(() => profile.value.education_level, (newVal, oldVal) => {
-  // Skip reset during initial profile loading
+  // Lewati reset saat loading profil awal
   if (isInitialLoad.value) return
-  // Only reset if this is a user-initiated change
+  // Hanya reset jika ini perubahan dari pengguna
   if (oldVal !== '' && newVal !== oldVal) {
     profile.value.grade = ''
     profile.value.major = ''
   }
 })
 
-// Watch province to fetch cities
+// Watch province untuk fetch cities
 watch(() => profile.value.province_id, async (newVal) => {
   if (newVal) {
     await fetchCities(newVal)
@@ -181,7 +181,7 @@ onMounted(async () => {
   await Promise.all([fetchProfile(), fetchProvinces()])
 })
 
-// Fetch provinces from API
+// Ambil provinsi dari API
 async function fetchProvinces() {
   loadingProvinces.value = true
   try {
@@ -189,7 +189,7 @@ async function fetchProvinces() {
     provinces.value = await res.json()
   } catch (err) {
     console.error('Error fetching provinces:', err)
-    // Fallback data
+    // Data fallback
     provinces.value = [
       { id: '11', name: 'ACEH' },
       { id: '12', name: 'SUMATERA UTARA' },
@@ -231,7 +231,7 @@ async function fetchProvinces() {
   }
 }
 
-// Fetch cities from API
+// Ambil kota dari API
 async function fetchCities(provinceId) {
   loadingCities.value = true
   cities.value = []
@@ -247,7 +247,7 @@ async function fetchCities(provinceId) {
   }
 }
 
-// Handle province change
+// Tangani perubahan provinsi
 function onProvinceChange(e) {
   const selectedId = e.target.value
   const selectedProvince = provinces.value.find(p => p.id === selectedId)
@@ -255,7 +255,7 @@ function onProvinceChange(e) {
   profile.value.province_name = selectedProvince?.name || ''
 }
 
-// Handle city change
+// Tangani perubahan kota
 function onCityChange(e) {
   const selectedId = e.target.value
   const selectedCity = cities.value.find(c => c.id === selectedId)
@@ -267,7 +267,7 @@ async function fetchProfile() {
   loading.value = true
   
   try {
-    // Wait for auth
+    // Tunggu auth
     while (authStore.loading) {
       await new Promise(r => setTimeout(r, 100))
     }
@@ -296,7 +296,7 @@ async function fetchProfile() {
         city_name: 'KOTA JAKARTA SELATAN',
         postal_code: '12760'
       }
-      // Fetch cities for selected province
+      // Ambil kota untuk provinsi yang dipilih
       if (profile.value.province_id) {
         await fetchCities(profile.value.province_id)
       }
@@ -308,7 +308,7 @@ async function fetchProfile() {
       profile.value.email = authStore.userProfile.email || authStore.user?.email || ''
       profile.value.phone = authStore.userProfile.phone || ''
       profile.value.avatar_url = authStore.userProfile.avatar_url || ''
-      // Fallback for gender and birth_date from users table (for legacy registrations)
+      // Fallback untuk gender dan birth_date dari tabel users (untuk registrasi lama)
       profile.value.gender = authStore.userProfile.gender || ''
       profile.value.date_of_birth = authStore.userProfile.birth_date || ''
     }
@@ -324,7 +324,7 @@ async function fetchProfile() {
         profile.value = {
           ...profile.value,
           nickname: studentData.nickname || profile.value.nickname || '',
-          // Prefer students table data, fallback to users table data
+          // Prioritaskan data tabel students, fallback ke data tabel users
           date_of_birth: studentData.date_of_birth || profile.value.date_of_birth || '',
           gender: studentData.gender || profile.value.gender || '',
           education_level: studentData.education_level || '',
@@ -342,7 +342,7 @@ async function fetchProfile() {
           postal_code: studentData.postal_code || ''
         }
         
-        // Fetch cities for selected province
+        // Ambil kota untuk provinsi yang dipilih
         if (studentData.province_id) {
           await fetchCities(studentData.province_id)
         }
@@ -352,7 +352,7 @@ async function fetchProfile() {
     console.error('Error loading profile:', err)
   } finally {
     loading.value = false
-    // Allow watchers to reset fields now that initial load is complete
+    // Izinkan watcher untuk reset field sekarang karena load awal selesai
     isInitialLoad.value = false
   }
 }
@@ -369,7 +369,7 @@ async function handleSave() {
       return
     }
     
-    // Update users table
+    // Update tabel users
     const { error: userError } = await supabase
       .from('users')
       .update({
@@ -380,7 +380,7 @@ async function handleSave() {
 
     if (userError) throw userError
 
-    // Update students table
+    // Update tabel students
     const { error: studentError } = await supabase
       .from('students')
       .update({

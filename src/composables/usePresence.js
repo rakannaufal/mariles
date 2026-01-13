@@ -2,14 +2,14 @@ import { ref, shallowRef } from 'vue'
 import { supabase } from '@/lib/supabase'
 import { useAuthStore } from '@/stores/auth'
 
-// Shared state across all components - using shallowRef to avoid deep reactivity
-const onlineUsersSet = shallowRef(new Set()) // Simple Set for fast lookups
-const lastSeenMap = shallowRef(new Map()) // userId -> last seen timestamp
+// State bersama di semua komponen - gunakan shallowRef untuk menghindari reaktivitas dalam
+const onlineUsersSet = shallowRef(new Set()) // Set sederhana untuk pencarian cepat
+const lastSeenMap = shallowRef(new Map()) // userId -> timestamp terakhir dilihat
 let presenceChannel = null
 let isInitialized = false
 let subscriberCount = 0
 
-// Debounce timer for batching updates
+// Timer debounce untuk batch update
 let updateTimer = null
 let pendingOnlineUsers = new Set()
 let hasPendingUpdate = false
@@ -25,27 +25,27 @@ function flushUpdates() {
 function scheduleUpdate() {
   hasPendingUpdate = true
   if (!updateTimer) {
-    updateTimer = setTimeout(flushUpdates, 100) // Batch updates every 100ms
+    updateTimer = setTimeout(flushUpdates, 100) // Batch update setiap 100ms
   }
 }
 
 export function usePresence() {
   const authStore = useAuthStore()
 
-  // Check if a user is online - simple synchronous lookup
+  // Cek apakah pengguna online - pencarian sinkron sederhana
   function isUserOnline(userId) {
     if (!userId) return false
     return onlineUsersSet.value.has(userId)
   }
 
-  // Get last seen time for a user (returns null if never seen or currently online)
+  // Dapatkan waktu terakhir dilihat untuk pengguna (kembalikan null jika belum pernah dilihat atau sedang online)
   function getLastSeen(userId) {
     if (!userId) return null
     if (isUserOnline(userId)) return null
     return lastSeenMap.value.get(userId) || null
   }
 
-  // Format last seen time in Indonesian
+  // Format waktu terakhir dilihat dalam bahasa Indonesia
   function formatLastSeen(userId) {
     const lastSeen = getLastSeen(userId)
     if (!lastSeen) return null
@@ -65,8 +65,8 @@ export function usePresence() {
     return date.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })
   }
 
-  // Get last activity text - for both online and offline users
-  // Online users show "Baru saja", offline users show time since last seen
+  // Dapatkan teks aktivitas terakhir - untuk pengguna online dan offline
+  // Pengguna online menampilkan "Baru saja", pengguna offline menampilkan waktu sejak terakhir dilihat
   function getLastActivityText(userId) {
     if (!userId) return ''
     if (isUserOnline(userId)) return 'Baru saja'
@@ -74,27 +74,27 @@ export function usePresence() {
     return lastSeenText || ''
   }
 
-  // Get status text (Online, or last seen time)
+  // Dapatkan teks status (Online, atau waktu terakhir dilihat)
   function getStatusText(userId) {
     if (isUserOnline(userId)) return 'Online'
     const lastSeenText = formatLastSeen(userId)
     return lastSeenText ? `Terakhir dilihat ${lastSeenText}` : 'Offline'
   }
 
-  // Subscribe to presence channel
+  // Berlangganan ke channel presence
   function subscribeToPresence() {
     if (!authStore.user?.id) return
     
     subscriberCount++
     
-    // If already initialized, just increment subscriber count
+    // Jika sudah diinisialisasi, hanya tambah subscriber count
     if (isInitialized && presenceChannel) {
       return
     }
     
     isInitialized = true
     
-    // Use a single global channel name for all users
+    // Gunakan nama channel global tunggal untuk semua pengguna
     presenceChannel = supabase.channel('mariles-online-users', {
       config: {
         presence: {
@@ -114,7 +114,7 @@ export function usePresence() {
         scheduleUpdate()
       })
       .on('presence', { event: 'leave' }, ({ key }) => {
-        // Store last seen time when user leaves
+        // Simpan waktu terakhir dilihat saat pengguna keluar
         const newLastSeen = new Map(lastSeenMap.value)
         newLastSeen.set(key, new Date().toISOString())
         lastSeenMap.value = newLastSeen
@@ -132,11 +132,11 @@ export function usePresence() {
       })
   }
 
-  // Unsubscribe from presence channel
+  // Berhenti berlangganan dari channel presence
   function unsubscribeFromPresence() {
     subscriberCount--
     
-    // Only remove channel when no more subscribers
+    // Hanya hapus channel saat tidak ada subscriber lagi
     if (subscriberCount <= 0 && presenceChannel) {
       if (updateTimer) {
         clearTimeout(updateTimer)

@@ -12,7 +12,7 @@ const lesPlace = ref(null)
 const showPasswordModal = ref(false)
 const showDeleteModal = ref(false)
 
-// Settings form
+// Form pengaturan
 const settings = ref({
   email_notifications: true,
   new_registration_notifications: true,
@@ -23,7 +23,7 @@ const settings = ref({
   passing_grade: 70
 })
 
-// Password form
+// Form password
 const passwordForm = ref({
   currentPassword: '',
   newPassword: '',
@@ -32,11 +32,11 @@ const passwordForm = ref({
 const passwordError = ref('')
 const passwordSuccess = ref(false)
 
-// Fetch les place and settings
+// Ambil tempat les dan pengaturan
 async function fetchSettings() {
   loading.value = true
   try {
-    // Get owner's les place
+    // Dapatkan tempat les pemilik
     const { data: ownerData } = await supabase
       .from('owners')
       .select('id')
@@ -52,7 +52,7 @@ async function fetchSettings() {
 
       if (lesData) {
         lesPlace.value = lesData
-        // Merge with saved settings
+        // Gabungkan dengan pengaturan tersimpan
         if (lesData.settings) {
           settings.value = { ...settings.value, ...lesData.settings }
         }
@@ -65,11 +65,11 @@ async function fetchSettings() {
   }
 }
 
-// Save settings
+// Simpan pengaturan
 async function saveSettings() {
   if (!lesPlace.value) return
   
-  // Validate weights sum to 100
+  // Validasi jumlah bobot harus 100
   if (settings.value.quiz_weight + settings.value.latihan_weight !== 100) {
     alert('Bobot Quiz + Latihan harus berjumlah 100%')
     return
@@ -102,7 +102,7 @@ async function saveSettings() {
   }
 }
 
-// Change password
+// Ubah password
 async function changePassword() {
   passwordError.value = ''
   passwordSuccess.value = false
@@ -138,13 +138,13 @@ async function changePassword() {
   }
 }
 
-// Delete account
+// Hapus akun
 async function deleteAccount() {
   if (!confirm('Yakin ingin menghapus akun? Semua data akan dihapus permanen. Tindakan ini tidak dapat dibatalkan.')) return
   if (!confirm('Apakah Anda benar-benar yakin? Data tidak dapat dipulihkan kembali.')) return
   
   try {
-    // Hard delete via Edge Function
+    // Hapus permanen via Edge Function
     const { data, error } = await supabase.functions.invoke('delete-user', {
       body: { user_id: authStore.user.id }
     })
@@ -160,7 +160,7 @@ async function deleteAccount() {
   }
 }
 
-// Computed for weight validation
+// Computed untuk validasi bobot
 const weightsValid = computed(() => {
   return settings.value.quiz_weight + settings.value.latihan_weight === 100
 })

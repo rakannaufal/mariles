@@ -1,32 +1,32 @@
 /**
- * Midtrans Payment Gateway Configuration
- * ======================================
+ * Konfigurasi Payment Gateway Midtrans
+ * =====================================
  * 
- * This module provides Midtrans integration for:
- * - Snap (Payment collection from students)
- * - Disbursement/Iris (Payout to owner/teacher bank accounts)
+ * Modul ini menyediakan integrasi Midtrans untuk:
+ * - Snap (Pengumpulan pembayaran dari siswa)
+ * - Disbursement/Iris (Pencairan ke rekening bank owner/guru)
  * 
- * Currently configured for SANDBOX mode.
- * For production, uncomment the production keys and update .env
+ * Saat ini dikonfigurasi untuk mode SANDBOX.
+ * Untuk produksi, uncomment production keys dan update .env
  */
 
 // ============================================================
-// CONFIGURATION
+// KONFIGURASI
 // ============================================================
 
-// Sandbox Keys (for testing)
+// Kunci Sandbox (untuk testing)
 const MIDTRANS_CONFIG = {
   isProduction: import.meta.env.VITE_MIDTRANS_IS_PRODUCTION === 'true',
   
-  // Sandbox Keys (default for development)
+  // Kunci Sandbox (default untuk development)
   clientKey: import.meta.env.VITE_MIDTRANS_CLIENT_KEY || 'SB-Mid-client-XXXXXXXXXXXXXXXX',
   serverKey: import.meta.env.VITE_MIDTRANS_SERVER_KEY || 'SB-Mid-server-XXXXXXXXXXXXXXXX',
   
-  // Production Keys (uncomment when going live)
+  // Kunci Production (uncomment saat go live)
   // clientKey: import.meta.env.VITE_MIDTRANS_CLIENT_KEY || 'Mid-client-XXXXXXXXXXXXXXXX',
   // serverKey: import.meta.env.VITE_MIDTRANS_SERVER_KEY || 'Mid-server-XXXXXXXXXXXXXXXX',
   
-  // API URLs
+  // URL API
   snapUrl: import.meta.env.VITE_MIDTRANS_IS_PRODUCTION === 'true' 
     ? 'https://app.midtrans.com/snap/snap.js'
     : 'https://app.sandbox.midtrans.com/snap/snap.js',
@@ -35,18 +35,18 @@ const MIDTRANS_CONFIG = {
     ? 'https://api.midtrans.com/v2'
     : 'https://api.sandbox.midtrans.com/v2',
   
-  // Iris (Disbursement) URLs
+  // URL Iris (Pencairan)
   irisUrl: import.meta.env.VITE_MIDTRANS_IS_PRODUCTION === 'true'
     ? 'https://app.midtrans.com/iris'
     : 'https://app.sandbox.midtrans.com/iris',
 }
 
 // ============================================================
-// SNAP (PAYMENT COLLECTION)
+// SNAP (PENGUMPULAN PEMBAYARAN)
 // ============================================================
 
 /**
- * Load Midtrans Snap script dynamically
+ * Muat script Midtrans Snap secara dinamis
  */
 export function loadSnapScript() {
   return new Promise((resolve, reject) => {
@@ -65,9 +65,9 @@ export function loadSnapScript() {
 }
 
 /**
- * Open Snap payment popup
- * @param {string} snapToken - Token from backend
- * @param {Object} callbacks - Callback functions
+ * Buka popup pembayaran Snap
+ * @param {string} snapToken - Token dari backend
+ * @param {Object} callbacks - Fungsi callback
  */
 export async function openSnapPayment(snapToken, callbacks = {}) {
   const snap = await loadSnapScript()
@@ -97,8 +97,8 @@ export async function openSnapPayment(snapToken, callbacks = {}) {
 // ============================================================
 
 /**
- * Generate unique order ID for Midtrans
- * @param {string} prefix - Order prefix (e.g., 'TXN', 'WD')
+ * Generate order ID unik untuk Midtrans
+ * @param {string} prefix - Prefix order (misal 'TXN', 'WD')
  */
 export function generateOrderId(prefix = 'MARILES') {
   const timestamp = Date.now()
@@ -107,7 +107,7 @@ export function generateOrderId(prefix = 'MARILES') {
 }
 
 // ============================================================
-// PAYMENT METHODS INFO
+// INFO METODE PEMBAYARAN
 // ============================================================
 
 export const PAYMENT_METHODS = {
@@ -144,7 +144,7 @@ export const PAYMENT_METHODS = {
 }
 
 // ============================================================
-// BANK LIST FOR DISBURSEMENT
+// DAFTAR BANK UNTUK PENCAIRAN
 // ============================================================
 
 export const BANK_LIST = [
@@ -163,7 +163,7 @@ export const BANK_LIST = [
 ]
 
 // ============================================================
-// EXPORTS
+// EKSPOR
 // ============================================================
 
 export default MIDTRANS_CONFIG

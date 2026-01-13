@@ -12,7 +12,7 @@ export const useAuthStore = defineStore('auth', () => {
   const userRole = computed(() => 
     userProfile.value?.role || 
     user.value?.user_metadata?.role || 
-    'student' // Fallback to student if no role found
+    'student' // Fallback ke student jika tidak ada role ditemukan
   )
 
   async function initialize() {
@@ -27,11 +27,11 @@ export const useAuthStore = defineStore('auth', () => {
     
     loading.value = false
 
-    // Listen for auth changes
+    // Dengarkan perubahan auth
     supabase.auth.onAuthStateChange(async (event, session) => {
       user.value = session?.user || null
       if (session?.user) {
-        // Wait a bit for trigger to complete, then fetch profile
+        // Tunggu sebentar untuk trigger selesai, lalu ambil profil
         setTimeout(async () => {
           await fetchUserProfile()
         }, 500)
@@ -53,7 +53,7 @@ export const useAuthStore = defineStore('auth', () => {
     if (!error && data) {
       userProfile.value = data
     } else {
-      // If no profile exists, create one (for Google OAuth users)
+      // Jika profil tidak ada, buat satu (untuk pengguna Google OAuth)
       await createUserProfile()
     }
   }
@@ -75,14 +75,14 @@ export const useAuthStore = defineStore('auth', () => {
     if (pendingLesPlaceId) localStorage.removeItem('pendingLesPlaceId')
     if (pendingOwnerId) localStorage.removeItem('pendingOwnerId')
 
-    // Check if user already exists and get current role
+    // Cek apakah pengguna sudah ada dan dapatkan role saat ini
     const { data: existingUser } = await supabase
       .from('users')
       .select('role')
       .eq('id', user.value.id)
       .single()
     
-    // Priority: pendingRole > existing non-student role > user_metadata role > 'student'
+    // Prioritas: pendingRole > role non-student yang ada > role user_metadata > 'student'
     const finalRole = pendingRole || 
       (existingUser?.role && existingUser.role !== 'student' ? existingUser.role : null) || 
       user.value.user_metadata?.role || 
@@ -99,10 +99,10 @@ export const useAuthStore = defineStore('auth', () => {
       role: finalRole
     }, { 
       onConflict: 'id',
-      ignoreDuplicates: false  // Ensure update happens
+      ignoreDuplicates: false  // Pastikan update terjadi
     })
 
-    // Create role-specific profile if needed
+    // Buat profil role-spesifik jika diperlukan
     if (!error) {
       if (finalRole === 'student') {
         await supabase.from('students').upsert({
@@ -115,14 +115,14 @@ export const useAuthStore = defineStore('auth', () => {
           owner_type: pendingOwnerType || 'umum'
         }, { onConflict: 'user_id' })
       } else if (finalRole === 'teacher') {
-        // Create teacher record with owner_id and les_place_id from invite code
+        // Buat catatan guru dengan owner_id dan les_place_id dari kode undangan
         const { data: teacherData } = await supabase.from('teachers').upsert({
           user_id: user.value.id,
           owner_id: pendingOwnerId || null,
           les_place_id: pendingLesPlaceId || null
         }, { onConflict: 'user_id' }).select().single()
 
-        // Mark invite code as used if provided
+        // Tandai kode undangan sebagai terpakai jika disediakan
         if (pendingInviteCode && teacherData) {
           await supabase.rpc('use_teacher_invite_code', {
             p_code: pendingInviteCode,
@@ -143,7 +143,7 @@ export const useAuthStore = defineStore('auth', () => {
     
     if (error) throw error
 
-    // Immediately update state to avoid race conditions
+    // Segera update state untuk menghindari race condition
     if (data.user) {
       user.value = data.user
       await fetchUserProfile()
@@ -174,7 +174,7 @@ export const useAuthStore = defineStore('auth', () => {
 
     // Jika user langsung ter-confirm, simpan ke database
     if (data.user && data.session) {
-      // Create user record
+      // Buat catatan pengguna
       await supabase.from('users').upsert({
         id: data.user.id,
         email: email,
@@ -186,16 +186,16 @@ export const useAuthStore = defineStore('auth', () => {
         address: profileData.address || null
       }, { onConflict: 'id' })
 
-      // For owners, create owner record with owner_type and les_place
+      // Untuk owner, buat catatan owner dengan owner_type dan les_place
       if (profileData.role === 'owner') {
-        // Create owner record
+        // Buat catatan owner
         const { data: ownerData } = await supabase.from('owners').upsert({
           user_id: data.user.id,
           business_name: profileData.les_place_name || profileData.name + "'s Business",
           owner_type: profileData.owner_type || 'umum'
         }, { onConflict: 'user_id' }).select().single()
 
-        // Create les_place if we have the info
+        // Buat les_place jika ada infonya
         if (ownerData && profileData.les_place_name) {
           await supabase.from('les_places').insert({
             owner_id: ownerData.id,
@@ -210,16 +210,16 @@ export const useAuthStore = defineStore('auth', () => {
         }
       }
 
-      // For teachers, create teacher record with invite code linking
+      // Untuk guru, buat catatan guru dengan linking kode undangan
       if (profileData.role === 'teacher') {
-        // Create teacher record with owner_id and les_place_id from invite code
+        // Buat catatan guru dengan owner_id dan les_place_id dari kode undangan
         const { data: teacherData } = await supabase.from('teachers').upsert({
           user_id: data.user.id,
           owner_id: profileData.owner_id || null,
           les_place_id: profileData.les_place_id || null
         }, { onConflict: 'user_id' }).select().single()
 
-        // Mark invite code as used if provided
+        // Tandai kode undangan sebagai terpakai jika disediakan
         if (profileData.invite_code && teacherData) {
           await supabase.rpc('use_teacher_invite_code', {
             p_code: profileData.invite_code,
@@ -228,7 +228,7 @@ export const useAuthStore = defineStore('auth', () => {
         }
       }
 
-      // For students, create student record
+      // Untuk siswa, buat catatan siswa
       if (profileData.role === 'student') {
         await supabase.from('students').upsert({
           user_id: data.user.id,
@@ -252,12 +252,12 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   async function signInWithGoogle() {
-    // Get pending role and owner type from localStorage (set during registration)
+    // Dapatkan pending role dan owner type dari localStorage (diset saat registrasi)
     const pendingRole = localStorage.getItem('pendingRole') || 'student'
     const pendingOwnerType = localStorage.getItem('pendingOwnerType') || null
     
-    // Construct metadata to pass to Supabase
-    // This ensures the handle_new_user trigger gets the correct role immediately
+    // Konstruksi metadata untuk dikirim ke Supabase
+    // Ini memastikan trigger handle_new_user mendapat role yang benar segera
     const metaData = {
       role: pendingRole,
       owner_type: pendingOwnerType

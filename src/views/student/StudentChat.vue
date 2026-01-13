@@ -23,7 +23,7 @@ const {
   getOrCreateChatRoom
 } = useChat()
 
-// Use shared presence tracking
+// Gunakan tracking kehadiran bersama
 const { 
   isUserOnline, 
   getStatusText,
@@ -32,12 +32,12 @@ const {
   unsubscribeFromPresence 
 } = usePresence()
 
-// Computed to get the right chat rooms
+// Computed untuk mendapatkan ruang chat yang benar
 const displayChatRooms = computed(() => {
   return chatRooms.value
 })
 
-// Computed to get the right messages
+// Computed untuk mendapatkan pesan yang benar
 const displayMessages = computed(() => {
   return messages.value
 })
@@ -55,7 +55,7 @@ const currentParticipant = computed(() => {
   return selectedRoom.value.otherParticipant
 })
 
-// Get role label in Indonesian
+// Dapatkan label role dalam bahasa Indonesia
 function getRoleLabel(role) {
   switch(role) {
     case 'teacher': return 'Guru'

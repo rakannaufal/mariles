@@ -16,7 +16,7 @@ const submitting = ref(false)
 const error = ref('')
 const lesPlaceId = ref(null)
 
-// Filters
+// Filter
 const searchQuery = ref('')
 const filterStatus = ref('all') // 'all' | 'active' | 'inactive' | 'expired'
 
@@ -89,7 +89,7 @@ const stats = computed(() => {
 
 async function fetchLesPlaceId() {
   try {
-    // Get Owner ID
+    // Dapatkan ID Owner
     const { data: owner } = await supabase
       .from('owners')
       .select('id')
@@ -98,7 +98,7 @@ async function fetchLesPlaceId() {
     
     if (!owner) throw new Error('Owner profile not found')
 
-    // Get Les Place ID
+    // Dapatkan ID Les Place
     const { data: lp } = await supabase
       .from('les_places')
       .select('id')

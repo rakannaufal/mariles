@@ -1,5 +1,5 @@
 // Composable untuk mengelola data student
-// Uses real Supabase data only
+// Hanya menggunakan data Supabase asli
 
 import { ref } from 'vue'
 import { supabase } from '@/lib/supabase'
@@ -16,7 +16,7 @@ export function useStudentData() {
   const paymentHistory = ref([])
   const stats = ref({ active_classes: 0, pending_bookings: 0, completed_classes: 0, favorites_count: 0 })
   
-  // Fetch student ID
+  // Ambil ID siswa
   async function fetchStudentId() {
     if (!authStore.user) return null
     
@@ -32,7 +32,7 @@ export function useStudentData() {
     return data?.id
   }
   
-  // Fetch student profile
+  // Ambil profil siswa
   async function fetchStudent() {
     if (!authStore.user) return null
     
@@ -48,7 +48,7 @@ export function useStudentData() {
     return student.value
   }
   
-  // Fetch bookings (excludes refunded bookings - those should not appear in active list)
+  // Ambil booking (tidak termasuk booking yang di-refund - tidak boleh muncul di daftar aktif)
   async function fetchBookings() {
     loading.value = true
     try {
@@ -67,10 +67,10 @@ export function useStudentData() {
           transactions (id, amount, payment_status, created_at)
         `)
         .eq('student_id', sid)
-        // .neq('status', 'refunded') // REMOVED: Include refunded to show them correctly in list
+        // .neq('status', 'refunded') // DIHAPUS: Sertakan refunded untuk menampilkannya dengan benar di daftar
         .order('created_at', { ascending: false })
       
-      // Fetch approved refunds for defensive check
+      // Ambil refund yang disetujui untuk pengecekan defensif
       const { data: approvedRefunds } = await supabase
         .from('refunds')
         .select('transaction_id, transactions(booking_id, program_id)')
@@ -92,7 +92,7 @@ export function useStudentData() {
           const latestTx = b.transactions?.sort((a, b) => new Date(b.created_at) - new Date(a.created_at))?.[0]
           const actualAmount = latestTx?.amount || null
           
-          // FORCE OVERRIDE STATUS IF REFUNDED
+          // PAKSA OVERRIDE STATUS JIKA DI-REFUND
           let finalStatus = b.status
           let finalPaymentStatus = b.payment_status
           const isRefunded = refundedBookingIds.has(b.id) || (b.programs?.id && refundedProgramIds.has(b.programs.id))
@@ -104,7 +104,7 @@ export function useStudentData() {
 
           return {
             ...b,
-            status: finalStatus, // Use override status
+            status: finalStatus, // Gunakan status override
             payment_status: finalPaymentStatus,
             program: {
               ...b.programs,
@@ -126,7 +126,7 @@ export function useStudentData() {
     return bookings.value
   }
   
-  // Fetch favorites
+  // Ambil favorit
   async function fetchFavorites() {
     if (!authStore.user) return []
     
@@ -147,7 +147,7 @@ export function useStudentData() {
     return favorites.value
   }
   
-  // Fetch payment history
+  // Ambil riwayat pembayaran
   async function fetchPaymentHistory() {
     const sid = studentId.value || await fetchStudentId()
     if (!sid) return []
@@ -174,7 +174,7 @@ export function useStudentData() {
     return paymentHistory.value
   }
   
-  // Remove favorite
+  // Hapus favorit
   async function removeFavorite(id) {
     const { error } = await supabase
       .from('favorites')
@@ -187,7 +187,7 @@ export function useStudentData() {
     return !error
   }
   
-  // Fetch stats
+  // Ambil statistik
   async function fetchStats() {
     const sid = studentId.value || await fetchStudentId()
     if (!sid) return stats.value
@@ -208,14 +208,14 @@ export function useStudentData() {
         pending_bookings: bookingsData.filter(b => b.status === 'pending').length,
         completed_classes: bookingsData.filter(b => b.status === 'completed').length,
         refunded_classes: bookingsData.filter(b => b.status === 'refunded').length,
-        total_bookings: bookingsData.filter(b => b.status !== 'refunded').length, // Exclude refunded from total
+        total_bookings: bookingsData.filter(b => b.status !== 'refunded').length, // Kecualikan refunded dari total
         favorites_count: favData?.length || 0
       }
     }
     return stats.value
   }
   
-  // Cancel booking
+  // Batalkan booking
   async function cancelBooking(bookingId, reason = 'cancelled') {
     try {
       const { data, error: bookingError } = await supabase
@@ -250,7 +250,7 @@ export function useStudentData() {
     }
   }
   
-  // Get all data
+  // Ambil semua data
   async function fetchAllData() {
     loading.value = true
     try {

@@ -1,0 +1,304 @@
+{
+  "info": {
+    "name": "Midtrans Sandbox API",
+    "description": "Midtrans Payment Gateway API for Sandbox Testing",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "MIDTRANS_BASE_URL",
+      "value": "https://api.sandbox.midtrans.com",
+      "type": "string"
+    },
+    {
+      "key": "MIDTRANS_SERVER_KEY",
+      "value": "YOUR_SERVER_KEY_HERE",
+      "type": "string"
+    },
+    {
+      "key": "MIDTRANS_AUTH",
+      "value": "YOUR_BASE64_ENCODED_KEY",
+      "type": "string",
+      "description": "Base64 encode of 'ServerKey:'"
+    },
+    {
+      "key": "ORDER_ID",
+      "value": "TXN-1234567890",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Core API (Charge)",
+      "item": [
+        {
+          "name": "Create Transaction (QRIS)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Accept", "value": "application/json"},
+              {"key": "Content-Type", "value": "application/json"},
+              {"key": "Authorization", "value": "Basic {{MIDTRANS_AUTH}}"}
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"payment_type\": \"gopay\",\n  \"transaction_details\": {\n    \"order_id\": \"ORDER-{{$timestamp}}\",\n    \"gross_amount\": 50000\n  },\n  \"gopay\": {\n    \"enable_callback\": true,\n    \"callback_url\": \"https://mariles.vercel.app/payment/callback\"\n  },\n  \"customer_details\": {\n    \"first_name\": \"Test\",\n    \"email\": \"test@example.com\",\n    \"phone\": \"081234567890\"\n  }\n}"
+            },
+            "url": "{{MIDTRANS_BASE_URL}}/v2/charge"
+          }
+        },
+        {
+          "name": "Create Transaction (Bank Transfer BCA)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Accept", "value": "application/json"},
+              {"key": "Content-Type", "value": "application/json"},
+              {"key": "Authorization", "value": "Basic {{MIDTRANS_AUTH}}"}
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"payment_type\": \"bank_transfer\",\n  \"transaction_details\": {\n    \"order_id\": \"ORDER-{{$timestamp}}\",\n    \"gross_amount\": 100000\n  },\n  \"bank_transfer\": {\n    \"bank\": \"bca\"\n  },\n  \"customer_details\": {\n    \"first_name\": \"Test\",\n    \"email\": \"test@example.com\",\n    \"phone\": \"081234567890\"\n  }\n}"
+            },
+            "url": "{{MIDTRANS_BASE_URL}}/v2/charge"
+          }
+        },
+        {
+          "name": "Create Transaction (Bank Transfer BNI)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Accept", "value": "application/json"},
+              {"key": "Content-Type", "value": "application/json"},
+              {"key": "Authorization", "value": "Basic {{MIDTRANS_AUTH}}"}
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"payment_type\": \"bank_transfer\",\n  \"transaction_details\": {\n    \"order_id\": \"ORDER-{{$timestamp}}\",\n    \"gross_amount\": 100000\n  },\n  \"bank_transfer\": {\n    \"bank\": \"bni\"\n  },\n  \"customer_details\": {\n    \"first_name\": \"Test\",\n    \"email\": \"test@example.com\"\n  }\n}"
+            },
+            "url": "{{MIDTRANS_BASE_URL}}/v2/charge"
+          }
+        },
+        {
+          "name": "Create Transaction (E-Wallet ShopeePay)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Accept", "value": "application/json"},
+              {"key": "Content-Type", "value": "application/json"},
+              {"key": "Authorization", "value": "Basic {{MIDTRANS_AUTH}}"}
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"payment_type\": \"shopeepay\",\n  \"transaction_details\": {\n    \"order_id\": \"ORDER-{{$timestamp}}\",\n    \"gross_amount\": 25000\n  },\n  \"shopeepay\": {\n    \"callback_url\": \"https://mariles.vercel.app/payment/callback\"\n  },\n  \"customer_details\": {\n    \"first_name\": \"Test\",\n    \"email\": \"test@example.com\"\n  }\n}"
+            },
+            "url": "{{MIDTRANS_BASE_URL}}/v2/charge"
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. Transaction Status",
+      "item": [
+        {
+          "name": "Get Transaction Status",
+          "request": {
+            "method": "GET",
+            "header": [
+              {"key": "Accept", "value": "application/json"},
+              {"key": "Authorization", "value": "Basic {{MIDTRANS_AUTH}}"}
+            ],
+            "url": "{{MIDTRANS_BASE_URL}}/v2/{{ORDER_ID}}/status"
+          }
+        },
+        {
+          "name": "Get Transaction Status B2B",
+          "request": {
+            "method": "GET",
+            "header": [
+              {"key": "Accept", "value": "application/json"},
+              {"key": "Authorization", "value": "Basic {{MIDTRANS_AUTH}}"}
+            ],
+            "url": "{{MIDTRANS_BASE_URL}}/v2/{{ORDER_ID}}/status/b2b"
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. Transaction Actions",
+      "item": [
+        {
+          "name": "Cancel Transaction",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Accept", "value": "application/json"},
+              {"key": "Authorization", "value": "Basic {{MIDTRANS_AUTH}}"}
+            ],
+            "url": "{{MIDTRANS_BASE_URL}}/v2/{{ORDER_ID}}/cancel"
+          }
+        },
+        {
+          "name": "Expire Transaction",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Accept", "value": "application/json"},
+              {"key": "Authorization", "value": "Basic {{MIDTRANS_AUTH}}"}
+            ],
+            "url": "{{MIDTRANS_BASE_URL}}/v2/{{ORDER_ID}}/expire"
+          }
+        },
+        {
+          "name": "Refund Transaction (Full)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Accept", "value": "application/json"},
+              {"key": "Content-Type", "value": "application/json"},
+              {"key": "Authorization", "value": "Basic {{MIDTRANS_AUTH}}"}
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refund_key\": \"REFUND-{{$timestamp}}\",\n  \"reason\": \"Customer request refund\"\n}"
+            },
+            "url": "{{MIDTRANS_BASE_URL}}/v2/{{ORDER_ID}}/refund"
+          }
+        },
+        {
+          "name": "Refund Transaction (Partial)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Accept", "value": "application/json"},
+              {"key": "Content-Type", "value": "application/json"},
+              {"key": "Authorization", "value": "Basic {{MIDTRANS_AUTH}}"}
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refund_key\": \"REFUND-{{$timestamp}}\",\n  \"amount\": 25000,\n  \"reason\": \"Partial refund\"\n}"
+            },
+            "url": "{{MIDTRANS_BASE_URL}}/v2/{{ORDER_ID}}/refund"
+          }
+        },
+        {
+          "name": "Approve Transaction (Credit Card)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Accept", "value": "application/json"},
+              {"key": "Authorization", "value": "Basic {{MIDTRANS_AUTH}}"}
+            ],
+            "url": "{{MIDTRANS_BASE_URL}}/v2/{{ORDER_ID}}/approve"
+          }
+        },
+        {
+          "name": "Deny Transaction (Credit Card)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Accept", "value": "application/json"},
+              {"key": "Authorization", "value": "Basic {{MIDTRANS_AUTH}}"}
+            ],
+            "url": "{{MIDTRANS_BASE_URL}}/v2/{{ORDER_ID}}/deny"
+          }
+        }
+      ]
+    },
+    {
+      "name": "4. Snap API",
+      "item": [
+        {
+          "name": "Create Snap Token",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Accept", "value": "application/json"},
+              {"key": "Content-Type", "value": "application/json"},
+              {"key": "Authorization", "value": "Basic {{MIDTRANS_AUTH}}"}
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"transaction_details\": {\n    \"order_id\": \"SNAP-{{$timestamp}}\",\n    \"gross_amount\": 150000\n  },\n  \"customer_details\": {\n    \"first_name\": \"Test User\",\n    \"email\": \"test@example.com\",\n    \"phone\": \"081234567890\"\n  },\n  \"item_details\": [{\n    \"id\": \"ITEM001\",\n    \"price\": 150000,\n    \"quantity\": 1,\n    \"name\": \"Paket Belajar Matematika\"\n  }],\n  \"enabled_payments\": [\n    \"gopay\", \"shopeepay\", \"bca_va\", \"bni_va\", \"bri_va\"\n  ]\n}"
+            },
+            "url": "https://app.sandbox.midtrans.com/snap/v1/transactions"
+          }
+        }
+      ]
+    },
+    {
+      "name": "5. Iris (Disbursement)",
+      "item": [
+        {
+          "name": "Get Balance",
+          "request": {
+            "method": "GET",
+            "header": [
+              {"key": "Accept", "value": "application/json"},
+              {"key": "Authorization", "value": "Basic {{MIDTRANS_AUTH}}"}
+            ],
+            "url": "https://app.sandbox.midtrans.com/iris/api/v1/balance"
+          }
+        },
+        {
+          "name": "Validate Bank Account",
+          "request": {
+            "method": "GET",
+            "header": [
+              {"key": "Accept", "value": "application/json"},
+              {"key": "Authorization", "value": "Basic {{MIDTRANS_AUTH}}"}
+            ],
+            "url": "https://app.sandbox.midtrans.com/iris/api/v1/account_validation?bank=bca&account=1234567890"
+          }
+        },
+        {
+          "name": "Create Payout",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Accept", "value": "application/json"},
+              {"key": "Content-Type", "value": "application/json"},
+              {"key": "Authorization", "value": "Basic {{MIDTRANS_AUTH}}"}
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"payouts\": [{\n    \"beneficiary_name\": \"John Doe\",\n    \"beneficiary_account\": \"1234567890\",\n    \"beneficiary_bank\": \"bca\",\n    \"beneficiary_email\": \"john@example.com\",\n    \"amount\": 50000,\n    \"notes\": \"Withdrawal from Mariles\"\n  }]\n}"
+            },
+            "url": "https://app.sandbox.midtrans.com/iris/api/v1/payouts"
+          }
+        },
+        {
+          "name": "Get Payout Details",
+          "request": {
+            "method": "GET",
+            "header": [
+              {"key": "Accept", "value": "application/json"},
+              {"key": "Authorization", "value": "Basic {{MIDTRANS_AUTH}}"}
+            ],
+            "url": "https://app.sandbox.midtrans.com/iris/api/v1/payouts/REFERENCE_NO"
+          }
+        }
+      ]
+    },
+    {
+      "name": "6. Simulator (Testing)",
+      "item": [
+        {
+          "name": "Simulate Payment Success (GoPay)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Accept", "value": "application/json"},
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"order_id\": \"{{ORDER_ID}}\",\n  \"status_code\": \"200\",\n  \"transaction_status\": \"settlement\"\n}"
+            },
+            "url": "https://simulator.sandbox.midtrans.com/gopay/partner/v1/payment/notify"
+          }
+        }
+      ]
+    }
+  ]
+}

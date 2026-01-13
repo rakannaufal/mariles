@@ -19,24 +19,24 @@ const students = ref([])
 const selectedFilter = ref('active')
 const searchQuery = ref('')
 
-// Modal states
+// State modal
 const showCompleteModal = ref(false)
 const showTerminateModal = ref(false)
 const selectedStudent = ref(null)
 
-// Complete form
+// Form selesai
 const completeForm = ref({
   result: 'passed',
   notes: ''
 })
 
-// Terminate form
+// Form terminasi
 const terminateForm = ref({
   reason: 'tidak_hadir',
   customReason: ''
 })
 
-// Notification
+// Notifikasi
 const notification = ref({ show: false, type: '', message: '' })
 
 function showNotification(type, message) {
@@ -44,7 +44,7 @@ function showNotification(type, message) {
   setTimeout(() => notification.value.show = false, 4000)
 }
 
-// Filters
+// Filter
 const filters = [
   { key: 'active', label: 'Aktif', count: 0 },
   { key: 'completed', label: 'Selesai', count: 0 },
@@ -66,14 +66,14 @@ const filterCounts = computed(() => {
 const filteredStudents = computed(() => {
   let result = students.value
   
-  // Filter by status
+  // Filter berdasarkan status
   if (selectedFilter.value === 'active') {
     result = result.filter(s => s.status === 'active' || s.status === 'confirmed')
   } else if (selectedFilter.value !== 'all') {
     result = result.filter(s => s.status === selectedFilter.value)
   }
   
-  // Filter by search
+  // Filter berdasarkan pencarian
   if (searchQuery.value) {
     const q = searchQuery.value.toLowerCase()
     result = result.filter(s => 
@@ -85,7 +85,7 @@ const filteredStudents = computed(() => {
   return result
 })
 
-// Fetch data
+// Ambil data
 async function fetchData() {
   await fetchTeacherProfile()
   if (lesPlace.value?.id) {
@@ -93,14 +93,14 @@ async function fetchData() {
   }
 }
 
-// Open complete modal
+// Buka modal selesai
 function openCompleteModal(student) {
   selectedStudent.value = student
   completeForm.value = { result: 'passed', notes: '' }
   showCompleteModal.value = true
 }
 
-// Submit complete
+// Submit selesai
 async function submitComplete() {
   if (!selectedStudent.value) return
   
@@ -119,7 +119,7 @@ async function submitComplete() {
   }
 }
 
-// Open terminate modal
+// Buka modal terminasi
 function openTerminateModal(student) {
   selectedStudent.value = student
   terminateForm.value = { reason: 'tidak_hadir', customReason: '' }

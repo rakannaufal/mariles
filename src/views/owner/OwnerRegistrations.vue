@@ -125,7 +125,7 @@ async function confirmCancel() {
 
     if (error) throw error
 
-    // Update local state
+    // Update state lokal
     const index = registrations.value.findIndex(r => r.id === selectedBooking.value.id)
     if (index !== -1) {
       registrations.value[index].status = 'cancelled'

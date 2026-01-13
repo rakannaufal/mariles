@@ -7,11 +7,11 @@ import { supabase } from '@/lib/supabase'
 const router = useRouter()
 const authStore = useAuthStore()
 
-// Phase: 'role' → 'method' → 'form'
+// Fase: 'role' → 'method' → 'form'
 const phase = ref('role')
 const step = ref(1)
 
-// Basic Info
+// Info Dasar
 const name = ref('')
 const nickname = ref('')
 const email = ref('')
@@ -28,16 +28,16 @@ const error = ref('')
 const success = ref('')
 const loading = ref(false)
 
-// Academic Info (for students)
+// Info Akademik (untuk siswa)
 const educationLevel = ref('')
 const grade = ref('')
 const schoolName = ref('')
 
-// Parent Info (for students)
+// Info Orang Tua (untuk siswa)
 const parentName = ref('')
 const parentPhone = ref('')
 
-// Teacher Invite Code
+// Kode Undangan Guru
 const inviteCode = ref('')
 const validatingCode = ref(false)
 const inviteCodeValid = ref(false)
@@ -46,19 +46,19 @@ const linkedLesPlace = ref(null)
 const linkedOwner = ref(null)
 const linkedInviteCode = ref(null)
 
-// Owner Les Place Info
+// Info Tempat Les Pemilik
 const lesPlaceName = ref('')
 const lesPlaceDescription = ref('')
 const lesPlaceType = ref('')
 const lesPlaceAddress = ref('')
-const ownerType = ref('') // 'pribadi' or 'umum'
+const ownerType = ref('') // 'pribadi' atau 'umum'
 
 const ownerTypeOptions = [
   { value: 'pribadi', label: 'Pribadi', description: 'Saya mengajar sendiri di tempat les saya' },
   { value: 'umum', label: 'Umum', description: 'Saya memiliki guru-guru yang mengajar di tempat les saya' }
 ]
 
-// Location API
+// API Lokasi
 const provinces = ref([])
 const cities = ref([])
 const provinceId = ref('')
@@ -74,7 +74,7 @@ const roles = [
   { value: 'teacher', label: 'Guru/Tutor', description: 'Mengajar di tempat les atau privat' },
 ]
 
-// Options
+// Opsi
 const educationLevelOptions = [
   { value: '', label: 'Pilih jenjang pendidikan' },
   { value: 'SD', label: 'SD (Sekolah Dasar)' },
@@ -94,12 +94,12 @@ const gradeOptionsMap = {
   Umum: ['Umum']
 }
 
-// Watch education level to reset grade
+// Watch education level untuk reset grade
 watch(educationLevel, () => {
   grade.value = ''
 })
 
-// Watch province to fetch cities
+// Watch province untuk fetch cities
 watch(provinceId, async (newVal) => {
   if (newVal) {
     await fetchCities(newVal)
@@ -114,7 +114,7 @@ onMounted(() => {
   fetchProvinces()
 })
 
-// Fetch provinces
+// Ambil provinsi
 async function fetchProvinces() {
   loadingProvinces.value = true
   try {
@@ -136,7 +136,7 @@ async function fetchProvinces() {
   }
 }
 
-// Fetch cities
+// Ambil kota
 async function fetchCities(provId) {
   loadingCities.value = true
   cities.value = []
@@ -164,7 +164,7 @@ function onCityChange(e) {
   cityName.value = selected?.name || ''
 }
 
-// Calculate age from birth date
+// Hitung umur dari tanggal lahir
 function calculateAge(dob) {
   if (!dob) return null
   const today = new Date()
@@ -180,7 +180,7 @@ const isUnder17 = computed(() => {
   return age !== null && age < 17
 })
 
-// Total steps based on role
+// Total langkah berdasarkan role
 const totalSteps = computed(() => {
   if (role.value === 'student') return 5
   if (role.value === 'teacher') return 5
@@ -188,7 +188,7 @@ const totalSteps = computed(() => {
   return 4
 })
 
-// Validations
+// Validasi
 const isStep1Valid = computed(() => 
   name.value.trim().length >= 3 && 
   email.value.includes('@') && 
@@ -201,31 +201,31 @@ const isStep2Valid = computed(() =>
 const isStep3Valid = computed(() => 
   gender.value && birthDate.value
 )
-// Step 4 for student: Academic info
+// Langkah 4 untuk siswa: Info akademik
 const isStep4ValidStudent = computed(() => 
   educationLevel.value && grade.value
 )
-// Step 4 for teacher: Invite code
+// Langkah 4 untuk pengajar: Kode undangan
 const isStep4ValidTeacher = computed(() => inviteCodeValid.value)
-// Step 4 for owner: Les place info  
+// Langkah 4 untuk pemilik: Info tempat les  
 const isStep4ValidOwner = computed(() => 
   lesPlaceName.value.trim().length >= 3 && 
   lesPlaceType.value && 
   ownerType.value &&
   cityId.value
 )
-// Step 5 for student/teacher/owner: Terms
+// Langkah 5 untuk siswa/pengajar/pemilik: Ketentuan
 const isStep5Valid = computed(() => agreeTerms.value)
 
 function selectRole(selectedRole) {
   role.value = selectedRole
   localStorage.setItem('pendingRole', selectedRole)
   
-  // Owner must select owner type first before choosing method
+  // Pemilik harus memilih tipe pemilik terlebih dahulu sebelum memilih metode
   if (selectedRole === 'owner') {
     phase.value = 'owner-type'
   } else if (selectedRole === 'teacher') {
-    // Teacher must enter invite code first before choosing method
+    // Pengajar harus memasukkan kode undangan terlebih dahulu sebelum memilih metode
     phase.value = 'teacher-code'
   } else {
     phase.value = 'method'
@@ -273,7 +273,7 @@ function backToTeacherCode() {
 
 function proceedFromTeacherCode() {
   if (inviteCodeValid.value) {
-    // Save invite code data to localStorage for Google OAuth
+    // Simpan data kode undangan ke localStorage untuk Google OAuth
     localStorage.setItem('pendingInviteCode', linkedInviteCode.value.code)
     localStorage.setItem('pendingLesPlaceId', linkedInviteCode.value.les_place_id)
     localStorage.setItem('pendingOwnerId', linkedInviteCode.value.owner_id)
@@ -283,10 +283,10 @@ function proceedFromTeacherCode() {
 
 function backToMethod() {
   if (role.value === 'owner') {
-    // For owners, go back to owner type selection
+    // Untuk pemilik, kembali ke pemilihan tipe pemilik
     phase.value = 'owner-type'
   } else if (role.value === 'teacher') {
-    // For teachers, go back to invite code
+    // Untuk pengajar, kembali ke kode undangan
     phase.value = 'teacher-code'
   } else {
     phase.value = 'method'
@@ -319,14 +319,14 @@ async function validateInviteCode() {
   linkedInviteCode.value = null
   
   try {
-    // Gunakan RPC function untuk bypass RLS issues
+    // Gunakan fungsi RPC untuk bypass masalah RLS
     const { data: rpcResult, error } = await supabase.rpc('validate_invite_code', { 
       code_input: inviteCode.value.toUpperCase() 
     })
     
     if (error) throw error
 
-    // Cek hasil logic dari RPC
+    // Cek hasil logika dari RPC
     if (!rpcResult.success) {
       inviteCodeError.value = rpcResult.message
       return
@@ -334,7 +334,7 @@ async function validateInviteCode() {
 
     const data = rpcResult.data
     
-    // Store the invite code data
+    // Simpan data kode undangan
     linkedInviteCode.value = data
     linkedLesPlace.value = data.les_places
     linkedOwner.value = data.owners
@@ -352,7 +352,7 @@ function prevStep() {
   else backToMethod()
 }
 
-// Check if email already exists in database
+// Cek apakah email sudah ada di database
 async function checkEmailExists(emailToCheck) {
   try {
     const { data, error } = await supabase
@@ -376,12 +376,12 @@ async function checkEmailExists(emailToCheck) {
 
 import { translateError } from '@/utils/errorTranslator'
 
-// ... (code omitted)
+// ... (kode dihilangkan)
 
 async function handleRegister() {
   if (!isStep5Valid.value) return
   
-  // For teacher, ensure invite code is valid
+  // Untuk pengajar, pastikan kode undangan valid
   if (role.value === 'teacher' && !inviteCodeValid.value) {
     error.value = 'Kode les tidak valid'
     return
@@ -392,7 +392,7 @@ async function handleRegister() {
   success.value = ''
   
   try {
-    // Check if email already exists
+    // Cek apakah email sudah ada
     const emailExists = await checkEmailExists(email.value)
     if (emailExists) {
       error.value = 'Email sudah terdaftar! Silakan gunakan email lain atau login dengan akun yang sudah ada.'
@@ -417,11 +417,11 @@ async function handleRegister() {
       province_name: provinceName.value || null,
       city_id: cityId.value || null,
       city_name: cityName.value || null,
-      // Teacher specific - include owner_id and invite code
+      // Khusus pengajar - sertakan owner_id dan kode undangan
       les_place_id: role.value === 'teacher' && linkedInviteCode.value ? linkedInviteCode.value.les_place_id : null,
       owner_id: role.value === 'teacher' && linkedInviteCode.value ? linkedInviteCode.value.owner_id : null,
       invite_code: role.value === 'teacher' && linkedInviteCode.value ? linkedInviteCode.value.code : null,
-      // Owner specific - les place info stored separately
+      // Khusus pemilik - info tempat les disimpan terpisah
       les_place_name: role.value === 'owner' ? lesPlaceName.value : null,
       les_place_description: role.value === 'owner' ? lesPlaceDescription.value : null,
       les_place_type: role.value === 'owner' ? lesPlaceType.value : null,
@@ -445,7 +445,7 @@ async function handleRegister() {
     }
   } catch (err) {
     console.error('Registration error:', err)
-    // Handle specific Supabase error for duplicate email
+    // Tangani error Supabase spesifik untuk email duplikat
     if (err.message?.includes('already registered') || err.message?.includes('already exists')) {
       error.value = 'Email sudah terdaftar! Silakan gunakan email lain atau login dengan akun yang sudah ada.'
     } else {

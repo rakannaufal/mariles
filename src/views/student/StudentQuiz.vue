@@ -105,7 +105,7 @@ async function submitQuiz() {
   isSubmitting.value = true
   clearInterval(timerInterval)
   
-  // Calculate score
+  // Hitung skor
   let correct = 0
   quiz.value.questions.forEach((q, idx) => {
     if (answers.value[q.id] === q.correctAnswer) {
@@ -116,7 +116,7 @@ async function submitQuiz() {
   const finalScore = Math.round((correct / totalQuestions.value) * 100)
   score.value = finalScore
   
-  // Save attempt to database with student info
+  // Simpan percobaan ke database dengan info siswa
   try {
     const { error } = await supabase.from('quiz_attempts').insert({
       quiz_id: quiz.value.id,
@@ -125,7 +125,7 @@ async function submitQuiz() {
       passed: finalScore >= (quiz.value.passing_score || 70),
       completed_at: new Date().toISOString(),
       answers: answers.value,
-      // Store student info in results field for teacher display
+      // Simpan info siswa di field results untuk tampilan guru
       results: {
         student_name: authStore.user.full_name || authStore.user.email?.split('@')[0] || 'Siswa',
         student_email: authStore.user.email || '-',

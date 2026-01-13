@@ -6,7 +6,7 @@ import { supabase } from '@/lib/supabase'
 
 const authStore = useAuthStore()
 const teachers = ref([])
-const categories = ref([]) // Store available categories
+const categories = ref([]) // Simpan kategori yang tersedia
 const inviteCodes = ref([])
 const loading = ref(true)
 const loadingCodes = ref(false)
@@ -21,13 +21,13 @@ const ownerType = ref(null)
 const searchQuery = ref('')
 const showEditModal = ref(false)
 const editingTeacher = ref(null)
-const selectedCategoryIds = ref([]) // For checkbox selection
+const selectedCategoryIds = ref([]) // Untuk seleksi checkbox
 const saving = ref(false)
 
-// Check if owner is type "umum"
+// Cek apakah pemilik bertipe "umum"
 const isOwnerUmum = computed(() => ownerType.value === 'umum')
 
-// Stats computed
+// Statistik computed
 const totalTeachers = computed(() => teachers.value.length)
 const totalActive = computed(() => teachers.value.filter(t => t.is_active !== false).length)
 const uniqueSpecializations = computed(() => {
@@ -40,7 +40,7 @@ const uniqueSpecializations = computed(() => {
   return specs.size
 })
 
-// Filter teachers
+// Filter guru
 const filteredTeachers = computed(() => {
   if (!searchQuery.value) return teachers.value
   const query = searchQuery.value.toLowerCase()
@@ -53,7 +53,7 @@ const filteredTeachers = computed(() => {
 
 onMounted(async () => {
   await fetchOwnerData()
-  // Wait for owner data to get lesPlace info before fetching programs
+  // Tunggu data owner untuk mendapatkan info lesPlace sebelum mengambil program
   if (lesPlace.value?.id) {
     await Promise.all([
       fetchTeachers(),
@@ -68,7 +68,7 @@ async function fetchPrograms() {
   try {
     if (!lesPlace.value?.id) return
     
-    // Fetch programs specifically for THIS les place to assign teachers to
+    // Ambil program khusus untuk tempat les INI untuk menetapkan guru
     const { data } = await supabase
       .from('programs')
       .select('id, name')
@@ -93,7 +93,7 @@ async function fetchOwnerData() {
       owner.value = ownerData
       ownerType.value = ownerData.owner_type
       
-      // Fetch les place for this owner
+      // Ambil tempat les untuk pemilik ini
       const { data: lesPlaceData } = await supabase
         .from('les_places')
         .select('id, name')
@@ -218,12 +218,12 @@ function closeDetailModal() {
 
 function openEditTeacher(teacher) {
   editingTeacher.value = teacher
-  // Map existing specializations to category selection if names match
-  // Or simply start fresh? Better to try match.
+  // Map spesialisasi yang ada ke pilihan kategori jika nama cocok
+  // Atau mulai dari awal? Lebih baik coba cocokkan.
   selectedCategoryIds.value = []
   
   if (teacher.specialization && teacher.specialization.length) {
-    // Find categories that match the specialization names
+    // Cari kategori yang cocok dengan nama spesialisasi
     categories.value.forEach(cat => {
       if (teacher.specialization.includes(cat.name)) {
         selectedCategoryIds.value.push(cat.name)
@@ -236,8 +236,8 @@ function openEditTeacher(teacher) {
 async function updateTeacher() {
   saving.value = true
   try {
-    // Save selected category NAMES as specialization array
-    // This keeps compatibility with existing structure while forcing structured input
+    // Simpan NAMA kategori yang dipilih sebagai array spesialisasi
+    // Ini menjaga kompatibilitas dengan struktur yang ada sambil memaksa input terstruktur
     const updates = {
       specialization: selectedCategoryIds.value
     }
@@ -249,7 +249,7 @@ async function updateTeacher() {
       
     if (error) throw error
     
-    // Update local data
+    // Perbarui data lokal
     const idx = teachers.value.findIndex(t => t.id === editingTeacher.value.id)
     if (idx !== -1) {
       teachers.value[idx] = { ...teachers.value[idx], ...updates }
@@ -268,7 +268,7 @@ async function updateTeacher() {
 
 async function toggleTeacherStatus(teacher) {
   const originalStatus = teacher.is_active
-  // Optimistic update
+  // Pembaruan optimistis
   const idx = teachers.value.findIndex(t => t.id === teacher.id)
   if (idx !== -1) {
     teachers.value[idx].is_active = !originalStatus
@@ -283,7 +283,7 @@ async function toggleTeacherStatus(teacher) {
     if (error) throw error
   } catch (err) {
     console.error('Error toggling status:', err)
-    // Revert on error
+    // Kembalikan jika error
     if (idx !== -1) {
       teachers.value[idx].is_active = originalStatus
     }

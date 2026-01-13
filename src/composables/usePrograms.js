@@ -7,7 +7,7 @@ export function usePrograms() {
   const loading = ref(false)
   const error = ref(null)
 
-  // Fetch ALL active programs with les_place info (for smart search)
+  // Ambil SEMUA program aktif dengan info les_place (untuk pencarian pintar)
   async function fetchAllPrograms() {
     loading.value = true
     error.value = null
@@ -59,7 +59,7 @@ export function usePrograms() {
     }
   }
 
-  // Fetch programs by les place ID
+  // Ambil program berdasarkan ID tempat les
   async function fetchProgramsByLesPlace(lesPlaceId) {
     loading.value = true
     error.value = null
@@ -85,7 +85,7 @@ export function usePrograms() {
     }
   }
 
-  // Create new program
+  // Buat program baru
   async function createProgram(data) {
     loading.value = true
     error.value = null
@@ -130,7 +130,7 @@ export function usePrograms() {
     }
   }
 
-  // Delete program
+  // Hapus program
   async function deleteProgram(id) {
     loading.value = true
     error.value = null

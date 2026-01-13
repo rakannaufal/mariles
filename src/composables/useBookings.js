@@ -7,7 +7,7 @@ export function useBookings() {
   const loading = ref(false)
   const error = ref(null)
 
-  // Fetch bookings for current student
+  // Ambil booking untuk siswa saat ini
   async function fetchStudentBookings(studentId) {
     loading.value = true
     error.value = null
@@ -48,7 +48,7 @@ export function useBookings() {
     }
   }
 
-  // Fetch bookings for owner's les places
+  // Ambil booking untuk tempat les pemilik
   async function fetchOwnerBookings(ownerId) {
     loading.value = true
     error.value = null
@@ -91,7 +91,7 @@ export function useBookings() {
     }
   }
 
-  // Create new booking
+  // Buat booking baru
   async function createBooking(data) {
     loading.value = true
     error.value = null
@@ -113,7 +113,7 @@ export function useBookings() {
     }
   }
 
-  // Update booking status
+  // Update status booking
   async function updateBookingStatus(id, status) {
     loading.value = true
     error.value = null
@@ -141,12 +141,12 @@ export function useBookings() {
     }
   }
 
-  // Cancel booking
+  // Batalkan booking
   async function cancelBooking(id) {
     return updateBookingStatus(id, 'cancelled')
   }
 
-  // Get booking stats for student
+  // Dapatkan statistik booking untuk siswa
   async function getStudentStats(studentId) {
     try {
       const { data, error: err } = await supabase

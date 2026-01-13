@@ -32,9 +32,9 @@ const showProgramModal = ref(false)
 const modalProgram = ref(null)
 const paymentStatus = ref(null) // 'success', 'pending', 'error', null
 const paymentMessage = ref('')
-const enrolledProgramIds = ref([]) // Track which programs user has enrolled
+const enrolledProgramIds = ref([]) // Lacak program mana yang sudah didaftarkan pengguna
 
-// Report feature
+// Fitur pelaporan
 const showReportModal = ref(false)
 const reportLoading = ref(false)
 const reportForm = ref({
@@ -55,7 +55,7 @@ const showToast = ref(false)
 const toastMessage = ref('')
 const toastType = ref('success')
 
-// Related les places (exclude current) - show 5 cards
+// Tempat les terkait (kecualikan yang aktif) - tampilkan 5 kartu
 const relatedLesPlaces = computed(() => {
   if (!lesPlace.value || !lesPlaces.value) return []
   return lesPlaces.value
@@ -63,7 +63,7 @@ const relatedLesPlaces = computed(() => {
     .slice(0, 5)
 })
 
-// Calculate rating from reviews array
+// Hitung rating dari array ulasan
 const calculatedRating = computed(() => {
   const reviews = lesPlace.value?.reviews
   if (reviews?.length) {
@@ -73,21 +73,21 @@ const calculatedRating = computed(() => {
   return lesPlace.value?.rating?.toFixed(1) || '0'
 })
 
-// Calculate review count from reviews array
+// Hitung jumlah ulasan dari array ulasan
 const reviewCount = computed(() => {
   return lesPlace.value?.reviews?.length || lesPlace.value?.total_reviews || 0
 })
 
-// Student count and per-program counts - will be fetched from bookings
+// Jumlah siswa dan jumlah per program - akan diambil dari booking
 const studentCount = ref(0)
 const programStudentCounts = ref({}) // { programId: count }
 
-// Fetch actual student counts from paid bookings
+// Ambil jumlah siswa yang sebenarnya dari booking yang sudah dibayar
 async function fetchStudentCounts() {
   if (!lesPlace.value?.id) return
   
   try {
-    // Get all paid bookings for this les place
+    // Dapatkan semua booking berbayar untuk tempat les ini
     const { data: bookings, error } = await supabase
       .from('bookings')
       .select('id, program_id')
@@ -96,10 +96,10 @@ async function fetchStudentCounts() {
       .in('status', ['confirmed', 'active'])
     
     if (!error && bookings) {
-      // Total student count
+      // Total jumlah siswa
       studentCount.value = bookings.length
       
-      // Count per program
+      // Hitung per program
       const counts = {}
       bookings.forEach(b => {
         counts[b.program_id] = (counts[b.program_id] || 0) + 1
@@ -127,7 +127,7 @@ function isProgramFull(program) {
   return enrolled >= (program.capacity || 20)
 }
 
-// Check if user has already enrolled in a specific program
+// Cek apakah pengguna sudah mendaftar di program tertentu
 function isProgramEnrolled(programId) {
   return enrolledProgramIds.value.includes(programId)
 }
@@ -152,7 +152,7 @@ function closeProgramModal() {
 function getScheduleText(program) {
   if (!program.schedule) return 'Jadwal fleksibel'
   
-  // Handle new format: { monday: { start, end }, tuesday: { start, end } }
+  // Tangani format baru: { monday: { start, end }, tuesday: { start, end } }
   if (typeof program.schedule === 'object' && !Array.isArray(program.schedule)) {
     const dayLabels = {
       monday: 'Senin', tuesday: 'Selasa', wednesday: 'Rabu',
@@ -164,7 +164,7 @@ function getScheduleText(program) {
     return days.length ? days.join(', ') : 'Jadwal fleksibel'
   }
   
-  // Handle old format: [{ day, time }]
+  // Tangani format lama: [{ day, time }]
   if (Array.isArray(program.schedule)) {
     return program.schedule.map(s => `${s.day} ${s.time || ''}`).join(', ')
   }
@@ -172,16 +172,16 @@ function getScheduleText(program) {
   return 'Jadwal fleksibel'
 }
 
-// Get count of schedule days per week
+// Dapatkan jumlah hari jadwal per minggu
 function getScheduleCount(program) {
   if (!program.schedule) return 2 // default
   
-  // Handle new format: { day: { start, end } }
+  // Tangani format baru: { day: { start, end } }
   if (typeof program.schedule === 'object' && !Array.isArray(program.schedule)) {
     return Object.values(program.schedule).filter(data => data.start && data.end).length || 2
   }
   
-  // Handle old format: [{ day, time }]
+  // Tangani format lama: [{ day, time }]
   if (Array.isArray(program.schedule)) {
     return program.schedule.length || 2
   }
@@ -197,7 +197,7 @@ function getScheduleArray(schedule) {
     thursday: 'Kamis', friday: 'Jumat', saturday: 'Sabtu', sunday: 'Minggu'
   }
   
-  // Handle new format: { monday: { start, end } }
+  // Tangani format baru: { monday: { start, end } }
   if (typeof schedule === 'object' && !Array.isArray(schedule)) {
     return Object.entries(schedule)
       .filter(([_, data]) => data.start && data.end)
@@ -207,7 +207,7 @@ function getScheduleArray(schedule) {
       }))
   }
   
-  // Handle old format: [{ day, time }]
+  // Tangani format lama: [{ day, time }]
   if (Array.isArray(schedule)) {
     return schedule
   }
@@ -225,7 +225,7 @@ function getLesTypeLabel(type) {
     'offline': 'Offline',
     'online': 'Online',
     'hybrid': 'Hybrid (Offline & Online)',
-    'offline_online': 'Hybrid (Offline & Online)' // Legacy support
+    'offline_online': 'Hybrid (Offline & Online)' // Dukungan legacy
   }
   return labels[type] || type
 }
@@ -256,28 +256,28 @@ async function handleBooking() {
   paymentMessage.value = ''
   
   try {
-    // Get student_id from students table
+    // Dapatkan student_id dari tabel students
     const userId = authStore.user?.id
     if (!userId) {
       alert('Silakan login terlebih dahulu')
       return
     }
 
-    // Check user role first
+    // Cek role pengguna terlebih dahulu
     const role = authStore.user?.user_metadata?.role || 'student'
     if (['owner', 'teacher', 'admin'].includes(role) && role !== 'student') {
       alert(`Anda masuk sebagai ${role.charAt(0).toUpperCase() + role.slice(1)}. Silakan gunakan akun Siswa untuk mendaftar kelas.`)
       return
     }
 
-    // Fetch student record
+    // Ambil catatan siswa
     let { data: studentData, error: studentError } = await supabase
       .from('students')
       .select('id')
       .eq('user_id', userId)
       .single()
 
-    // If student profile not found but role is student (or unknown), try to create it
+    // Jika profil siswa tidak ditemukan tapi role adalah student (atau tidak diketahui), coba buat
     if (!studentData) {
       console.log('Student profile not found, attempting to create...')
       const { data: newStudent, error: createError } = await supabase
@@ -298,22 +298,22 @@ async function handleBooking() {
 
     const studentId = studentData.id
     
-    // Check if user already enrolled in this specific program with ACTIVE status
-    // Allow re-enrollment if previous booking was completed or cancelled
+    // Cek apakah pengguna sudah mendaftar di program spesifik ini dengan status AKTIF
+    // Izinkan pendaftaran ulang jika booking sebelumnya sudah selesai atau dibatalkan
     const { data: existingBooking } = await supabase
       .from('bookings')
       .select('id, status, payment_status')
       .eq('student_id', studentId)
       .eq('program_id', selectedProgram.value.id)
       .in('payment_status', ['paid', 'settlement', 'capture'])
-      .in('status', ['pending', 'confirmed', 'active']) // Only block if active, not completed
+      .in('status', ['pending', 'confirmed', 'active']) // Hanya blokir jika aktif, bukan selesai
       .limit(1)
     
     if (existingBooking && existingBooking.length > 0) {
       throw new Error(`Anda masih memiliki pendaftaran aktif untuk program "${selectedProgram.value.name}".`)
     }
     
-    // Create booking and redirect to payment page
+    // Buat booking dan redirect ke halaman pembayaran
     const booking = await createBooking({
       student_id: studentId,
       program_id: selectedProgram.value.id,
@@ -357,7 +357,7 @@ async function checkFavorite() {
   }
 }
 
-// Check which programs user has already enrolled in
+// Cek program mana yang sudah didaftarkan pengguna
 async function checkEnrolledPrograms() {
   if (!authStore.isAuthenticated) {
     enrolledProgramIds.value = []
@@ -368,7 +368,7 @@ async function checkEnrolledPrograms() {
     const userId = authStore.user?.id
     if (!userId) return
     
-    // Get student ID
+    // Dapatkan ID siswa
     const { data: studentData } = await supabase
       .from('students')
       .select('id')
@@ -377,8 +377,8 @@ async function checkEnrolledPrograms() {
     
     if (!studentData?.id) return
     
-    // Get all ACTIVE paid bookings for this student at this les place
-    // Exclude 'completed' status so students can re-enroll after completing a program
+    // Dapatkan semua booking berbayar AKTIF untuk siswa ini di tempat les ini
+    // Kecualikan status 'completed' agar siswa bisa mendaftar ulang setelah menyelesaikan program
     const { data: bookings } = await supabase
       .from('bookings')
       .select('program_id')
@@ -428,7 +428,7 @@ onMounted(async () => {
     await fetchStudentCounts()
     await checkFavorite()
     await checkEnrolledPrograms()
-    // Fetch other les places for related section
+    // Ambil tempat les lain untuk bagian terkait
     await fetchLesPlaces()
   }
 })
@@ -438,7 +438,7 @@ function getMinPrice(lesPlace) {
   return Math.min(...lesPlace.programs.map(p => p.price))
 }
 
-// Report functions
+// Fungsi laporan
 function openReportModal() {
   if (!authStore.isAuthenticated) {
     router.push({ name: 'login', query: { redirect: route.fullPath } })
@@ -489,7 +489,7 @@ async function submitReport() {
 }
 
 function getTeacherSpecializations(teacher) {
-  // Check both specialization and specializations fields
+  // Cek kedua field specialization dan specializations
   const specs = teacher.specialization || teacher.specializations || []
   if (Array.isArray(specs) && specs.length > 0) {
     return specs.join(', ')
