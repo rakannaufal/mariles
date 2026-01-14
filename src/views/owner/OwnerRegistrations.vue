@@ -95,6 +95,7 @@ const stats = computed(() => ({
   total: registrations.value.length,
   pending: registrations.value.filter(r => r.status === 'pending').length,
   active: registrations.value.filter(r => ['active', 'confirmed'].includes(r.status)).length,
+  completed: registrations.value.filter(r => r.status === 'completed').length,
   cancelled: registrations.value.filter(r => r.status === 'cancelled').length
 }))
 
@@ -297,6 +298,18 @@ function getPaymentConfig(status) {
         </StatCard>
 
         <StatCard 
+            label="Selesai" 
+            :value="stats.completed" 
+            icon-color="purple"
+            :active="filter === 'completed'"
+            @click="filter = 'completed'"
+        >
+            <template #icon>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+            </template>
+        </StatCard>
+
+        <StatCard 
             label="Dibatalkan" 
             :value="stats.cancelled" 
             icon-color="red"
@@ -319,6 +332,7 @@ function getPaymentConfig(status) {
             <button :class="{ active: filter === 'pending' }" @click="filter = 'pending'">Menunggu</button>
             <button :class="{ active: filter === 'active' }" @click="filter = 'active'">Aktif</button>
             <button :class="{ active: filter === 'paid' }" @click="filter = 'paid'">Lunas</button>
+            <button :class="{ active: filter === 'completed' }" @click="filter = 'completed'">Selesai</button>
             <button :class="{ active: filter === 'cancelled' }" @click="filter = 'cancelled'">Dibatalkan</button>
           </div>
         </div>
@@ -431,12 +445,12 @@ function getPaymentConfig(status) {
 .page-header p { font-size: 14px; color: #64748B; }
 
 /* Stats */
-.stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 28px; }
+.stats-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 16px; margin-bottom: 28px; }
 
 /* Stats Cards - Compact Inline */
 .stats-grid { 
   display: grid; 
-  grid-template-columns: repeat(4, 1fr); 
+  grid-template-columns: repeat(5, 1fr); 
   gap: 24px; 
   margin-bottom: 24px; 
   width: 100%;
